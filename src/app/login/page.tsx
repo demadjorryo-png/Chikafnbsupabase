@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 const FormSchema = z.object({
   storeId: z.string({
@@ -92,6 +93,29 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Alert className="mb-6">
+            <Info className="h-4 w-4" />
+            <AlertTitle className="font-bold">Contoh Login (Demo)</AlertTitle>
+            <AlertDescription>
+              <div className="text-xs">
+                <p className="mt-2">
+                  <span className="font-semibold">Admin:</span>
+                  <br />
+                  User ID: <code className="font-mono">admin001</code>
+                  <br />
+                  Password: <code className="font-mono">password123</code>
+                </p>
+                <p className="mt-2">
+                  <span className="font-semibold">Kasir:</span>
+                  <br />
+                  User ID: <code className="font-mono">kasir001</code>
+                  <br />
+                  Password: <code className="font-mono">password123</code>
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
