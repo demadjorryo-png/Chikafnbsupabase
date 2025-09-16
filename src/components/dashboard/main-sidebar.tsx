@@ -22,58 +22,85 @@ import {
   History,
   UsersRound
 } from 'lucide-react';
+import * as React from 'react';
+import { users } from '@/lib/data';
+import type { User } from '@/lib/types';
 
 export function MainSidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId');
+  const userId = searchParams.get('userId'); // Assuming userId is passed in query params on login
+  
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+
+  React.useEffect(() => {
+    if (userId) {
+      const user = users.find(u => u.id === userId);
+      setCurrentUser(user || null);
+    }
+  }, [userId]);
+
 
   const navigate = (view: string) => {
-    router.push(`/dashboard?view=${view}&storeId=${storeId}`);
+    // Persist userId in navigation
+    router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
   const handleLogout = () => {
     router.push('/login');
   };
 
-  const menuItems = [
+  const allMenuItems = [
     {
       view: 'overview',
       label: 'Overview',
       icon: <LayoutGrid />,
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'products',
       label: 'Products',
       icon: <Package />,
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'customers',
       label: 'Customers',
       icon: <Users />,
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'employees',
       label: 'Karyawan',
       icon: <UsersRound />,
+      roles: ['admin'],
     },
     {
       view: 'transactions',
       label: 'Transactions',
       icon: <History />,
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'pending-orders',
       label: 'Pending Orders',
       icon: <ClipboardList />,
+      roles: ['admin', 'cashier'],
     },
   ];
+  
+  const menuItems = currentUser 
+    ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
+    : [];
+
 
   return (
     <Sidebar collapsible="icon">

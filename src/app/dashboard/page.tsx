@@ -15,15 +15,24 @@ import Settings from '@/app/dashboard/views/settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores } from '@/lib/data';
+import { stores, users } from '@/lib/data';
+import type { User } from '@/lib/types';
+
 
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId') || stores[0].id;
+  const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
+  const currentUser = users.find(u => u.id === userId);
 
   const renderView = () => {
+    // If a cashier tries to access the employees view, redirect to overview
+    if (view === 'employees' && currentUser?.role !== 'admin') {
+      return <Overview storeId={storeId} />;
+    }
+
     switch (view) {
       case 'pos':
         return <POS />;
@@ -46,6 +55,11 @@ function DashboardContent() {
   };
 
   const getTitle = () => {
+    // Adjust title if cashier tries to access employees view
+    if (view === 'employees' && currentUser?.role !== 'admin') {
+      return 'Dashboard Overview';
+    }
+    
     switch (view) {
       case 'pos':
         return 'Point of Sale';

@@ -68,7 +68,8 @@ export default function LoginPage() {
         title: 'Login Berhasil!',
         description: `Selamat datang kembali, ${user.name}.`,
       });
-      router.push(`/dashboard?storeId=${data.storeId}`);
+      // Pass userId to dashboard page
+      router.push(`/dashboard?storeId=${data.storeId}&userId=${user.id}`);
     } else {
       toast({
         variant: 'destructive',
