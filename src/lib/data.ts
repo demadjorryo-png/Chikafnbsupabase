@@ -154,9 +154,10 @@ const generateCustomers = (count: number): Customer[] => {
     else if (points < 2000) tier = 'Homer';
     else tier = 'Flyer';
 
-    const birthYear = Math.floor(random() * (2003 - 1980 + 1)) + 1980;
+    const currentYear = new Date().getFullYear();
+    const birthYear = Math.floor(random() * (currentYear - 21 - 1980 + 1)) + 1980; // Ensure age is at least 21
     const birthMonth = Math.floor(random() * 12) + 1;
-    const birthDay = Math.floor(random() * 28) + 1;
+    const birthDay = Math.floor(random() * 28) + 1; // Limit to 28 to avoid month length issues
     const joinYear = Math.floor(random() * 3) + 2022;
     const joinMonth = Math.floor(random() * 12) + 1;
     const joinDay = Math.floor(random() * 28) + 1;

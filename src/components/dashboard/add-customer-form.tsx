@@ -32,33 +32,50 @@ const months = Array.from({ length: 12 }, (_, i) => ({
 }));
 const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
-
 const FormSchema = z.object({
-    name: z.string().min(2, {
-      message: 'Name must be at least 2 characters.',
-    }),
-    phone: z.string().min(10, {
-      message: 'Phone number must be at least 10 digits.',
-    }),
-    birthDay: z.string({ required_error: 'Tanggal lahir harus diisi.'}),
-    birthMonth: z.string({ required_error: 'Bulan lahir harus diisi.'}),
-    birthYear: z.string({ required_error: 'Tahun lahir harus diisi.'}),
-  }).refine(data => {
-      const { birthDay, birthMonth, birthYear } = data;
-      const today = new Date();
-      const birthDate = new Date(parseInt(birthYear), parseInt(birthMonth) - 1, parseInt(birthDay));
-      
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-      }
-      return age >= 21;
+  name: z.string().min(2, {
+    message: 'Name must be at least 2 characters.',
+  }),
+  phone: z.string().min(10, {
+    message: 'Phone number must be at least 10 digits.',
+  }),
+  birthDay: z.string({ required_error: 'Tanggal lahir harus diisi.'}),
+  birthMonth: z.string({ required_error: 'Bulan lahir harus diisi.'}),
+  birthYear: z.string({ required_error: 'Tahun lahir harus diisi.'}),
+}).superRefine((data, ctx) => {
+    const { birthYear, birthMonth, birthDay } = data;
+    const year = parseInt(birthYear);
+    const month = parseInt(birthMonth);
+    const day = parseInt(birthDay);
 
-  }, {
-      message: 'Pelanggan harus berusia minimal 21 tahun.',
-      path: ['birthYear'],
-  });
+    // Validate that the date is a real date
+    const d = new Date(year, month - 1, day);
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Tanggal tidak valid.",
+            path: ["birthDay"],
+        });
+        return;
+    }
+
+    // Validate age
+    const today = new Date();
+    const birthDate = new Date(year, month - 1, day);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    if (age < 21) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Pelanggan harus berusia minimal 21 tahun.',
+            path: ['birthYear'],
+        });
+    }
+});
+
 
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
@@ -115,79 +132,80 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-3 gap-2">
-            <FormField
+        <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2">
+                <FormField
+                    control={form.control}
+                    name="birthDay"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Tgl</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Tgl" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {days.map((day) => (
+                                <SelectItem key={day} value={day}>
+                                {day}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </FormItem>
+                    )}
+                />
+              <FormField
                 control={form.control}
-                name="birthDay"
+                name="birthMonth"
                 render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Tgl</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormItem>
+                    <FormLabel>Bulan</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Tgl" />
-                        </SelectTrigger>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Bulan" />
+                          </Trigger>
                         </FormControl>
                         <SelectContent>
-                        {days.map((day) => (
-                            <SelectItem key={day} value={day}>
-                            {day}
+                          {months.map((month) => (
+                            <SelectItem key={month.value} value={month.value}>
+                              {month.label}
                             </SelectItem>
-                        ))}
+                          ))}
                         </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
+                      </Select>
+                  </FormItem>
                 )}
-            />
-          <FormField
-            control={form.control}
-            name="birthMonth"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bulan</FormLabel>
-                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Bulan" />
-                      </Trigger>
-                    </FormControl>
-                    <SelectContent>
-                      {months.map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="birthYear"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tahun</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tahun" />
-                      </Trigger>
-                    </FormControl>
-                    <SelectContent>
-                      {years.map((year) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              />
+               <FormField
+                control={form.control}
+                name="birthYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tahun</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tahun" />
+                          </Trigger>
+                        </FormControl>
+                        <SelectContent>
+                          {years.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormMessage>{form.formState.errors.birthDay?.message}</FormMessage>
+            <FormMessage>{form.formState.errors.birthYear?.message}</FormMessage>
         </div>
         <Button type="submit" className="w-full">
           Register Member
