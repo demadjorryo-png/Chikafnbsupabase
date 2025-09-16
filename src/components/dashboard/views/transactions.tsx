@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Receipt } from '@/components/dashboard/receipt';
 
 function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!transaction) return null;
@@ -94,76 +95,94 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
 
 export default function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
+  const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
+
+  const handlePrint = (transaction: Transaction) => {
+    setTransactionToPrint(transaction);
+    // Use a timeout to allow the component to render before printing
+    setTimeout(() => {
+        window.print();
+        setTransactionToPrint(null);
+    }, 100);
+  };
+
 
   return (
     <>
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline tracking-wider">
-          Transaction History
-        </CardTitle>
-        <CardDescription>
-          View all past sales and their details.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead className="text-right">Total Amount</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </TableCell>
-                <TableCell>{transaction.customerName}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{transaction.paymentMethod}</Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  Rp {transaction.totalAmount.toLocaleString('id-ID')}
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setSelectedTransaction(transaction)}>
-                        View Details
-                      </DropdownMenuItem>
-                       <DropdownMenuItem>Print Receipt</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-    {selectedTransaction && (
-        <TransactionDetailsDialog
-            transaction={selectedTransaction}
-            open={!!selectedTransaction}
-            onOpenChange={() => setSelectedTransaction(null)}
-        />
-    )}
+      <div className="printable-area">
+        {transactionToPrint && <Receipt transaction={transactionToPrint} />}
+      </div>
+      <div className="non-printable">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+              Transaction History
+            </CardTitle>
+            <CardDescription>
+              View all past sales and their details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead className="text-right">Total Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((transaction) => (
+                  <TableRow key={transaction.id}>
+                    <TableCell>
+                      {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </TableCell>
+                    <TableCell>{transaction.customerName}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{transaction.paymentMethod}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      Rp {transaction.totalAmount.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setSelectedTransaction(transaction)}>
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePrint(transaction)}>
+                            Print Receipt
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+      {selectedTransaction && (
+          <TransactionDetailsDialog
+              transaction={selectedTransaction}
+              open={!!selectedTransaction}
+              onOpenChange={() => setSelectedTransaction(null)}
+          />
+      )}
     </>
   );
 }
