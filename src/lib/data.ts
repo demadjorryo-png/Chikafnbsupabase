@@ -156,6 +156,7 @@ const generateCustomers = (count: number): Customer[] => {
 
     const birthYear = Math.floor(random() * (2003 - 1980 + 1)) + 1980;
     const birthMonth = Math.floor(random() * 12) + 1;
+    const birthDay = Math.floor(random() * 28) + 1;
     const joinYear = Math.floor(random() * 3) + 2022;
     const joinMonth = Math.floor(random() * 12) + 1;
     const joinDay = Math.floor(random() * 28) + 1;
@@ -164,7 +165,7 @@ const generateCustomers = (count: number): Customer[] => {
       id: `cust${String(i).padStart(3, '0')}`,
       name: customerNames[i-1] || `Customer ${i}`,
       phone: `08${String(Math.floor(random() * 9000000000) + 1000000000)}`,
-      birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}`,
+      birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}`,
       joinDate: new Date(joinYear, joinMonth - 1, joinDay).toISOString(),
       loyaltyPoints: points,
       memberTier: tier,

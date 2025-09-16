@@ -61,7 +61,7 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
                         <div className="flex items-center gap-1"><strong>Tier:</strong> <Badge variant={customer.memberTier === 'Homer' ? 'default' : 'secondary'}>{customer.memberTier}</Badge></div>
                         <div><strong>Points:</strong> {customer.loyaltyPoints.toLocaleString('id-ID')}</div>
                         <div><strong>Joined:</strong> {new Date(customer.joinDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                        <div><strong>Birthday:</strong> {new Date(customer.birthDate).toLocaleDateString('id-ID', { month: 'long', day: 'numeric' })}</div>
+                        <div><strong>Birthday:</strong> {new Date(customer.birthDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long' })}</div>
                     </div>
                 </div>
             </DialogContent>

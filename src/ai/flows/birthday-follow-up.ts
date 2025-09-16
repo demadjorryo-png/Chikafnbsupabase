@@ -16,6 +16,7 @@ const BirthdayFollowUpInputSchema = z.object({
   discountPercentage: z
     .number()
     .describe('The discount percentage to offer.'),
+  zodiacSign: z.string().describe("The customer's zodiac sign."),
 });
 export type BirthdayFollowUpInput = z.infer<
   typeof BirthdayFollowUpInputSchema
@@ -49,6 +50,8 @@ Your task is to generate a birthday follow-up message for a customer. The messag
 Crucially, you must include the following two conditions in the message:
 1.  The customer must show the broadcast message to the cashier to claim the discount.
 2.  The discount is valid until the end of their birth month.
+
+Also, include a short, positive fun fact about the customer's zodiac sign, which is {{zodiacSign}}.
 
 Customer Name: {{customerName}}
 Discount Percentage: {{discountPercentage}}%

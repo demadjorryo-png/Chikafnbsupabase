@@ -54,6 +54,27 @@ const chartConfig = {
   },
 };
 
+function getZodiacSign(birthDate: string): string {
+    const [year, month, day] = birthDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const monthDay = (month * 100) + day;
+
+    if (monthDay >= 321 && monthDay <= 419) return 'Aries';
+    if (monthDay >= 420 && monthDay <= 520) return 'Taurus';
+    if (monthDay >= 521 && monthDay <= 620) return 'Gemini';
+    if (monthDay >= 621 && monthDay <= 722) return 'Cancer';
+    if (monthDay >= 723 && monthDay <= 822) return 'Leo';
+    if (monthDay >= 823 && monthDay <= 922) return 'Virgo';
+    if (monthDay >= 923 && monthDay <= 1022) return 'Libra';
+    if (monthDay >= 1023 && monthDay <= 1121) return 'Scorpio';
+    if (monthDay >= 1122 && monthDay <= 1221) return 'Sagittarius';
+    if (monthDay >= 1222 || monthDay <= 119) return 'Capricorn';
+    if (monthDay >= 120 && monthDay <= 218) return 'Aquarius';
+    if (monthDay >= 219 && monthDay <= 320) return 'Pisces';
+    return 'Unknown';
+}
+
+
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
@@ -63,9 +84,11 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
         setIsLoading(true);
         setMessage('');
         try {
+            const zodiacSign = getZodiacSign(customer.birthDate);
             const result = await getBirthdayFollowUp({
                 customerName: customer.name,
                 discountPercentage: discount,
+                zodiacSign: zodiacSign,
             });
             setMessage(result.followUpMessage);
         } catch (error) {
@@ -186,7 +209,6 @@ export default function Overview({ storeId }: { storeId: string }) {
   React.useEffect(() => {
     const currentMonth = new Date().getMonth(); // 0-11
     const filteredCustomers = customers.filter(customer => {
-        // The month in `new Date()` is also 0-indexed
         const [year, month] = customer.birthDate.split('-').map(Number);
         return month -1 === currentMonth;
     });
@@ -364,8 +386,8 @@ export default function Overview({ storeId }: { storeId: string }) {
             </TableHeader>
             <TableBody>
                 {birthdayCustomers.map((customer) => {
-                    const [year, month] = customer.birthDate.split('-').map(Number);
-                    const birthDate = new Date(year, month - 1);
+                    const [year, month, day] = customer.birthDate.split('-').map(Number);
+                    const birthDate = new Date(year, month - 1, day);
                     return (
                         <TableRow key={customer.id}>
                             <TableCell>
@@ -382,7 +404,7 @@ export default function Overview({ storeId }: { storeId: string }) {
                                     <div className="font-medium">{customer.name}</div>
                                 </div>
                             </TableCell>
-                            <TableCell>{birthDate.toLocaleDateString('id-ID', { month: 'long' })}</TableCell>
+                            <TableCell>{birthDate.toLocaleDateString('id-ID', {day: 'numeric', month: 'long' })}</TableCell>
                             <TableCell className="text-right">
                                 <Button size="sm" variant="outline" onClick={() => setSelectedCustomer(customer)}>
                                     <Gift className="mr-2 h-4 w-4"/>

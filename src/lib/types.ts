@@ -58,7 +58,7 @@ export type Customer = {
   id: string;
   name: string;
   phone: string;
-  birthDate: string; // YYYY-MM
+  birthDate: string; // YYYY-MM-DD
   joinDate: string; // ISO 8601
   loyaltyPoints: number;
   memberTier: 'Squab' | 'Flyer' | 'Homer';
