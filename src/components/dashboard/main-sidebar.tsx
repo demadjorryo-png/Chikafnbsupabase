@@ -27,9 +27,10 @@ export function MainSidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
+  const storeId = searchParams.get('storeId');
 
   const navigate = (view: string) => {
-    router.push(`/dashboard?view=${view}`);
+    router.push(`/dashboard?view=${view}&storeId=${storeId}`);
   };
 
   const handleLogout = () => {

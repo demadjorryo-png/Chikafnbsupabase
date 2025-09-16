@@ -14,10 +14,13 @@ import Employees from '@/app/dashboard/views/employees';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { stores } from '@/lib/data';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
+  const storeId = searchParams.get('storeId');
+  const activeStore = stores.find(s => s.id === storeId);
 
   const renderView = () => {
     switch (view) {
@@ -63,7 +66,7 @@ function DashboardContent() {
     <>
       <MainSidebar />
       <SidebarInset>
-        <Header title={getTitle()} />
+        <Header title={getTitle()} storeName={activeStore?.name} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {renderView()}
         </main>
