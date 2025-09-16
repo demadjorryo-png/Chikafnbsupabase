@@ -99,7 +99,7 @@ export function MainSidebar() {
       <SidebarFooter>
          <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings">
+            <SidebarMenuButton tooltip="Settings" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />
               <span>Settings</span>
             </SidebarMenuButton>

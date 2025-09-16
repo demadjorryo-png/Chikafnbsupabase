@@ -37,9 +37,22 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
+import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 
 export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
+
+  const handleEditClick = (user: User) => {
+    setSelectedUser(user);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setIsEditDialogOpen(false);
+    setSelectedUser(null);
+  }
 
   return (
     <>
@@ -113,7 +126,7 @@ export default function Employees() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(user)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem>Reset Password</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive">
                           Deactivate
@@ -127,6 +140,24 @@ export default function Employees() {
           </Table>
         </CardContent>
       </Card>
+      {selectedUser && (
+        <Dialog open={isEditDialogOpen} onOpenChange={handleDialogClose}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline tracking-wider">
+                Edit Employee
+              </DialogTitle>
+              <DialogDescription>
+                Update employee details for {selectedUser.name}.
+              </DialogDescription>
+            </DialogHeader>
+            <EditEmployeeForm 
+              setDialogOpen={handleDialogClose} 
+              employee={selectedUser}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

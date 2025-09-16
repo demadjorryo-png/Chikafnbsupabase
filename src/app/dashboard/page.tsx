@@ -11,6 +11,7 @@ import Customers from '@/app/dashboard/views/customers';
 import Transactions from '@/app/dashboard/views/transactions';
 import PendingOrders from '@/app/dashboard/views/pending-orders';
 import Employees from '@/app/dashboard/views/employees';
+import Settings from '@/app/dashboard/views/settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +37,8 @@ function DashboardContent() {
         return <Transactions />;
       case 'pending-orders':
         return <PendingOrders />;
+      case 'settings':
+        return <Settings />;
       case 'overview':
       default:
         return <Overview storeId={storeId} />;
@@ -56,6 +59,8 @@ function DashboardContent() {
         return 'Transaction History';
        case 'pending-orders':
         return 'Pending Orders';
+        case 'settings':
+        return 'Settings';
       case 'overview':
       default:
         return 'Dashboard Overview';
