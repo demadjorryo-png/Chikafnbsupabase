@@ -1,5 +1,13 @@
 import type { Product, Customer, Transaction, PendingOrder } from './types';
 
+// Seeded random function to ensure consistent data generation
+let seed = 1;
+function random() {
+  const x = Math.sin(seed++) * 10000;
+  return x - Math.floor(x);
+}
+
+
 export const products: Product[] = [
   {
     id: 'prod_naked100',
@@ -123,23 +131,23 @@ const customerNames = [
 const generateCustomers = (count: number): Customer[] => {
   const customers: Customer[] = [];
   for (let i = 1; i <= count; i++) {
-    const points = Math.floor(Math.random() * 6000) + 50;
+    const points = Math.floor(random() * 6000) + 50;
     let tier: 'Squab' | 'Flyer' | 'Homer';
     if (points < 500) tier = 'Squab';
     else if (points < 2000) tier = 'Flyer';
     else tier = 'Homer';
 
-    const birthYear = Math.floor(Math.random() * (2003 - 1980 + 1)) + 1980;
-    const birthMonth = Math.floor(Math.random() * 12) + 1;
-    const birthDay = Math.floor(Math.random() * 28) + 1;
-    const joinYear = Math.floor(Math.random() * 3) + 2022;
-    const joinMonth = Math.floor(Math.random() * 12) + 1;
-    const joinDay = Math.floor(Math.random() * 28) + 1;
+    const birthYear = Math.floor(random() * (2003 - 1980 + 1)) + 1980;
+    const birthMonth = Math.floor(random() * 12) + 1;
+    const birthDay = Math.floor(random() * 28) + 1;
+    const joinYear = Math.floor(random() * 3) + 2022;
+    const joinMonth = Math.floor(random() * 12) + 1;
+    const joinDay = Math.floor(random() * 28) + 1;
 
     customers.push({
       id: `cust${String(i).padStart(3, '0')}`,
       name: customerNames[i-1] || `Customer ${i}`,
-      phone: `08${String(Math.floor(Math.random() * 9000000000) + 1000000000)}`,
+      phone: `08${String(Math.floor(random() * 9000000000) + 1000000000)}`,
       birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}`,
       joinDate: new Date(joinYear, joinMonth - 1, joinDay).toISOString(),
       loyaltyPoints: points,
@@ -157,13 +165,13 @@ const generateTransactions = (count: number): Transaction[] => {
   const paymentMethods: ('Cash' | 'Card' | 'QRIS')[] = ['Cash', 'Card', 'QRIS'];
 
   for (let i = 1; i <= count; i++) {
-    const customer = customers[Math.floor(Math.random() * customers.length)];
-    const numItems = Math.floor(Math.random() * 3) + 1;
+    const customer = customers[Math.floor(random() * customers.length)];
+    const numItems = Math.floor(random() * 3) + 1;
     const items = [];
     let totalAmount = 0;
 
     for (let j = 0; j < numItems; j++) {
-      const product = products[Math.floor(Math.random() * products.length)];
+      const product = products[Math.floor(random() * products.length)];
       if (!items.some(item => item.productId === product.id)) {
         const quantity = 1;
         items.push({
@@ -178,16 +186,16 @@ const generateTransactions = (count: number): Transaction[] => {
     
     if (items.length === 0) continue;
 
-    const transactionDate = new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString();
+    const transactionDate = new Date(Date.now() - Math.floor(random() * 30) * 24 * 60 * 60 * 1000).toISOString();
 
     transactions.push({
       id: `trx${String(i).padStart(3, '0')}`,
       customerId: customer.id,
       customerName: customer.name,
-      staffId: `staff0${Math.ceil(Math.random() * 2)}`,
+      staffId: `staff0${Math.ceil(random() * 2)}`,
       createdAt: transactionDate,
       totalAmount: totalAmount,
-      paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+      paymentMethod: paymentMethods[Math.floor(random() * paymentMethods.length)],
       pointsEarned: Math.floor(totalAmount / 10000),
       items: items,
     });
