@@ -30,6 +30,7 @@ const FormSchema = z.object({
   category: z.enum(productCategories),
   stock: z.coerce.number().int().min(0),
   price: z.coerce.number().min(0),
+  costPrice: z.coerce.number().min(0),
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
@@ -47,6 +48,7 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
       name: '',
       stock: 0,
       price: 0,
+      costPrice: 0,
       brand: '',
     },
   });
@@ -127,12 +129,25 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
               </FormItem>
             )}
           />
+           <FormField
+            control={form.control}
+            name="costPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cost Price (Rp)</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Price (Rp)</FormLabel>
+                <FormLabel>Selling Price (Rp)</FormLabel>
                 <FormControl>
                   <Input type="number" {...field} />
                 </FormControl>

@@ -120,7 +120,8 @@ export default function Products() {
               <TableHead>Category</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead className="text-center">Stock</TableHead>
-              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">Cost Price</TableHead>
+              <TableHead className="text-right">Selling Price</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -147,6 +148,9 @@ export default function Products() {
                   ) : (
                     product.stock
                   )}
+                </TableCell>
+                 <TableCell className="text-right">
+                  Rp {product.costPrice.toLocaleString('id-ID')}
                 </TableCell>
                 <TableCell className="text-right">
                   Rp {product.price.toLocaleString('id-ID')}

@@ -22,6 +22,7 @@ export type Product = {
   category: ProductCategory;
   stock: number;
   price: number;
+  costPrice: number;
   supplierId: string;
   imageUrl: string;
   imageHint: string;
