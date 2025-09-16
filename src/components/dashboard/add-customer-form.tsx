@@ -44,6 +44,9 @@ const FormSchema = z.object({
   birthYear: z.string({ required_error: 'Tahun lahir harus diisi.'}),
 }).superRefine((data, ctx) => {
     const { birthYear, birthMonth, birthDay } = data;
+    if (!birthYear || !birthMonth || !birthDay) {
+        return; // Don't run validation if fields are empty, let required_error handle it
+    }
     const year = parseInt(birthYear, 10);
     const month = parseInt(birthMonth, 10);
     const day = parseInt(birthDay, 10);
