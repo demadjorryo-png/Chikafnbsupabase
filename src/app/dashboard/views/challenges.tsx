@@ -12,14 +12,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader, Sparkles, Trophy } from 'lucide-react';
+import { Loader, Sparkles, Trophy, Calendar as CalendarIcon } from 'lucide-react';
 import { generateChallenges } from '@/ai/flows/challenge-generator';
 import type { ChallengeGeneratorOutput } from '@/ai/flows/challenge-generator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { DateRange } from 'react-day-picker';
+import { addDays, format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
 
 export default function Challenges() {
   const [budget, setBudget] = React.useState(500000);
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 7),
+  });
   const [isLoading, setIsLoading] = React.useState(false);
   const [generatedChallenges, setGeneratedChallenges] =
     React.useState<ChallengeGeneratorOutput | null>(null);
@@ -34,14 +42,27 @@ export default function Challenges() {
       });
       return;
     }
+    if (!date?.from || !date?.to) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid Date',
+            description: 'Please select a start and end date.',
+        });
+        return;
+    }
+
     setIsLoading(true);
     setGeneratedChallenges(null);
     try {
-      const result = await generateChallenges({ budget });
+      const result = await generateChallenges({ 
+          budget,
+          startDate: format(date.from, 'yyyy-MM-dd'),
+          endDate: format(date.to, 'yyyy-MM-dd'),
+       });
       setGeneratedChallenges(result);
       toast({
         title: 'Challenges Generated!',
-        description: 'Chika AI has successfully created new challenges.',
+        description: `Chika AI has successfully created new challenges for the period ${result.period}.`,
       });
     } catch (error) {
       console.error('Error generating challenges:', error);
@@ -63,22 +84,63 @@ export default function Challenges() {
             Generate Employee Challenges
           </CardTitle>
           <CardDescription>
-            Set a monthly reward budget and let Chika AI create motivating sales
-            challenges for your employees based on total revenue (omset).
+            Set a reward budget and a date range. Chika AI will create motivating sales
+            challenges based on total revenue (omset) for that period.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="max-w-sm space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="budget">Monthly Reward Budget (Rp)</Label>
-              <Input
-                id="budget"
-                type="number"
-                value={budget}
-                onChange={(e) => setBudget(Number(e.target.value))}
-                placeholder="e.g., 1000000"
-                step="50000"
-              />
+          <div className="max-w-md space-y-4">
+             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="budget">Reward Budget (Rp)</Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    value={budget}
+                    onChange={(e) => setBudget(Number(e.target.value))}
+                    placeholder="e.g., 1000000"
+                    step="50000"
+                  />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="date">Challenge Period</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.from ? (
+                            date.to ? (
+                                <>
+                                {format(date.from, "LLL dd, y")} -{" "}
+                                {format(date.to, "LLL dd, y")}
+                                </>
+                            ) : (
+                                format(date.from, "LLL dd, y")
+                            )
+                            ) : (
+                            <span>Pick a date</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={2}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
             <Button
               onClick={handleGenerateChallenges}
@@ -102,7 +164,7 @@ export default function Challenges() {
               Generated Challenges
             </CardTitle>
             <CardDescription>
-              These are the active challenges for this period.
+              Active challenges for the period: <span className='font-semibold'>{generatedChallenges.period}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
