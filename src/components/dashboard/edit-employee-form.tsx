@@ -103,7 +103,7 @@ export function EditEmployeeForm({ setDialogOpen, employee }: EditEmployeeFormPr
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Store</FormLabel>
-                <Select onValuecha\nge={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a store" />
