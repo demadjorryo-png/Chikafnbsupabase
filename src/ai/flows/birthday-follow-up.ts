@@ -16,7 +16,7 @@ const BirthdayFollowUpInputSchema = z.object({
   discountPercentage: z
     .number()
     .describe('The discount percentage to offer.'),
-  zodiacSign: z.string().describe("The customer's zodiac sign."),
+  birthDate: z.string().describe("The customer's birth date in YYYY-MM-DD format."),
 });
 export type BirthdayFollowUpInput = z.infer<
   typeof BirthdayFollowUpInputSchema
@@ -47,11 +47,12 @@ const prompt = ai.definePrompt({
 
 Your task is to generate a birthday follow-up message for a customer. The message should be friendly, concise, and in Indonesian. It must wish them a happy birthday and offer a special discount.
 
-Crucially, you must include the following two conditions in the message:
+First, determine the customer's zodiac sign from their birth date: {{birthDate}}.
+Then, include a short, positive fun fact about that zodiac sign in your message.
+
+Crucially, you must also include the following two conditions in the message:
 1.  The customer must show the broadcast message to the cashier to claim the discount.
 2.  The discount is valid until the end of their birth month.
-
-Also, include a short, positive fun fact about the customer's zodiac sign, which is {{zodiacSign}}.
 
 Customer Name: {{customerName}}
 Discount Percentage: {{discountPercentage}}%

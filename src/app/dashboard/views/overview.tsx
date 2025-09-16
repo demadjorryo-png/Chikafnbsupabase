@@ -54,27 +54,6 @@ const chartConfig = {
   },
 };
 
-function getZodiacSign(birthDate: string): string {
-    const [year, month, day] = birthDate.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const monthDay = (month * 100) + day;
-
-    if (monthDay >= 321 && monthDay <= 419) return 'Aries';
-    if (monthDay >= 420 && monthDay <= 520) return 'Taurus';
-    if (monthDay >= 521 && monthDay <= 620) return 'Gemini';
-    if (monthDay >= 621 && monthDay <= 722) return 'Cancer';
-    if (monthDay >= 723 && monthDay <= 822) return 'Leo';
-    if (monthDay >= 823 && monthDay <= 922) return 'Virgo';
-    if (monthDay >= 923 && monthDay <= 1022) return 'Libra';
-    if (monthDay >= 1023 && monthDay <= 1121) return 'Scorpio';
-    if (monthDay >= 1122 && monthDay <= 1221) return 'Sagittarius';
-    if (monthDay >= 1222 || monthDay <= 119) return 'Capricorn';
-    if (monthDay >= 120 && monthDay <= 218) return 'Aquarius';
-    if (monthDay >= 219 && monthDay <= 320) return 'Pisces';
-    return 'Unknown';
-}
-
-
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
@@ -84,11 +63,10 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
         setIsLoading(true);
         setMessage('');
         try {
-            const zodiacSign = getZodiacSign(customer.birthDate);
             const result = await getBirthdayFollowUp({
                 customerName: customer.name,
                 discountPercentage: discount,
-                zodiacSign: zodiacSign,
+                birthDate: customer.birthDate,
             });
             setMessage(result.followUpMessage);
         } catch (error) {
