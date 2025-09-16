@@ -19,7 +19,7 @@ import { stores } from '@/lib/data';
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId');
+  const storeId = searchParams.get('storeId') || stores[0].id;
   const activeStore = stores.find(s => s.id === storeId);
 
   const renderView = () => {
@@ -38,7 +38,7 @@ function DashboardContent() {
         return <PendingOrders />;
       case 'overview':
       default:
-        return <Overview />;
+        return <Overview storeId={storeId} />;
     }
   };
 

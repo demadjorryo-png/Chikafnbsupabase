@@ -27,7 +27,7 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { salesData, products, customers, pendingOrders, stores, users } from '@/lib/data';
+import { salesData, products, customers, pendingOrders, stores, users, transactions } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck } from 'lucide-react';
@@ -117,16 +117,24 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 }
 
 
-export default function Overview() {
-  const totalRevenue = salesData.reduce((acc, curr) => acc + curr.revenue, 0);
+export default function Overview({ storeId }: { storeId: string }) {
+  const storeTransactions = transactions.filter(t => t.storeId === storeId);
+  const totalRevenue = storeTransactions.reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+  // Top customers are global for now, not store-specific
   const topCustomers = [...customers]
     .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints)
     .slice(0, 3);
   
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
+
   const admins = users.filter(u => u.role === 'admin');
   const cashiers = users.filter(u => u.role === 'cashier');
+  
+  const storeUsers = users.filter(u => u.storeId === storeId);
+  const storeAdmins = storeUsers.filter(u => u.role === 'admin');
+  const storeCashiers = storeUsers.filter(u => u.role === 'cashier');
 
 
   React.useEffect(() => {
@@ -145,7 +153,7 @@ export default function Overview() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Revenue (Weekly)
+              Total Revenue (Store)
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -154,13 +162,13 @@ export default function Overview() {
               Rp {totalRevenue.toLocaleString('id-ID')}
             </div>
             <p className="text-xs text-muted-foreground">
-              +12.5% from last week
+              Total revenue for this store
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Customer</CardTitle>
+            <CardTitle className="text-sm font-medium">Top Customer (Global)</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -184,13 +192,13 @@ export default function Overview() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Users</CardTitle>
+            <CardTitle className="text-sm font-medium">Users (Store)</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
+            <div className="text-2xl font-bold">{storeUsers.length}</div>
             <p className="text-xs text-muted-foreground">
-              {admins.length} Admins, {cashiers.length} Cashiers
+              {storeAdmins.length} Admin, {storeCashiers.length} Cashiers
             </p>
           </CardContent>
         </Card>
