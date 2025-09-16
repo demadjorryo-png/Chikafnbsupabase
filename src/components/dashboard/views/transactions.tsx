@@ -26,6 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -165,6 +166,10 @@ export default function Transactions() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handlePrint(transaction)}>
                             Print Receipt
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive">
+                            Return
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

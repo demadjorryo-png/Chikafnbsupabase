@@ -5,14 +5,13 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { products, customers } from '@/lib/data';
-import type { Product, Customer, CartItem } from '@/lib/types';
+import { products, customers, transactions } from '@/lib/data';
+import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import Image from 'next/image';
 import {
   Search,
@@ -24,6 +23,7 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
+  Printer,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -34,6 +34,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -42,6 +43,31 @@ import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
+import { Receipt } from '@/components/dashboard/receipt';
+
+
+function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
+    if (!transaction) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider text-center">Checkout Successful</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                    <Receipt transaction={transaction} />
+                </div>
+                <DialogFooter className="sm:justify-center">
+                    <Button type="button" className="w-full gap-2" onClick={onPrint}>
+                        <Printer className="h-4 w-4" />
+                        Print Receipt
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 
 export default function POS() {
@@ -53,6 +79,7 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = React.useState<'Cash' | 'Card' | 'QRIS'>('Cash');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
+  const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
   const { toast } = useToast();
 
   const customerOptions = customers.map((c) => ({
@@ -173,18 +200,34 @@ export default function POS() {
       });
       return;
     }
-    // In a real app, you would save this transaction to a database.
-    toast({
-      title: 'Checkout Successful!',
-      description: `Total: Rp ${cartTotal.toLocaleString('id-ID')} via ${paymentMethod}.`,
-    });
+    
+    const newTransaction: Transaction = {
+        id: `trx${String(transactions.length + 1).padStart(3, '0')}`,
+        customerId: selectedCustomer?.id || 'N/A',
+        customerName: selectedCustomer?.name || 'Guest',
+        staffId: 'staff01',
+        createdAt: new Date().toISOString(),
+        totalAmount: cartTotal,
+        paymentMethod: paymentMethod,
+        pointsEarned: pointsEarned,
+        items: cart,
+    };
+    
+    setLastTransaction(newTransaction);
     setCart([]);
   }
+
+  const handlePrint = () => {
+    // This will trigger the print dialog. CSS will handle hiding non-receipt elements.
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
 
   return (
     <>
-    <div className="grid flex-1 items-start gap-4 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid flex-1 items-start gap-4 lg:grid-cols-3 xl:grid-cols-5 non-printable">
       <div className="lg:col-span-2 xl:col-span-3">
         <Card>
           <CardHeader className="border-b">
@@ -403,6 +446,11 @@ export default function POS() {
         </Card>
       </div>
     </div>
+
+    <div className="printable-area">
+        {lastTransaction && <Receipt transaction={lastTransaction} />}
+    </div>
+
     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
@@ -414,6 +462,15 @@ export default function POS() {
           <BarcodeScanner onScan={handleBarcodeScanned} />
         </DialogContent>
       </Dialog>
+
+      <CheckoutReceiptDialog
+        transaction={lastTransaction}
+        open={!!lastTransaction}
+        onOpenChange={(open) => {
+            if (!open) setLastTransaction(null);
+        }}
+        onPrint={handlePrint}
+      />
     </>
   );
 }
