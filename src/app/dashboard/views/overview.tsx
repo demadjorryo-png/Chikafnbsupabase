@@ -130,12 +130,16 @@ export default function Overview() {
     .slice(0, 3);
   
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
 
-  const currentMonth = new Date().getMonth() + 1;
-  const birthdayCustomers = customers.filter(customer => {
-      const birthMonth = new Date(customer.birthDate).getMonth() + 1;
-      return birthMonth === currentMonth;
-  });
+  React.useEffect(() => {
+    const currentMonth = new Date().getMonth() + 1;
+    const filteredCustomers = customers.filter(customer => {
+        const birthMonth = new Date(customer.birthDate).getMonth() + 1;
+        return birthMonth === currentMonth;
+    });
+    setBirthdayCustomers(filteredCustomers);
+  }, []);
 
   return (
     <div className="grid gap-6">
@@ -162,9 +166,9 @@ export default function Overview() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{topCustomers[0].name}</div>
+            <div className="text-2xl font-bold">{topCustomers[0]?.name || 'N/A'}</div>
             <p className="text-xs text-muted-foreground">
-              {topCustomers[0].loyaltyPoints} points
+              {topCustomers[0]?.loyaltyPoints || 0} points
             </p>
           </CardContent>
         </Card>
