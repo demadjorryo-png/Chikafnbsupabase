@@ -13,40 +13,50 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { differenceInYears, parse } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const FormSchema = z
-  .object({
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 100 }, (_, i) =>
+  (currentYear - 18 - i).toString()
+);
+const months = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString().padStart(2, '0'),
+    label: new Date(0, i).toLocaleString('id-ID', { month: 'long' })
+}));
+
+
+const FormSchema = z.object({
     name: z.string().min(2, {
       message: 'Name must be at least 2 characters.',
     }),
     phone: z.string().min(10, {
       message: 'Phone number must be at least 10 digits.',
     }),
-    birthDate: z
-      .string()
-      .regex(
-        /^\d{8}$/,
-        'Format tanggal harus DDMMYYYY (contoh: 24071990).'
-      ),
-  })
-  .refine(
-    (data) => {
-      try {
-        const date = parse(data.birthDate, 'ddMM yyyy', new Date());
-        if (isNaN(date.getTime())) return false;
-        const age = differenceInYears(new Date(), date);
-        return age >= 21;
-      } catch (e) {
-        return false;
+    birthMonth: z.string({ required_error: 'Bulan lahir harus diisi.'}),
+    birthYear: z.string({ required_error: 'Tahun lahir harus diisi.'}),
+  }).refine(data => {
+      const { birthMonth, birthYear } = data;
+      const today = new Date();
+      const birthDate = new Date(parseInt(birthYear), parseInt(birthMonth) - 1, 1);
+      
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
       }
-    },
-    {
+      return age >= 21;
+
+  }, {
       message: 'Pelanggan harus berusia minimal 21 tahun.',
-      path: ['birthDate'],
-    }
-  );
+      path: ['birthYear'],
+  });
 
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
@@ -59,14 +69,13 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
     defaultValues: {
       name: '',
       phone: '',
-      birthDate: '',
     },
   });
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
     console.log({
       ...data,
-      birthDate: parse(data.birthDate, 'ddMM yyyy', new Date()), // Convert string to Date object for submission
+      birthDate: `${data.birthYear}-${data.birthMonth}`,
     });
     toast({
       title: 'Member Registered!',
@@ -104,19 +113,56 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="birthDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date of birth</FormLabel>
-              <FormControl>
-                <Input placeholder="DDMMYYYY (e.g., 24071990)" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="birthMonth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bulan Lahir</FormLabel>
+                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih bulan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {months.map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="birthYear"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tahun Lahir</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih tahun" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {years.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <Button type="submit" className="w-full">
           Register Member
         </Button>
