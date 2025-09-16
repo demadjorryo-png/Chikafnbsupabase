@@ -44,11 +44,10 @@ const FormSchema = z.object({
   birthYear: z.string({ required_error: 'Tahun lahir harus diisi.'}),
 }).superRefine((data, ctx) => {
     const { birthYear, birthMonth, birthDay } = data;
-    const year = parseInt(birthYear);
-    const month = parseInt(birthMonth);
-    const day = parseInt(birthDay);
+    const year = parseInt(birthYear, 10);
+    const month = parseInt(birthMonth, 10);
+    const day = parseInt(birthDay, 10);
 
-    // Validate that the date is a real date
     const d = new Date(year, month - 1, day);
     if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
         ctx.addIssue({
@@ -56,10 +55,8 @@ const FormSchema = z.object({
             message: "Tanggal tidak valid.",
             path: ["birthDay"],
         });
-        return;
     }
 
-    // Validate age
     const today = new Date();
     const birthDate = new Date(year, month - 1, day);
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -133,13 +130,13 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
           )}
         />
         <div className="space-y-2">
+            <FormLabel>Date of Birth</FormLabel>
             <div className="grid grid-cols-3 gap-2">
                 <FormField
                     control={form.control}
                     name="birthDay"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Tgl</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                             <SelectTrigger>
@@ -162,7 +159,6 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
                 name="birthMonth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bulan</FormLabel>
                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -185,7 +181,6 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
                 name="birthYear"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tahun</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -204,8 +199,9 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
                 )}
               />
             </div>
-            <FormMessage>{form.formState.errors.birthDay?.message}</FormMessage>
-            <FormMessage>{form.formState.errors.birthYear?.message}</FormMessage>
+             <FormMessage>
+              {form.formState.errors.birthDay?.message || form.formState.errors.birthMonth?.message || form.formState.errors.birthYear?.message}
+            </FormMessage>
         </div>
         <Button type="submit" className="w-full">
           Register Member
