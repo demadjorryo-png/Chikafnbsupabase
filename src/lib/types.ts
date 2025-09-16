@@ -15,12 +15,27 @@ export const productCategories = [
 
 export type ProductCategory = (typeof productCategories)[number];
 
+export type Store = {
+  id: string;
+  name: string;
+  location: string;
+};
+
+export type UserRole = 'admin' | 'cashier';
+
+export type User = {
+  id: string;
+  name: string;
+  role: UserRole;
+  storeId: string; // The primary store for a user
+};
+
 export type Product = {
   id: string;
   name: string;
   barcode: string;
   category: ProductCategory;
-  stock: number;
+  stock: Record<string, number>; // e.g. { storeId: quantity }
   price: number;
   costPrice: number;
   supplierId: string;
@@ -42,7 +57,7 @@ export type Customer = {
   id: string;
   name: string;
   phone: string;
-  birthDate: string; // YYYY-MM-DD
+  birthDate: string; // YYYY-MM
   joinDate: string; // ISO 8601
   loyaltyPoints: number;
   memberTier: 'Squab' | 'Flyer' | 'Homer';
@@ -51,6 +66,7 @@ export type Customer = {
 
 export type Transaction = {
   id: string;
+  storeId: string;
   customerId: string;
   customerName: string;
   staffId: string;

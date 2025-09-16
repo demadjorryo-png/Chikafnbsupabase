@@ -22,17 +22,15 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
-  CartesianGrid,
 } from 'recharts';
 import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { salesData, products, customers, pendingOrders } from '@/lib/data';
+import { salesData, products, customers, pendingOrders, stores, users } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, ClipboardList, Gift, Sparkles, Loader } from 'lucide-react';
+import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +39,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,28 +119,29 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 
 export default function Overview() {
   const totalRevenue = salesData.reduce((acc, curr) => acc + curr.revenue, 0);
-  const fastMovingProducts = [...products]
-    .sort((a, b) => b.stock - a.stock)
-    .slice(0, 5);
   const topCustomers = [...customers]
     .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints)
     .slice(0, 3);
   
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
+  const admins = users.filter(u => u.role === 'admin');
+  const cashiers = users.filter(u => u.role === 'cashier');
+
 
   React.useEffect(() => {
-    const currentMonth = new Date().getMonth() + 1;
+    const currentMonth = new Date().getMonth(); // 0-11
     const filteredCustomers = customers.filter(customer => {
-        const birthMonth = new Date(customer.birthDate).getMonth() + 1;
-        return birthMonth === currentMonth;
+        // The month in `new Date()` is also 0-indexed
+        const [year, month] = customer.birthDate.split('-').map(Number);
+        return month -1 === currentMonth;
     });
     setBirthdayCustomers(filteredCustomers);
   }, []);
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -172,15 +170,27 @@ export default function Overview() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Best Seller</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Stores</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Dark Luna Grape</div>
+            <div className="text-2xl font-bold">{stores.length}</div>
+             <p className="text-xs text-muted-foreground">
+              {stores.map(s => s.name).join(', ')}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Users</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{users.length}</div>
             <p className="text-xs text-muted-foreground">
-              120 units sold this month
+              {admins.length} Admins, {cashiers.length} Cashiers
             </p>
           </CardContent>
         </Card>
@@ -211,14 +221,13 @@ export default function Overview() {
                 data={salesData}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis
                   tickFormatter={(value) => `Rp${Number(value) / 1000000} Jt`}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                 />
+                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--primary) / 0.1)' }}
                   content={<ChartTooltipContent 
@@ -300,31 +309,35 @@ export default function Overview() {
               </TableRow>
             </TableHeader>
             <TableBody>
-                {birthdayCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
-                        <TableCell>
-                           <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                <AvatarImage
-                                    src={customer.avatarUrl}
-                                    alt={customer.name}
-                                />
-                                <AvatarFallback>
-                                    {customer.name.charAt(0)}
-                                </AvatarFallback>
-                                </Avatar>
-                                <div className="font-medium">{customer.name}</div>
-                            </div>
-                        </TableCell>
-                        <TableCell>{new Date(customer.birthDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</TableCell>
-                        <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => setSelectedCustomer(customer)}>
-                                <Gift className="mr-2 h-4 w-4"/>
-                                Send Wish
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                ))}
+                {birthdayCustomers.map((customer) => {
+                    const [year, month] = customer.birthDate.split('-').map(Number);
+                    const birthDate = new Date(year, month - 1);
+                    return (
+                        <TableRow key={customer.id}>
+                            <TableCell>
+                               <div className="flex items-center gap-3">
+                                    <Avatar className="h-9 w-9">
+                                    <AvatarImage
+                                        src={customer.avatarUrl}
+                                        alt={customer.name}
+                                    />
+                                    <AvatarFallback>
+                                        {customer.name.charAt(0)}
+                                    </AvatarFallback>
+                                    </Avatar>
+                                    <div className="font-medium">{customer.name}</div>
+                                </div>
+                            </TableCell>
+                            <TableCell>{birthDate.toLocaleDateString('id-ID', { month: 'long' })}</TableCell>
+                            <TableCell className="text-right">
+                                <Button size="sm" variant="outline" onClick={() => setSelectedCustomer(customer)}>
+                                    <Gift className="mr-2 h-4 w-4"/>
+                                    Send Wish
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
           </Table>
             ) : (

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { Transaction } from '@/lib/types';
+import { stores, users } from '@/lib/data';
 import { Logo } from './logo';
 
 type ReceiptProps = {
@@ -11,14 +12,17 @@ type ReceiptProps = {
 export function Receipt({ transaction }: ReceiptProps) {
   if (!transaction) return null;
 
+  const store = stores.find(s => s.id === transaction.storeId);
+  const staff = users.find(u => u.id === transaction.staffId);
+
   return (
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">
       <div className="text-center space-y-2 mb-4">
         <div className="flex justify-center">
             <Logo />
         </div>
-        <p>Bekupon Vape Store</p>
-        <p>Jl. Vape Master No. 42, Jakarta</p>
+        <p>{store?.name || 'Bekupon Vape Store'}</p>
+        <p>{store?.location || 'Jl. Vape Master No. 42, Jakarta'}</p>
         <p>Telp: 0812-3456-7890</p>
       </div>
       <div className="border-t border-dashed border-black" />
@@ -29,7 +33,7 @@ export function Receipt({ transaction }: ReceiptProps) {
         </div>
         <div className="flex justify-between">
             <span>Kasir:</span>
-            <span>{transaction.staffId}</span>
+            <span>{staff?.name || transaction.staffId}</span>
         </div>
         <div className="flex justify-between">
             <span>Pelanggan:</span>

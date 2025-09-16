@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { transactions } from '@/lib/data';
+import { transactions, stores, users } from '@/lib/data';
 import type { Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,9 @@ import { Receipt } from '@/components/dashboard/receipt';
 
 function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!transaction) return null;
+    
+    const store = stores.find(s => s.id === transaction.storeId);
+    const staff = users.find(u => u.id === transaction.staffId);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,8 +56,16 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                    <div>
+                        <p className="text-sm text-muted-foreground">Store</p>
+                        <p className="font-medium">{store?.name || 'Unknown'}</p>
+                   </div>
+                   <div>
                         <p className="text-sm text-muted-foreground">Customer</p>
                         <p className="font-medium">{transaction.customerName}</p>
+                   </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Cashier</p>
+                        <p className="font-medium">{staff?.name || 'Unknown'}</p>
                    </div>
                    <div>
                         <p className="text-sm text-muted-foreground">Date</p>
@@ -128,6 +139,7 @@ export default function Transactions() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Store</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
@@ -135,7 +147,9 @@ export default function Transactions() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((transaction) => (
+                {transactions.map((transaction) => {
+                  const store = stores.find(s => s.id === transaction.storeId);
+                  return (
                   <TableRow key={transaction.id}>
                     <TableCell>
                       {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
@@ -144,6 +158,7 @@ export default function Transactions() {
                         year: 'numeric',
                       })}
                     </TableCell>
+                    <TableCell>{store?.name || 'N/A'}</TableCell>
                     <TableCell>{transaction.customerName}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{transaction.paymentMethod}</Badge>
@@ -175,7 +190,7 @@ export default function Transactions() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
           </CardContent>

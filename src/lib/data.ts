@@ -1,4 +1,4 @@
-import type { Product, Customer, Transaction, PendingOrder } from './types';
+import type { Product, Customer, Transaction, PendingOrder, Store, User } from './types';
 
 // Seeded random function to ensure consistent data generation
 let seed = 1;
@@ -7,6 +7,23 @@ function random() {
   return x - Math.floor(x);
 }
 
+export const stores: Store[] = [
+    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang' },
+    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang' },
+];
+
+export const users: User[] = [
+    // Admins
+    { id: 'user_001', name: 'Admin Utama', role: 'admin', storeId: 'store_tpg' },
+    { id: 'user_002', name: 'Admin Cabang', role: 'admin', storeId: 'store_swj' },
+    // Cashiers
+    { id: 'user_003', name: 'Chika Kasir', role: 'cashier', storeId: 'store_tpg' },
+    { id: 'user_004', name: 'Bambang Kasir', role: 'cashier', storeId: 'store_tpg' },
+    { id: 'user_005', name: 'Siti Kasir', role: 'cashier', storeId: 'store_swj' },
+    { id: 'user_006', name: 'Asep Kasir', role: 'cashier', storeId: 'store_swj' },
+    { id: 'user_007', name: 'Joko Kasir', role: 'cashier', storeId: 'store_swj' },
+];
+
 
 export const products: Product[] = [
   {
@@ -14,7 +31,7 @@ export const products: Product[] = [
     name: 'Naked 100 Hawaiian POG',
     barcode: '857493006501',
     category: 'Liquid Freebase',
-    stock: 50,
+    stock: { 'store_tpg': 30, 'store_swj': 20 },
     price: 185000,
     costPrice: 120000,
     supplierId: 'sup01',
@@ -33,7 +50,7 @@ export const products: Product[] = [
     name: 'Uwell Caliburn G2',
     barcode: '6942012345678',
     category: 'Pod',
-    stock: 0,
+    stock: { 'store_tpg': 0, 'store_sw-j': 10 },
     price: 265000,
     costPrice: 210000,
     supplierId: 'sup02',
@@ -50,7 +67,7 @@ export const products: Product[] = [
     name: 'Dark Luna Grape',
     barcode: '9876543210987',
     category: 'Liquid Saltnic',
-    stock: 78,
+    stock: { 'store_tpg': 50, 'store_swj': 28 },
     price: 120000,
     costPrice: 85000,
     supplierId: 'sup03',
@@ -69,7 +86,7 @@ export const products: Product[] = [
     name: 'Cotton Bacon Prime',
     barcode: '1122334455667',
     category: 'Cotton',
-    stock: 150,
+    stock: { 'store_tpg': 100, 'store_swj': 50 },
     price: 85000,
     costPrice: 50000,
     supplierId: 'sup04',
@@ -84,7 +101,7 @@ export const products: Product[] = [
     name: 'Lost Vape Centaurus M200',
     barcode: '2233445566778',
     category: 'Mod',
-    stock: 15,
+    stock: { 'store_tpg': 10, 'store_swj': 5 },
     price: 650000,
     costPrice: 525000,
     supplierId: 'sup02',
@@ -101,7 +118,7 @@ export const products: Product[] = [
     name: 'Hellvape Dead Rabbit V3 RDA',
     barcode: '3344556677889',
     category: 'RDA',
-    stock: 0,
+    stock: { 'store_tpg': 5, 'store_swj': 0 },
     price: 320000,
     costPrice: 250000,
     supplierId: 'sup05',
@@ -139,7 +156,6 @@ const generateCustomers = (count: number): Customer[] => {
 
     const birthYear = Math.floor(random() * (2003 - 1980 + 1)) + 1980;
     const birthMonth = Math.floor(random() * 12) + 1;
-    const birthDay = Math.floor(random() * 28) + 1;
     const joinYear = Math.floor(random() * 3) + 2022;
     const joinMonth = Math.floor(random() * 12) + 1;
     const joinDay = Math.floor(random() * 28) + 1;
@@ -148,7 +164,7 @@ const generateCustomers = (count: number): Customer[] => {
       id: `cust${String(i).padStart(3, '0')}`,
       name: customerNames[i-1] || `Customer ${i}`,
       phone: `08${String(Math.floor(random() * 9000000000) + 1000000000)}`,
-      birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}`,
+      birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}`,
       joinDate: new Date(joinYear, joinMonth - 1, joinDay).toISOString(),
       loyaltyPoints: points,
       memberTier: tier,
@@ -166,21 +182,27 @@ const generateTransactions = (count: number): Transaction[] => {
 
   for (let i = 1; i <= count; i++) {
     const customer = customers[Math.floor(random() * customers.length)];
+    const cashier = users.filter(u => u.role === 'cashier')[Math.floor(random() * 5)];
+    const store = stores.find(s => s.id === cashier.storeId)!;
     const numItems = Math.floor(random() * 3) + 1;
     const items = [];
     let totalAmount = 0;
 
     for (let j = 0; j < numItems; j++) {
       const product = products[Math.floor(random() * products.length)];
-      if (!items.some(item => item.productId === product.id)) {
-        const quantity = 1;
-        items.push({
-          productId: product.id,
-          productName: product.name,
-          quantity: quantity,
-          price: product.price,
-        });
-        totalAmount += product.price * quantity;
+      // Check if product exists and is not already in the cart
+      if (product && !items.some(item => item.productId === product.id)) {
+        // Check stock for the specific store
+        if (product.stock[store.id] > 0) {
+            const quantity = 1;
+            items.push({
+              productId: product.id,
+              productName: product.name,
+              quantity: quantity,
+              price: product.price,
+            });
+            totalAmount += product.price * quantity;
+        }
       }
     }
     
@@ -190,9 +212,10 @@ const generateTransactions = (count: number): Transaction[] => {
 
     transactions.push({
       id: `trx${String(i).padStart(3, '0')}`,
+      storeId: store.id,
       customerId: customer.id,
       customerName: customer.name,
-      staffId: `staff0${Math.ceil(random() * 2)}`,
+      staffId: cashier.id,
       createdAt: transactionDate,
       totalAmount: totalAmount,
       paymentMethod: paymentMethods[Math.floor(random() * paymentMethods.length)],

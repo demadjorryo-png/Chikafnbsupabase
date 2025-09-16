@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { products } from '@/lib/data';
+import { products, stores } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -70,7 +70,13 @@ function ProductDetailsDialog({ product, open, onOpenChange }: { product: Produc
                        {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
                        {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
                        {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                       <div><strong>Stock:</strong> {product.stock}</div>
+                       <div><strong>Stock:</strong> 
+                         <ul className="list-disc pl-4">
+                           {Object.entries(product.stock).map(([storeId, qty]) => (
+                             <li key={storeId}>{stores.find(s => s.id === storeId)?.name}: {qty}</li>
+                           ))}
+                         </ul>
+                       </div>
                        <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>
                        <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                     </div>
@@ -82,7 +88,7 @@ function ProductDetailsDialog({ product, open, onOpenChange }: { product: Produc
 
 
 export default function Products() {
-  const lowStockThreshold = 20;
+  const lowStockThreshold = 10;
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
 
@@ -168,13 +174,15 @@ export default function Products() {
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-center">Stock</TableHead>
+                <TableHead className="text-center">Total Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                  <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {products.map((product) => {
+                const totalStock = Object.values(product.stock).reduce((acc, val) => acc + val, 0);
+                return (
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Image
@@ -191,10 +199,10 @@ export default function Products() {
                     <Badge variant="outline">{product.category}</Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    {product.stock <= lowStockThreshold ? (
-                      <Badge variant="destructive">Low ({product.stock})</Badge>
+                    {totalStock <= lowStockThreshold ? (
+                      <Badge variant="destructive">Low ({totalStock})</Badge>
                     ) : (
-                      product.stock
+                      totalStock
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -219,7 +227,7 @@ export default function Products() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         </CardContent>

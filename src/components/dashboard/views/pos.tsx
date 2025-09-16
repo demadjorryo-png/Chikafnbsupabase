@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { products, customers, transactions } from '@/lib/data';
+import { products, customers, transactions, users } from '@/lib/data';
 import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import Image from 'next/image';
 import {
@@ -82,6 +82,10 @@ export default function POS() {
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
   const { toast } = useToast();
+  
+  // For now, let's assume we are operating from the first store with a cashier
+  const currentStoreId = 'store_tpg';
+  const currentStaff = users.find(u => u.role === 'cashier' && u.storeId === currentStoreId)!;
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -89,11 +93,12 @@ export default function POS() {
   }));
 
   const addToCart = (product: Product) => {
-    if (product.stock === 0) {
+    const stockInStore = product.stock[currentStoreId] || 0;
+    if (stockInStore === 0) {
       toast({
         variant: 'destructive',
         title: 'Out of Stock',
-        description: `${product.name} is currently out of stock.`,
+        description: `${product.name} is currently out of stock in this store.`,
       });
       return;
     }
@@ -102,12 +107,11 @@ export default function POS() {
         (item) => item.productId === product.id
       );
       if (existingItem) {
-        const productInStock = products.find(p => p.id === product.id);
-        if (productInStock && existingItem.quantity >= productInStock.stock) {
+        if (existingItem.quantity >= stockInStore) {
             toast({
                 variant: 'destructive',
                 title: 'Stock Limit Reached',
-                description: `Only ${productInStock.stock} units of ${product.name} available.`,
+                description: `Only ${stockInStore} units of ${product.name} available.`,
             });
             return prevCart;
         }
@@ -136,15 +140,16 @@ export default function POS() {
     }
 
     const product = products.find(p => p.id === productId);
-    if(product && quantity > product.stock) {
+    const stockInStore = product?.stock[currentStoreId] || 0;
+    if(product && quantity > stockInStore) {
         toast({
             variant: 'destructive',
             title: 'Stock Limit Reached',
-            description: `Only ${product.stock} units of ${product.name} available.`,
+            description: `Only ${stockInStore} units of ${product.name} available.`,
         });
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item.productId === productId ? { ...item, quantity: product.stock } : item
+                item.productId === productId ? { ...item, quantity: stockInStore } : item
             )
         );
         return;
@@ -204,9 +209,10 @@ export default function POS() {
     
     const newTransaction: Transaction = {
         id: `trx${String(transactions.length + 1).padStart(3, '0')}`,
+        storeId: currentStoreId,
         customerId: selectedCustomer?.id || 'N/A',
         customerName: selectedCustomer?.name || 'Guest',
-        staffId: 'staff01',
+        staffId: currentStaff.id,
         createdAt: new Date().toISOString(),
         totalAmount: cartTotal,
         paymentMethod: paymentMethod,
@@ -250,43 +256,46 @@ export default function POS() {
           <ScrollArea className="h-[calc(100vh-220px)]">
             <CardContent className="p-4">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {filteredProducts.map((product) => (
-                  <Card
-                    key={product.id}
-                    className="group cursor-pointer overflow-hidden"
-                    onClick={() => addToCart(product)}
-                  >
-                    <div className="relative">
-                      <Image
-                        alt={product.name}
-                        className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
-                        height={200}
-                        src={product.imageUrl}
-                        width={200}
-                        data-ai-hint={product.imageHint}
-                      />
-                       {product.stock === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                            <Badge variant="destructive" className="text-base">OUT OF STOCK</Badge>
+                {filteredProducts.map((product) => {
+                  const stockInStore = product.stock[currentStoreId] || 0;
+                  return (
+                    <Card
+                      key={product.id}
+                      className="group cursor-pointer overflow-hidden"
+                      onClick={() => addToCart(product)}
+                    >
+                      <div className="relative">
+                        <Image
+                          alt={product.name}
+                          className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
+                          height={200}
+                          src={product.imageUrl}
+                          width={200}
+                          data-ai-hint={product.imageHint}
+                        />
+                         {stockInStore === 0 && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                              <Badge variant="destructive" className="text-base">OUT OF STOCK</Badge>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/20" />
+                        <div className="absolute bottom-2 left-2">
+                          <Badge variant="secondary">
+                            Rp {product.price.toLocaleString('id-ID')}
+                          </Badge>
                         </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/20" />
-                      <div className="absolute bottom-2 left-2">
-                        <Badge variant="secondary">
-                          Rp {product.price.toLocaleString('id-ID')}
-                        </Badge>
                       </div>
-                    </div>
-                    <CardFooter className="flex-col items-start p-2">
-                      <p className="text-sm font-medium leading-tight">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {product.attributes.brand}
-                      </p>
-                    </CardFooter>
-                  </Card>
-                ))}
+                      <CardFooter className="flex-col items-start p-2">
+                        <p className="text-sm font-medium leading-tight">
+                          {product.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.attributes.brand}
+                        </p>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
               </div>
             </CardContent>
           </ScrollArea>
@@ -475,5 +484,3 @@ export default function POS() {
     </>
   );
 }
-
-    

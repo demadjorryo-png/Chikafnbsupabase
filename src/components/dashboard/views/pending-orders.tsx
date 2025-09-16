@@ -49,16 +49,20 @@ export default function PendingOrders() {
   const [manualItemName, setManualItemName] = React.useState('');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const { toast } = useToast();
+  
+  // For now, let's assume we are checking stock for the first store
+  const currentStoreId = 'store_tpg';
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
     label: c.name,
   }));
   
-  // Filter for products that are out of stock
-  const outOfStockProducts = products.filter((product) =>
-    product.stock === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter for products that are out of stock in the current store
+  const outOfStockProducts = products.filter((product) => {
+    const stockInStore = product.stock[currentStoreId] || 0;
+    return stockInStore === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const addToPendingList = (product: Product) => {
     setPendingList((prevList) => {
@@ -341,7 +345,3 @@ export default function PendingOrders() {
     </div>
   );
 }
-
-    
-
-    
