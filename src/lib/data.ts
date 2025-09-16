@@ -107,97 +107,100 @@ export const products: Product[] = [
   },
 ];
 
-export const customers: Customer[] = [
-  {
-    id: 'cust01',
-    name: 'Budi Santoso',
-    phone: '081234567890',
-    birthDate: '1995-03-15',
-    joinDate: '2023-01-20T10:00:00Z',
-    loyaltyPoints: 850,
-    memberTier: 'Flyer',
-    avatarUrl: 'https://picsum.photos/seed/person1/100/100',
-  },
-  {
-    id: 'cust02',
-    name: 'Siti Aminah',
-    phone: '082198765432',
-    birthDate: '1999-08-22',
-    joinDate: '2023-05-11T14:30:00Z',
-    loyaltyPoints: 2150,
-    memberTier: 'Homer',
-    avatarUrl: 'https://picsum.photos/seed/person2/100/100',
-  },
-  {
-    id: 'cust03',
-    name: 'Agus Wijaya',
-    phone: '085711223344',
-    birthDate: '2001-11-01',
-    joinDate: '2024-02-01T18:45:00Z',
-    loyaltyPoints: 120,
-    memberTier: 'Squab',
-    avatarUrl: 'https://picsum.photos/seed/person3/100/100',
-  },
-   {
-    id: 'cust04',
-    name: 'Dewi Lestari',
-    phone: '081122334455',
-    birthDate: '1992-07-19',
-    joinDate: '2022-11-15T11:20:00Z',
-    loyaltyPoints: 5500,
-    memberTier: 'Homer',
-    avatarUrl: 'https://picsum.photos/seed/person4/100/100',
-  },
+const customerNames = [
+  'Budi Santoso', 'Siti Aminah', 'Agus Wijaya', 'Dewi Lestari', 'Eko Prasetyo', 
+  'Fitriani', 'Gunawan', 'Hasanah', 'Indra Cahyono', 'Joko Susilo',
+  'Kartika Sari', 'Lia Anggraini', 'Muhammad Hafiz', 'Nurul Aini', 'Putri Ayu',
+  'Rahmat Hidayat', 'Rina Marlina', 'Sari Permata', 'Taufik Akbar', 'Umar Said',
+  'Vina Lestari', 'Wahyudi', 'Yulia Puspita', 'Zainal Abidin', 'Adi Nugroho',
+  'Bella Swan', 'Candra Gupta', 'Dian Novita', 'Fajar Sidik', 'Gita Gutawa',
+  'Hendra Wijaya', 'Ika Putri', 'Jamaludin', 'Kevin Sanjaya', 'Laila Sari',
+  'Mega Chandra', 'Nadia Putri', 'Oscar Lawalata', 'Prabowo Subianto', 'Rizky Febian',
+  'Susi Susanti', 'Tukul Arwana', 'Vidi Aldiano', 'Wulan Guritno', 'Yuni Shara',
+  'Zaskia Gotik', 'Ahmad Dhani', 'Bunga Citra Lestari', 'Cinta Laura', 'Duta Sheila'
 ];
 
-export const transactions: Transaction[] = [
-    {
-      id: 'trx001',
-      customerId: 'cust01',
-      customerName: 'Budi Santoso',
-      staffId: 'staff01',
-      createdAt: '2024-07-20T10:30:00Z',
-      totalAmount: 450000,
-      paymentMethod: 'QRIS',
-      pointsEarned: 45,
-      items: [
-        { productId: 'prod_naked100', productName: 'Naked 100 Hawaiian POG', quantity: 1, price: 185000 },
-        { productId: 'prod_caliburnG2', productName: 'Uwell Caliburn G2', quantity: 1, price: 265000 },
-      ],
-    },
-    {
-      id: 'trx002',
-      customerId: 'cust02',
-      customerName: 'Siti Aminah',
-      staffId: 'staff01',
-      createdAt: '2024-07-20T11:05:00Z',
-      totalAmount: 205000,
-      paymentMethod: 'Card',
-      pointsEarned: 20,
-      items: [
-        { productId: 'prod_darkluna', productName: 'Dark Luna Grape', quantity: 1, price: 120000 },
-        { productId: 'prod_cottonbacon', productName: 'Cotton Bacon Prime', quantity: 1, price: 85000 },
-      ],
-    },
-    {
-      id: 'trx003',
-      customerId: 'cust03',
-      customerName: 'Agus Wijaya',
-      staffId: 'staff02',
-      createdAt: '2024-07-19T18:15:00Z',
-      totalAmount: 650000,
-      paymentMethod: 'Cash',
-      pointsEarned: 65,
-      items: [
-        { productId: 'prod_centaurusm200', productName: 'Lost Vape Centaurus M200', quantity: 1, price: 650000 },
-      ],
-    },
-];
+const generateCustomers = (count: number): Customer[] => {
+  const customers: Customer[] = [];
+  for (let i = 1; i <= count; i++) {
+    const points = Math.floor(Math.random() * 6000) + 50;
+    let tier: 'Squab' | 'Flyer' | 'Homer';
+    if (points < 500) tier = 'Squab';
+    else if (points < 2000) tier = 'Flyer';
+    else tier = 'Homer';
+
+    const birthYear = Math.floor(Math.random() * (2003 - 1980 + 1)) + 1980;
+    const birthMonth = Math.floor(Math.random() * 12) + 1;
+    const birthDay = Math.floor(Math.random() * 28) + 1;
+    const joinYear = Math.floor(Math.random() * 3) + 2022;
+    const joinMonth = Math.floor(Math.random() * 12) + 1;
+    const joinDay = Math.floor(Math.random() * 28) + 1;
+
+    customers.push({
+      id: `cust${String(i).padStart(3, '0')}`,
+      name: customerNames[i-1] || `Customer ${i}`,
+      phone: `08${String(Math.floor(Math.random() * 9000000000) + 1000000000)}`,
+      birthDate: `${birthYear}-${String(birthMonth).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}`,
+      joinDate: new Date(joinYear, joinMonth - 1, joinDay).toISOString(),
+      loyaltyPoints: points,
+      memberTier: tier,
+      avatarUrl: `https://picsum.photos/seed/person${i}/100/100`,
+    });
+  }
+  return customers;
+};
+
+export const customers: Customer[] = generateCustomers(50);
+
+const generateTransactions = (count: number): Transaction[] => {
+  const transactions: Transaction[] = [];
+  const paymentMethods: ('Cash' | 'Card' | 'QRIS')[] = ['Cash', 'Card', 'QRIS'];
+
+  for (let i = 1; i <= count; i++) {
+    const customer = customers[Math.floor(Math.random() * customers.length)];
+    const numItems = Math.floor(Math.random() * 3) + 1;
+    const items = [];
+    let totalAmount = 0;
+
+    for (let j = 0; j < numItems; j++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      if (!items.some(item => item.productId === product.id)) {
+        const quantity = 1;
+        items.push({
+          productId: product.id,
+          productName: product.name,
+          quantity: quantity,
+          price: product.price,
+        });
+        totalAmount += product.price * quantity;
+      }
+    }
+    
+    if (items.length === 0) continue;
+
+    const transactionDate = new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString();
+
+    transactions.push({
+      id: `trx${String(i).padStart(3, '0')}`,
+      customerId: customer.id,
+      customerName: customer.name,
+      staffId: `staff0${Math.ceil(Math.random() * 2)}`,
+      createdAt: transactionDate,
+      totalAmount: totalAmount,
+      paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+      pointsEarned: Math.floor(totalAmount / 10000),
+      items: items,
+    });
+  }
+  return transactions;
+}
+
+export const transactions: Transaction[] = generateTransactions(100);
 
 export const pendingOrders: PendingOrder[] = [
   {
     id: 'po001',
-    customerId: 'cust03',
+    customerId: 'cust003',
     customerName: 'Agus Wijaya',
     customerAvatarUrl: 'https://picsum.photos/seed/person3/100/100',
     productId: 'prod_caliburnG2',
@@ -206,7 +209,7 @@ export const pendingOrders: PendingOrder[] = [
   },
   {
     id: 'po002',
-    customerId: 'cust01',
+    customerId: 'cust001',
     customerName: 'Budi Santoso',
     customerAvatarUrl: 'https://picsum.photos/seed/person1/100/100',
     productId: 'prod_dead_rabbit_v3',
