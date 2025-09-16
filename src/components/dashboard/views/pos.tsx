@@ -24,7 +24,6 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
-  ClipboardList,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -75,6 +74,15 @@ export default function POS() {
         (item) => item.productId === product.id
       );
       if (existingItem) {
+        const productInStock = products.find(p => p.id === product.id);
+        if (productInStock && existingItem.quantity >= productInStock.stock) {
+            toast({
+                variant: 'destructive',
+                title: 'Stock Limit Reached',
+                description: `Only ${productInStock.stock} units of ${product.name} available.`,
+            });
+            return prevCart;
+        }
         return prevCart.map((item) =>
           item.productId === product.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -98,6 +106,22 @@ export default function POS() {
       removeFromCart(productId);
       return;
     }
+
+    const product = products.find(p => p.id === productId);
+    if(product && quantity > product.stock) {
+        toast({
+            variant: 'destructive',
+            title: 'Stock Limit Reached',
+            description: `Only ${product.stock} units of ${product.name} available.`,
+        });
+        setCart((prevCart) =>
+            prevCart.map((item) =>
+                item.productId === productId ? { ...item, quantity: product.stock } : item
+            )
+        );
+        return;
+    }
+
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.productId === productId ? { ...item, quantity } : item
@@ -140,24 +164,6 @@ export default function POS() {
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const handlePendingOrder = () => {
-    if (!selectedCustomer) {
-       toast({
-        variant: 'destructive',
-        title: 'No Customer Selected',
-        description: `Please select a customer to create a pending order.`,
-      });
-      return;
-    }
-    // In a real app, you would save this to a database.
-    // For now, we just show a toast.
-    toast({
-      title: 'Pending Order Created',
-      description: `A pending order has been created for ${selectedCustomer.name}.`,
-    });
-    setCart([]);
-  }
-
   const handleCheckout = () => {
     if (cart.length === 0) {
       toast({
@@ -387,18 +393,12 @@ export default function POS() {
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={cartTotal} />
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-               <Button variant="outline" className="gap-1" onClick={handlePendingOrder}>
-                  <ClipboardList className="h-4 w-4" />
-                  Pending Order
-                </Button>
-                <Button size="lg" className="w-full font-headline text-lg tracking-wider col-span-1" onClick={handleCheckout}>Checkout</Button>
-            </div>
-             <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Cash</Button>
                 <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Card</Button>
                 <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
+             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout}>Checkout</Button>
           </CardContent>
         </Card>
       </div>

@@ -5,150 +5,300 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { products, customers } from '@/lib/data';
+import type { Product, Customer, CartItem } from '@/lib/types';
+import Image from 'next/image';
+import {
+  Search,
+  PlusCircle,
+  MinusCircle,
+  XCircle,
+  UserPlus,
+  Crown,
+  ClipboardList,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MessageSquareHeart, Sparkles } from 'lucide-react';
-import { pendingOrders, products } from '@/lib/data';
-import { getPendingOrderFollowUp } from '@/ai/flows/pending-order-follow-up';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
+import { Combobox } from '@/components/ui/combobox';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PendingOrders() {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [followUpMessage, setFollowUpMessage] = React.useState('');
-  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [pendingList, setPendingList] = React.useState<CartItem[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<
+    Customer | undefined
+  >(customers[0]);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
+  const { toast } = useToast();
 
-  const handleGenerateFollowUp = async (order: (typeof pendingOrders)[0]) => {
-    setIsLoading(true);
-    setFollowUpMessage('');
-    try {
-      const result = await getPendingOrderFollowUp({
-        customerName: order.customerName,
-        productName: order.productName,
-      });
-      setFollowUpMessage(result.followUpMessage);
-      setIsAlertOpen(true);
-    } catch (error) {
-      console.error('Error generating follow-up:', error);
-    } finally {
-      setIsLoading(false);
+  const customerOptions = customers.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+  
+  // Filter for products that are out of stock
+  const outOfStockProducts = products.filter((product) =>
+    product.stock === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const addToPendingList = (product: Product) => {
+    setPendingList((prevList) => {
+      const existingItem = prevList.find(
+        (item) => item.productId === product.id
+      );
+      if (existingItem) {
+        return prevList.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [
+        ...prevList,
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: 1,
+          price: product.price, // Price might not be relevant but good to have
+        },
+      ];
+    });
+  };
+
+  const updateQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromPendingList(productId);
+      return;
     }
+    setPendingList((prevList) =>
+      prevList.map((item) =>
+        item.productId === productId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const removeFromPendingList = (productId: string) => {
+    setPendingList((prevList) =>
+      prevList.filter((item) => item.productId !== productId)
+    );
+  };
+
+  const handleCreatePendingOrder = () => {
+    if (pendingList.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'List is Empty',
+        description: 'Add products to the list before creating a pending order.',
+      });
+      return;
+    }
+    if (!selectedCustomer) {
+      toast({
+        variant: 'destructive',
+        title: 'No Customer Selected',
+        description: 'Please select a customer to create a pending order.',
+      });
+      return;
+    }
+    
+    // In a real app, you would save this to a database.
+    // For now, we just show a toast and clear the list.
+    toast({
+      title: 'Pending Order Created!',
+      description: `A pending order for ${pendingList.length} item(s) has been created for ${selectedCustomer.name}.`,
+    });
+    setPendingList([]);
   };
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline tracking-wider">
-            Pending Orders
-          </CardTitle>
-          <CardDescription>
-            Manage customer orders for out-of-stock items.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingOrders.map((order) => {
-                const product = products.find((p) => p.id === order.productId);
-                const isBackInStock = product ? product.stock > 0 : false;
-                return (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border-2 border-primary/50">
-                          <AvatarImage
-                            src={order.customerAvatarUrl}
-                            alt={order.customerName}
-                          />
-                          <AvatarFallback>
-                            {order.customerName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="font-medium">{order.customerName}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.productName}</TableCell>
-                    <TableCell>
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={isBackInStock ? 'default' : 'secondary'}>
-                        {isBackInStock ? 'Back in Stock' : 'Out of Stock'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!isBackInStock || isLoading}
-                        onClick={() => handleGenerateFollowUp(order)}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <MessageSquareHeart className="mr-2 h-4 w-4" />
-                        )}
-                        Follow Up
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                 <Sparkles className="h-5 w-5" />
-              </div>
-              <AlertDialogTitle className="font-headline tracking-wider">
-                Chika AI Follow-up
-              </AlertDialogTitle>
+    <div className="grid flex-1 items-start gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="lg:col-span-2 xl:col-span-3">
+        <Card>
+          <CardHeader className="border-b">
+             <CardTitle className="font-headline tracking-wider">Out of Stock Products</CardTitle>
+             <CardDescription>Select products to add to a customer's pending order list.</CardDescription>
+            <div className="relative flex items-center gap-2 pt-2">
+              <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search products by name..."
+                className="w-full rounded-lg bg-secondary pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <AlertDialogDescription className="pt-4 text-base text-foreground">
-              {followUpMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigator.clipboard.writeText(followUpMessage)}>Copy Text</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          </CardHeader>
+          <ScrollArea className="h-[calc(100vh-270px)]">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {outOfStockProducts.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="group cursor-pointer overflow-hidden"
+                    onClick={() => addToPendingList(product)}
+                  >
+                    <div className="relative">
+                      <Image
+                        alt={product.name}
+                        className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
+                        height={200}
+                        src={product.imageUrl}
+                        width={200}
+                        data-ai-hint={product.imageHint}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <Badge variant="destructive" className="text-base">OUT OF STOCK</Badge>
+                      </div>
+                    </div>
+                    <CardFooter className="flex-col items-start p-2">
+                      <p className="text-sm font-medium leading-tight">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {product.attributes.brand}
+                      </p>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </ScrollArea>
+        </Card>
+      </div>
+      <div className="xl:col-span-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+              Pending Order List
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Combobox
+                options={customerOptions}
+                value={selectedCustomer?.id}
+                onValueChange={(value) => {
+                  setSelectedCustomer(customers.find((c) => c.id === value));
+                }}
+                placeholder="Search customer..."
+                searchPlaceholder="Search by name..."
+                notFoundText="No customer found."
+              />
+              <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider">Register New Member</DialogTitle>
+                    <DialogDescription>Add a new customer to the Bekupon community.</DialogDescription>
+                  </DialogHeader>
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} />
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {selectedCustomer && (
+              <div className="flex items-center justify-between rounded-lg border bg-card p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedCustomer.avatarUrl} />
+                    <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{selectedCustomer.name}</p>
+                    <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-1 font-semibold text-primary">
+                    <Crown className="h-4 w-4" />
+                    <span>{selectedCustomer.memberTier}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <Separator />
+            
+            <ScrollArea className="h-[300px] w-full">
+              <div className="space-y-4 pr-4">
+              {pendingList.length > 0 ? (
+                pendingList.map((item) => (
+                  <div key={item.productId} className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <p className="font-medium">{item.productName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Requested Quantity
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() =>
+                          updateQuantity(item.productId, item.quantity - 1)
+                        }
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </Button>
+                      <span className="w-4 text-center">{item.quantity}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() =>
+                          updateQuantity(item.productId, item.quantity + 1)
+                        }
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive/80 hover:text-destructive"
+                        onClick={() => removeFromPendingList(item.productId)}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  No products in the pending list.
+                </div>
+              )}
+              </div>
+            </ScrollArea>
+            <Separator />
+            <Button size="lg" className="w-full gap-2 font-headline text-lg tracking-wider" onClick={handleCreatePendingOrder}>
+                <ClipboardList className="h-5 w-5" />
+                Create Pending Order
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
