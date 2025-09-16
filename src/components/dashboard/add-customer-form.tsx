@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { differenceInYears } from 'date-fns/fp';
+import { differenceInYears } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 const FormSchema = z
@@ -39,7 +39,7 @@ const FormSchema = z
   })
   .refine(
     (data) => {
-      const age = differenceInYears(data.birthDate, new Date());
+      const age = differenceInYears(new Date(), data.birthDate);
       return age >= 21;
     },
     {
@@ -128,6 +128,9 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    captionLayout="dropdown-nav"
+                    fromYear={new Date().getFullYear() - 100}
+                    toYear={new Date().getFullYear() - 18}
                     selected={field.value}
                     onSelect={field.onChange}
                     disabled={(date) =>
