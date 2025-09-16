@@ -37,6 +37,12 @@ export async function generateChallenges(
   return challengeGeneratorFlow(input);
 }
 
+// We ask the LLM to generate the content, but we format the date ourselves.
+// This avoids potential hallucinations in date formatting.
+const ChallengeGeneratorGptOutputSchema = z.object({
+  challenges: z.array(ChallengeSchema).describe('A list of generated sales challenges.'),
+});
+
 const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
   input: { schema: ChallengeGeneratorInputSchema },
@@ -53,12 +59,6 @@ Challenge Period: {{startDate}} to {{endDate}}
 Total Reward Budget: Rp {{budget}}
 
 Generate a set of challenges.`,
-});
-
-// We ask the LLM to generate the content, but we format the date ourselves.
-// This avoids potential hallucinations in date formatting.
-const ChallengeGeneratorGptOutputSchema = z.object({
-  challenges: z.array(ChallengeSchema).describe('A list of generated sales challenges.'),
 });
 
 
