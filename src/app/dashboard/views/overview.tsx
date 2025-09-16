@@ -30,8 +30,8 @@ import {
 import { salesData, products, customers, pendingOrders as allPendingOrders, stores, users, transactions } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy } from 'lucide-react';
-import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays } from 'date-fns';
+import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon } from 'lucide-react';
+import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,6 +46,8 @@ import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
 import type { Customer, Transaction, User } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+
 
 const chartConfig = {
   revenue: {
@@ -142,20 +144,39 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 
 
 export default function Overview({ storeId }: { storeId: string }) {
-  const storeTransactions = transactions.filter(t => t.storeId === storeId);
-  const pendingOrders = allPendingOrders.filter(p => p.storeId === storeId);
-  const totalRevenue = storeTransactions.reduce((acc, curr) => acc + curr.totalAmount, 0);
+  const searchParams = useSearchParams();
+  const userId = searchParams.get('userId');
 
-  const topCustomers = [...customers]
-    .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints)
-    .slice(0, 3);
+  const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
+    if (!userId) return { monthlyRevenue: 0, todaysRevenue: 0 };
+    
+    const now = new Date();
+    const startOfThisMonth = startOfMonth(now);
+    const endOfThisMonth = endOfMonth(now);
+    const startOfToday = startOfDay(now);
+    const endOfToday = endOfDay(now);
+
+    const monthlyTx = transactions.filter(t => 
+      t.staffId === userId && 
+      isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth })
+    );
+
+    const todaysTx = transactions.filter(t => 
+      t.staffId === userId && 
+      t.storeId === storeId &&
+      isWithinInterval(new Date(t.createdAt), { start: startOfToday, end: endOfToday })
+    );
+
+    const monthlyRevenue = monthlyTx.reduce((sum, t) => sum + t.totalAmount, 0);
+    const todaysRevenue = todaysTx.reduce((sum, t) => sum + t.totalAmount, 0);
+
+    return { monthlyRevenue, todaysRevenue };
+  }, [userId, storeId]);
+
+  const pendingOrders = allPendingOrders.filter(p => p.storeId === storeId);
   
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
-
-  const storeUsers = users.filter(u => u.storeId === storeId);
-  const storeAdmins = storeUsers.filter(u => u.role === 'admin');
-  const storeCashiers = storeUsers.filter(u => u.role === 'cashier');
 
   const employeeSales = React.useMemo(() => {
     const sales: Record<string, { user: User; totalOmset: number }> = {};
@@ -177,6 +198,7 @@ export default function Overview({ storeId }: { storeId: string }) {
     const today = new Date();
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
+    const storeTransactions = transactions.filter(t => t.storeId === storeId);
     
     const daysInWeek = eachDayOfInterval({
         start: startOfThisWeek,
@@ -193,7 +215,7 @@ export default function Overview({ storeId }: { storeId: string }) {
     });
 
     return dailyRevenue;
-  }, [storeTransactions]);
+  }, [storeId]);
 
 
   React.useEffect(() => {
@@ -211,40 +233,44 @@ export default function Overview({ storeId }: { storeId: string }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Revenue (Store)
+              Pendapatan Anda (Bulan Ini)
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Moon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              Rp {totalRevenue.toLocaleString('id-ID')}
+              Rp {monthlyRevenue.toLocaleString('id-ID')}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total revenue for this store
+              Total omset dari semua toko bulan ini
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Customer (Global)</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+                Pendapatan Anda (Hari Ini)
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{topCustomers[0]?.name || 'N/A'}</div>
+            <div className="text-2xl font-bold">
+                Rp {todaysRevenue.toLocaleString('id-ID')}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {topCustomers[0]?.loyaltyPoints || 0} points
+              Total omset di toko ini hari ini
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Peak Day</CardTitle>
+            <CardTitle className="text-sm font-medium">Hari Teramai (Toko)</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Saturday</div>
+            <div className="text-2xl font-bold">Sabtu</div>
             <p className="text-xs text-muted-foreground">
-              Highest traffic and sales
+              Rata-rata penjualan & traffic tertinggi
             </p>
           </CardContent>
         </Card>
@@ -254,17 +280,17 @@ export default function Overview({ storeId }: { storeId: string }) {
          <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Employee Leaderboard
+              Papan Peringkat Karyawan
             </CardTitle>
             <CardDescription>
-              Top performing employees based on total sales.
+              Karyawan dengan performa terbaik berdasarkan total penjualan.
             </CardDescription>
           </CardHeader>
           <CardContent>
              <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
+                  <TableHead>Karyawan</TableHead>
                   <TableHead className="text-right">Total Omset</TableHead>
                 </TableRow>
               </TableHeader>
@@ -291,7 +317,7 @@ export default function Overview({ storeId }: { storeId: string }) {
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Weekly Sales Summary
+              Ringkasan Penjualan Mingguan (Toko)
             </CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
@@ -322,9 +348,9 @@ export default function Overview({ storeId }: { storeId: string }) {
 
        <Card>
         <CardHeader>
-            <CardTitle className="font-headline tracking-wider">This Month's Birthdays</CardTitle>
+            <CardTitle className="font-headline tracking-wider">Ulang Tahun Bulan Ini</CardTitle>
             <CardDescription>
-              Wish them a happy birthday with a special promo!
+              Ucapkan selamat ulang tahun dengan promo spesial!
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -333,8 +359,8 @@ export default function Overview({ storeId }: { storeId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Customer</TableHead>
-                <TableHead>Birth Date</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead>Tanggal Lahir</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -361,7 +387,7 @@ export default function Overview({ storeId }: { storeId: string }) {
                             <TableCell className="text-right">
                                 <Button size="sm" variant="outline" onClick={() => setSelectedCustomer(customer)}>
                                     <Gift className="mr-2 h-4 w-4"/>
-                                    Send Wish
+                                    Kirim Ucapan
                                 </Button>
                             </TableCell>
                         </TableRow>
@@ -370,25 +396,25 @@ export default function Overview({ storeId }: { storeId: string }) {
             </TableBody>
           </Table>
             ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No customer birthdays this month.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan yang berulang tahun bulan ini.</p>
             )}
         </CardContent>
       </Card>
       
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline tracking-wider">Recent Pending Orders</CardTitle>
+            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda Terbaru</CardTitle>
             <CardDescription>
-              Products awaited by customers. Follow up when stock is available.
+              Produk yang ditunggu pelanggan. Hubungi jika stok sudah tersedia.
             </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Date Requested</TableHead>
+                <TableHead>Pelanggan</TableHead>
+                <TableHead>Produk</TableHead>
+                <TableHead className="text-right">Tanggal Permintaan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -409,7 +435,7 @@ export default function Overview({ storeId }: { storeId: string }) {
                             </div>
                         </TableCell>
                         <TableCell>{order.productName}</TableCell>
-                        <TableCell className="text-right">{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</TableCell>
+                        <TableCell className="text-right">{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: require('date-fns/locale/id') })}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
