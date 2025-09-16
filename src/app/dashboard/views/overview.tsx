@@ -27,11 +27,11 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { salesData, products, customers, pendingOrders, stores, users, transactions } from '@/lib/data';
+import { salesData, products, customers, pendingOrders as allPendingOrders, stores, users, transactions } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,7 +43,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer } from '@/lib/types';
+import type { Customer, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const chartConfig = {
@@ -119,6 +119,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 
 export default function Overview({ storeId }: { storeId: string }) {
   const storeTransactions = transactions.filter(t => t.storeId === storeId);
+  const pendingOrders = allPendingOrders.filter(p => p.storeId === storeId);
   const totalRevenue = storeTransactions.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
   // Top customers are global for now, not store-specific
@@ -129,12 +130,32 @@ export default function Overview({ storeId }: { storeId: string }) {
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
 
-  const admins = users.filter(u => u.role === 'admin');
-  const cashiers = users.filter(u => u.role === 'cashier');
-  
   const storeUsers = users.filter(u => u.storeId === storeId);
   const storeAdmins = storeUsers.filter(u => u.role === 'admin');
   const storeCashiers = storeUsers.filter(u => u.role === 'cashier');
+
+  const weeklySalesData = React.useMemo(() => {
+    const today = new Date();
+    // Start of week is Sunday for getDay(), so we adjust for Monday
+    const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
+    const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
+    
+    const daysInWeek = eachDayOfInterval({
+        start: startOfThisWeek,
+        end: endOfThisWeek,
+    });
+
+    const dailyRevenue = daysInWeek.map(day => {
+        const dailyTransactions = storeTransactions.filter(t => format(new Date(t.createdAt), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
+        const revenue = dailyTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
+        return {
+            date: format(day, 'E'), // 'Mon', 'Tue', etc.
+            revenue: revenue,
+        };
+    });
+
+    return dailyRevenue;
+  }, [storeTransactions]);
 
 
   React.useEffect(() => {
@@ -226,7 +247,7 @@ export default function Overview({ storeId }: { storeId: string }) {
           <CardContent className="pl-2">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <BarChart
-                data={salesData}
+                data={weeklySalesData}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
                 <YAxis

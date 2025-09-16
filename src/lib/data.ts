@@ -182,8 +182,10 @@ const generateTransactions = (count: number): Transaction[] => {
 
   for (let i = 1; i <= count; i++) {
     const customer = customers[Math.floor(random() * customers.length)];
-    const cashier = users.filter(u => u.role === 'cashier')[Math.floor(random() * 5)];
-    const store = stores.find(s => s.id === cashier.storeId)!;
+    // Make transactions more distributed between stores
+    const store = stores[i % 2];
+    const cashier = users.find(u => u.storeId === store.id && u.role === 'cashier')!;
+
     const numItems = Math.floor(random() * 3) + 1;
     const items = [];
     let totalAmount = 0;
@@ -231,6 +233,7 @@ export const transactions: Transaction[] = generateTransactions(100);
 export const pendingOrders: PendingOrder[] = [
   {
     id: 'po001',
+    storeId: 'store_tpg',
     customerId: 'cust003',
     customerName: 'Agus Wijaya',
     customerAvatarUrl: 'https://picsum.photos/seed/person3/100/100',
@@ -240,6 +243,7 @@ export const pendingOrders: PendingOrder[] = [
   },
   {
     id: 'po002',
+    storeId: 'store_swj',
     customerId: 'cust001',
     customerName: 'Budi Santoso',
     customerAvatarUrl: 'https://picsum.photos/seed/person1/100/100',

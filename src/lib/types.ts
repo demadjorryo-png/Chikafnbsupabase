@@ -87,6 +87,7 @@ export type CartItem = {
 
 export type PendingOrder = {
   id: string;
+  storeId: string;
   customerId: string;
   customerName: string;
   customerAvatarUrl: string;
