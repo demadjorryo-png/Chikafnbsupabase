@@ -117,6 +117,7 @@ export default function Products() {
                 Image
               </TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Barcode</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead className="text-center">Stock</TableHead>
@@ -138,6 +139,7 @@ export default function Products() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="font-mono text-xs">{product.barcode}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{product.category}</Badge>
                 </TableCell>

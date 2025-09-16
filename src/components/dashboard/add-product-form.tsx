@@ -28,6 +28,7 @@ const FormSchema = z.object({
     message: 'Name must be at least 2 characters.',
   }),
   category: z.enum(productCategories),
+  barcode: z.string().optional(),
   stock: z.coerce.number().int().min(0),
   price: z.coerce.number().min(0),
   costPrice: z.coerce.number().min(0),
@@ -46,6 +47,7 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: '',
+      barcode: '',
       stock: 0,
       price: 0,
       costPrice: 0,
@@ -115,6 +117,19 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="barcode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Barcode (SKU)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., 899..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -142,6 +157,7 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
               </FormItem>
             )}
           />
+          </div>
           <FormField
             control={form.control}
             name="price"
@@ -155,7 +171,6 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
               </FormItem>
             )}
           />
-        </div>
         <Button type="submit" className="w-full">
           Add Product
         </Button>
