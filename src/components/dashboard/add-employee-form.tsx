@@ -102,7 +102,7 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
             name="storeId"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Store</FormLabel>
+                <FormLabel>Primary Store</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                     <SelectTrigger>

@@ -97,7 +97,7 @@ export default function Employees() {
                 <TableHead>Name</TableHead>
                 <TableHead>User ID</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Store</TableHead>
+                <TableHead>Primary Store</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
