@@ -32,6 +32,10 @@ export function MainSidebar() {
     router.push(`/dashboard?view=${view}`);
   };
 
+  const handleLogout = () => {
+    router.push('/login');
+  };
+
   const menuItems = [
     {
       view: 'overview',
@@ -100,7 +104,7 @@ export function MainSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log Out">
+            <SidebarMenuButton tooltip="Log Out" onClick={handleLogout}>
               <LogOut />
               <span>Log Out</span>
             </SidebarMenuButton>
