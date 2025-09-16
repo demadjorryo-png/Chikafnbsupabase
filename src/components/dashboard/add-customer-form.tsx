@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { differenceInYears, parseISO } from 'date-fns';
+import { differenceInYears, parse } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 const FormSchema = z
@@ -26,17 +26,21 @@ const FormSchema = z
     }),
     birthDate: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD.'),
+      .regex(
+        /^\d{8}$/,
+        'Format tanggal harus DDMMYYYY (contoh: 24071990).'
+      ),
   })
   .refine(
     (data) => {
-      const date = parseISO(data.birthDate);
-      // Check if the parsed date is valid
-      if (isNaN(date.getTime())) {
+      try {
+        const date = parse(data.birthDate, 'ddMM yyyy', new Date());
+        if (isNaN(date.getTime())) return false;
+        const age = differenceInYears(new Date(), date);
+        return age >= 21;
+      } catch (e) {
         return false;
       }
-      const age = differenceInYears(new Date(), date);
-      return age >= 21;
     },
     {
       message: 'Pelanggan harus berusia minimal 21 tahun.',
@@ -62,7 +66,7 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
   function onSubmit(data: z.infer<typeof FormSchema>) {
     console.log({
       ...data,
-      birthDate: new Date(data.birthDate), // Convert string to Date object for submission
+      birthDate: parse(data.birthDate, 'ddMM yyyy', new Date()), // Convert string to Date object for submission
     });
     toast({
       title: 'Member Registered!',
@@ -107,7 +111,7 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
             <FormItem>
               <FormLabel>Date of birth</FormLabel>
               <FormControl>
-                <Input placeholder="YYYY-MM-DD" {...field} />
+                <Input placeholder="DDMMYYYY (e.g., 24071990)" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
