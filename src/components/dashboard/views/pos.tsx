@@ -51,6 +51,7 @@ export default function POS() {
     Customer | undefined
   >(customers[0]);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [paymentMethod, setPaymentMethod] = React.useState<'Cash' | 'Card' | 'QRIS'>('Cash');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const { toast } = useToast();
@@ -61,6 +62,14 @@ export default function POS() {
   }));
 
   const addToCart = (product: Product) => {
+    if (product.stock === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Out of Stock',
+        description: `${product.name} is currently out of stock.`,
+      });
+      return;
+    }
     setCart((prevCart) => {
       const existingItem = prevCart.find(
         (item) => item.productId === product.id
@@ -148,6 +157,24 @@ export default function POS() {
     });
     setCart([]);
   }
+
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Cart is Empty',
+        description: 'Add products to the cart before checking out.',
+      });
+      return;
+    }
+    // In a real app, you would save this transaction to a database.
+    toast({
+      title: 'Checkout Successful!',
+      description: `Total: Rp ${cartTotal.toLocaleString('id-ID')} via ${paymentMethod}.`,
+    });
+    setCart([]);
+  }
+
 
   return (
     <>
@@ -365,12 +392,12 @@ export default function POS() {
                   <ClipboardList className="h-4 w-4" />
                   Pending Order
                 </Button>
-                <Button size="lg" className="w-full font-headline text-lg tracking-wider col-span-1">Checkout</Button>
+                <Button size="lg" className="w-full font-headline text-lg tracking-wider col-span-1" onClick={handleCheckout}>Checkout</Button>
             </div>
              <div className="grid grid-cols-3 gap-2">
-                <Button variant="secondary">Cash</Button>
-                <Button variant="secondary">Card</Button>
-                <Button variant="secondary">QRIS</Button>
+                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Cash</Button>
+                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Card</Button>
+                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
           </CardContent>
         </Card>
