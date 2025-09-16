@@ -1,8 +1,25 @@
+export const productCategories = [
+  'Liquid Freebase',
+  'Liquid Saltnic',
+  'Pod',
+  'Mod',
+  'AIO',
+  'RDA',
+  'RTA',
+  'RDTA',
+  'Coil',
+  'Battery',
+  'Cotton',
+  'Drip Tip',
+] as const;
+
+export type ProductCategory = (typeof productCategories)[number];
+
 export type Product = {
   id: string;
   name: string;
   barcode: string;
-  category: 'Liquid Freebase' | 'Liquid Saltnic' | 'Pod' | 'Mod' | 'AIO' | 'RDA' | 'RTA' | 'RDTA' | 'Coil' | 'Battery' | 'Cotton' | 'Drip Tip';
+  category: ProductCategory;
   stock: number;
   price: number;
   supplierId: string;
