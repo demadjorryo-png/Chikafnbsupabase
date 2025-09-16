@@ -27,15 +27,18 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { LoyaltyRecommendation } from '@/components/dashboard/loyalty-recommendation';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
+import { Combobox } from '@/components/ui/combobox';
 
 export default function POS() {
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -43,6 +46,12 @@ export default function POS() {
     Customer | undefined
   >(customers[0]);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
+
+  const customerOptions = customers.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
 
   const addToCart = (product: Product) => {
     setCart((prevCart) => {
@@ -119,7 +128,7 @@ export default function POS() {
                 {filteredProducts.map((product) => (
                   <Card
                     key={product.id}
-                    className="group overflow-hidden"
+                    className="group cursor-pointer overflow-hidden"
                     onClick={() => addToCart(product)}
                   >
                     <div className="relative">
@@ -162,34 +171,34 @@ export default function POS() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
-              <Select
-                onValueChange={(value) =>
-                  setSelectedCustomer(
-                    customers.find((c) => c.id === value)
-                  )
-                }
-                defaultValue={selectedCustomer?.id}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={c.avatarUrl} />
-                            <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span>{c.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="icon">
-                <UserPlus className="h-4 w-4" />
-              </Button>
+              <Combobox
+                options={customerOptions}
+                value={selectedCustomer?.id}
+                onValueChange={(value) => {
+                  setSelectedCustomer(customers.find((c) => c.id === value));
+                }}
+                placeholder="Search customer..."
+                searchPlaceholder="Search by name..."
+                notFoundText="No customer found."
+              />
+              <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider">
+                      Register New Member
+                    </DialogTitle>
+                    <DialogDescription>
+                      Add a new customer to the Bekupon community. Age will be verified.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} />
+                </DialogContent>
+              </Dialog>
             </div>
 
             {selectedCustomer && (
