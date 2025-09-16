@@ -19,6 +19,7 @@ import {
   LogOut,
   Settings,
   ClipboardList,
+  History,
 } from 'lucide-react';
 
 export function MainSidebar() {
@@ -50,6 +51,11 @@ export function MainSidebar() {
       view: 'customers',
       label: 'Customers',
       icon: <Users />,
+    },
+    {
+      view: 'transactions',
+      label: 'Transactions',
+      icon: <History />,
     },
     {
       view: 'pending-orders',

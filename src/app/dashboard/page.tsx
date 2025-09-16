@@ -8,6 +8,7 @@ import Overview from '@/components/dashboard/views/overview';
 import POS from '@/components/dashboard/views/pos';
 import Products from '@/components/dashboard/views/products';
 import Customers from '@/components/dashboard/views/customers';
+import Transactions from '@/components/dashboard/views/transactions';
 import PendingOrders from '@/components/dashboard/views/pending-orders';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -25,6 +26,8 @@ function DashboardContent() {
         return <Products />;
       case 'customers':
         return <Customers />;
+      case 'transactions':
+        return <Transactions />;
       case 'pending-orders':
         return <PendingOrders />;
       case 'overview':
@@ -41,6 +44,8 @@ function DashboardContent() {
         return 'Product Inventory';
       case 'customers':
         return 'Customer Management';
+      case 'transactions':
+        return 'Transaction History';
        case 'pending-orders':
         return 'Pending Orders';
       case 'overview':
