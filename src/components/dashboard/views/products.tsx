@@ -64,15 +64,15 @@ function ProductDetailsDialog({ product, open, onOpenChange }: { product: Produc
                         data-ai-hint={product.imageHint}
                     />
                     <div className="space-y-1 text-sm">
-                       <p><strong>Brand:</strong> {product.attributes.brand}</p>
-                       <p><strong>Category:</strong> <Badge variant="outline">{product.category}</Badge></p>
-                       {product.attributes.flavorProfile && <p><strong>Flavor:</strong> {product.attributes.flavorProfile}</p>}
-                       {product.attributes.nicotine && <p><strong>Nicotine:</strong> {product.attributes.nicotine}</p>}
-                       {product.attributes.size && <p><strong>Size:</strong> {product.attributes.size}</p>}
-                       {product.attributes.powerOutput && <p><strong>Power:</strong> {product.attributes.powerOutput}</p>}
-                       <p><strong>Stock:</strong> {product.stock}</p>
-                       <p><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</p>
-                       <p><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</p>
+                       <div><strong>Brand:</strong> {product.attributes.brand}</div>
+                       <div className="flex items-center gap-1"><strong>Category:</strong> <Badge variant="outline">{product.category}</Badge></div>
+                       {product.attributes.flavorProfile && <div><strong>Flavor:</strong> {product.attributes.flavorProfile}</div>}
+                       {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
+                       {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
+                       {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
+                       <div><strong>Stock:</strong> {product.stock}</div>
+                       <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>
+                       <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                     </div>
                 </div>
             </DialogContent>
