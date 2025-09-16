@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon } from 'lucide-react';
 import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import type { Locale } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -146,6 +147,11 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 export default function Overview({ storeId }: { storeId: string }) {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
+  const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
+
+  React.useEffect(() => {
+    import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
+  }, []);
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
     if (!userId) return { monthlyRevenue: 0, todaysRevenue: 0 };
@@ -435,7 +441,9 @@ export default function Overview({ storeId }: { storeId: string }) {
                             </div>
                         </TableCell>
                         <TableCell>{order.productName}</TableCell>
-                        <TableCell className="text-right">{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: require('date-fns/locale/id') })}</TableCell>
+                        <TableCell className="text-right">
+                          {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
+                        </TableCell>
                     </TableRow>
                 ))}
             </TableBody>
