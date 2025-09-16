@@ -18,6 +18,7 @@ import {
   Users,
   LogOut,
   Settings,
+  ClipboardList,
 } from 'lucide-react';
 
 export function MainSidebar() {
@@ -49,6 +50,11 @@ export function MainSidebar() {
       view: 'customers',
       label: 'Customers',
       icon: <Users />,
+    },
+    {
+      view: 'pending-orders',
+      label: 'Pending Orders',
+      icon: <ClipboardList />,
     },
   ];
 

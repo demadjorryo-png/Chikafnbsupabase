@@ -67,3 +67,13 @@ export type CartItem = {
   quantity: number;
   price: number;
 };
+
+export type PendingOrder = {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerAvatarUrl: string;
+  productId: string;
+  productName: string;
+  createdAt: string; // ISO 8601
+};

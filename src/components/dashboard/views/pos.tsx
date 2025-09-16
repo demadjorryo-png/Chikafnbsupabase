@@ -24,6 +24,7 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
+  ClipboardList,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -129,6 +130,24 @@ export default function POS() {
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const handlePendingOrder = () => {
+    if (!selectedCustomer) {
+       toast({
+        variant: 'destructive',
+        title: 'No Customer Selected',
+        description: `Please select a customer to create a pending order.`,
+      });
+      return;
+    }
+    // In a real app, you would save this to a database.
+    // For now, we just show a toast.
+    toast({
+      title: 'Pending Order Created',
+      description: `A pending order has been created for ${selectedCustomer.name}.`,
+    });
+    setCart([]);
+  }
 
   return (
     <>
@@ -169,6 +188,11 @@ export default function POS() {
                         width={200}
                         data-ai-hint={product.imageHint}
                       />
+                       {product.stock === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                            <Badge variant="destructive" className="text-base">OUT OF STOCK</Badge>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/20" />
                       <div className="absolute bottom-2 left-2">
                         <Badge variant="secondary">
@@ -336,12 +360,18 @@ export default function POS() {
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={cartTotal} />
             )}
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+               <Button variant="outline" className="gap-1" onClick={handlePendingOrder}>
+                  <ClipboardList className="h-4 w-4" />
+                  Pending Order
+                </Button>
+                <Button size="lg" className="w-full font-headline text-lg tracking-wider col-span-1">Checkout</Button>
+            </div>
+             <div className="grid grid-cols-3 gap-2">
                 <Button variant="secondary">Cash</Button>
                 <Button variant="secondary">Card</Button>
                 <Button variant="secondary">QRIS</Button>
             </div>
-            <Button size="lg" className="w-full font-headline text-lg tracking-wider">Checkout</Button>
           </CardContent>
         </Card>
       </div>

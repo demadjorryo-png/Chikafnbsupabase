@@ -1,4 +1,4 @@
-import type { Product, Customer, Transaction } from './types';
+import type { Product, Customer, Transaction, PendingOrder } from './types';
 
 export const products: Product[] = [
   {
@@ -25,7 +25,7 @@ export const products: Product[] = [
     name: 'Uwell Caliburn G2',
     barcode: '6942012345678',
     category: 'Pod',
-    stock: 25,
+    stock: 0,
     price: 265000,
     costPrice: 210000,
     supplierId: 'sup02',
@@ -93,7 +93,7 @@ export const products: Product[] = [
     name: 'Hellvape Dead Rabbit V3 RDA',
     barcode: '3344556677889',
     category: 'RDA',
-    stock: 30,
+    stock: 0,
     price: 320000,
     costPrice: 250000,
     supplierId: 'sup05',
@@ -193,6 +193,28 @@ export const transactions: Transaction[] = [
       ],
     },
 ];
+
+export const pendingOrders: PendingOrder[] = [
+  {
+    id: 'po001',
+    customerId: 'cust03',
+    customerName: 'Agus Wijaya',
+    customerAvatarUrl: 'https://picsum.photos/seed/person3/100/100',
+    productId: 'prod_caliburnG2',
+    productName: 'Uwell Caliburn G2',
+    createdAt: '2024-07-22T14:00:00Z',
+  },
+  {
+    id: 'po002',
+    customerId: 'cust01',
+    customerName: 'Budi Santoso',
+    customerAvatarUrl: 'https://picsum.photos/seed/person1/100/100',
+    productId: 'prod_dead_rabbit_v3',
+    productName: 'Hellvape Dead Rabbit V3 RDA',
+    createdAt: '2024-07-21T11:30:00Z',
+  },
+];
+
 
 export const salesData = [
   { date: 'Mon', revenue: 2350000 },
