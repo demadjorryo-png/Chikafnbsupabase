@@ -48,6 +48,11 @@ const FormSchema = z
   })
   .superRefine((data, ctx) => {
     const { birthYear, birthMonth, birthDay } = data;
+    if (!birthYear || !birthMonth || !birthDay) {
+        // Let required_error messages handle this
+        return;
+    }
+    
     const year = parseInt(birthYear, 10);
     const month = parseInt(birthMonth, 10);
     const day = parseInt(birthDay, 10);
@@ -67,6 +72,7 @@ const FormSchema = z
     }
 
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day
     const birthDate = new Date(year, month - 1, day);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
