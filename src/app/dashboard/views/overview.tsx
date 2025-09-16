@@ -30,7 +30,7 @@ import {
 import { salesData, products, customers, pendingOrders as allPendingOrders, stores, users, transactions } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck } from 'lucide-react';
+import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send } from 'lucide-react';
 import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +45,7 @@ import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
 import type { Customer, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 const chartConfig = {
   revenue: {
@@ -74,6 +75,22 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
             setIsLoading(false);
         }
     }
+    
+    // Format phone number for WhatsApp URL (e.g., remove leading 0, add country code)
+    const formattedPhone = customer.phone.startsWith('0') 
+        ? `62${customer.phone.substring(1)}` 
+        : customer.phone;
+    
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+
+
+    React.useEffect(() => {
+        // Reset state when dialog is reopened with a new customer
+        if (open) {
+            setMessage('');
+            setDiscount(15);
+        }
+    }, [open]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,11 +121,19 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                         Generate with Chika AI
                     </Button>
                     {message && (
-                         <Alert className="border-accent bg-accent/10">
-                            <Sparkles className="h-4 w-4 !text-accent" />
-                            <AlertTitle className="font-semibold text-accent">Generated Message</AlertTitle>
-                            <AlertDescription>{message}</AlertDescription>
-                        </Alert>
+                        <div className="space-y-2">
+                             <Alert className="border-accent bg-accent/10">
+                                <Sparkles className="h-4 w-4 !text-accent" />
+                                <AlertTitle className="font-semibold text-accent">Generated Message</AlertTitle>
+                                <AlertDescription>{message}</AlertDescription>
+                            </Alert>
+                             <Link href={whatsappUrl} target="_blank" className="w-full">
+                                <Button className="w-full" variant="secondary">
+                                    <Send className="mr-2 h-4 w-4" />
+                                    Kirim via WhatsApp
+                                </Button>
+                             </Link>
+                        </div>
                     )}
                 </div>
             </DialogContent>

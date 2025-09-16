@@ -46,6 +46,10 @@ const prompt = ai.definePrompt({
 
 Your task is to generate a birthday follow-up message for a customer. The message should be friendly, concise, and in Indonesian. It must wish them a happy birthday and offer a special discount.
 
+Crucially, you must include the following two conditions in the message:
+1.  The customer must show the broadcast message to the cashier to claim the discount.
+2.  The discount is valid until the end of their birth month.
+
 Customer Name: {{customerName}}
 Discount Percentage: {{discountPercentage}}%
 
