@@ -19,10 +19,10 @@ const ChallengeGeneratorInputSchema = z.object({
 export type ChallengeGeneratorInput = z.infer<typeof ChallengeGeneratorInputSchema>;
 
 const ChallengeSchema = z.object({
-    tier: z.string().describe("The name of the challenge tier (e.g., 'Bronze', 'Silver', 'Gold')."),
-    description: z.string().describe('A brief, motivating description of the challenge.'),
+    tier: z.string().describe("The name of the challenge tier (e.g., 'Perunggu', 'Perak', 'Emas') in Indonesian."),
+    description: z.string().describe('A brief, motivating description of the challenge in Indonesian.'),
     target: z.number().describe('The total sales revenue (omset) target required to achieve this tier.'),
-    reward: z.string().describe('The reward for achieving this tier.'),
+    reward: z.string().describe('The reward for achieving this tier, in Indonesian (e.g., "Bonus tunai Rp 500.000").'),
 });
 
 const ChallengeGeneratorOutputSchema = z.object({
@@ -47,18 +47,20 @@ const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
-  prompt: `You are Chika AI, an expert in designing employee incentive programs for a vape store called "Bekupon Vape Store".
+  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk toko vape bernama "Bekupon Vape Store".
 
-Your task is to generate a set of 3-4 tiered sales challenges for employees based on a total reward budget for a specific period. The challenges should be based on achieving a certain total sales revenue (omset) in Indonesian Rupiah (Rp).
+Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
-The tiers should be creative and motivating (e.g., "Vape Rookie", "Cloud Chaser", "Master Puffer").
-The targets should be realistic but challenging for a vape store employee, starting from a reasonable base and increasing for each tier. Consider the duration of the challenge when setting the targets. A shorter period should have a lower target.
-The rewards should be distributed from the provided budget. The highest tier should get the biggest reward. The rewards can be cash bonuses.
+Gunakan Bahasa Indonesia untuk semua output teks.
+Nama tingkatan (tier) harus kreatif dan memotivasi (contoh: "Vape Pemula", "Pemburu Awan", "Master Puff").
+Deskripsi tantangan harus singkat, memotivasi, dan dalam Bahasa Indonesia.
+Target harus realistis namun menantang bagi karyawan toko vape, dimulai dari dasar yang wajar dan meningkat untuk setiap tingkatan. Pertimbangkan durasi tantangan saat menetapkan target. Periode yang lebih pendek harus memiliki target yang lebih rendah.
+Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi harus mendapatkan hadiah terbesar. Hadiahnya bisa berupa bonus tunai.
 
-Challenge Period: {{startDate}} to {{endDate}}
-Total Reward Budget: Rp {{budget}}
+Periode Tantangan: {{startDate}} hingga {{endDate}}
+Total Anggaran Hadiah: Rp {{budget}}
 
-Generate a set of challenges.`,
+Buat satu set tantangan dalam Bahasa Indonesia.`,
 });
 
 
