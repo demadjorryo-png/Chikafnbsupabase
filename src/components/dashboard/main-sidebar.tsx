@@ -20,7 +20,8 @@ import {
   Settings,
   ClipboardList,
   History,
-  UsersRound
+  UsersRound,
+  Trophy,
 } from 'lucide-react';
 import * as React from 'react';
 import { users } from '@/lib/data';
@@ -31,7 +32,7 @@ export function MainSidebar() {
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId');
-  const userId = searchParams.get('userId'); // Assuming userId is passed in query params on login
+  const userId = searchParams.get('userId'); 
   
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
 
@@ -44,7 +45,6 @@ export function MainSidebar() {
 
 
   const navigate = (view: string) => {
-    // Persist userId in navigation
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
@@ -94,6 +94,12 @@ export function MainSidebar() {
       label: 'Pending Orders',
       icon: <ClipboardList />,
       roles: ['admin', 'cashier'],
+    },
+    {
+      view: 'challenges',
+      label: 'Tantangan',
+      icon: <Trophy />,
+      roles: ['admin'],
     },
   ];
   

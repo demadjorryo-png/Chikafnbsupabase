@@ -12,6 +12,7 @@ import Transactions from '@/app/dashboard/views/transactions';
 import PendingOrders from '@/app/dashboard/views/pending-orders';
 import Employees from '@/app/dashboard/views/employees';
 import Settings from '@/app/dashboard/views/settings';
+import Challenges from '@/app/dashboard/views/challenges';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,8 +29,9 @@ function DashboardContent() {
   const currentUser = users.find(u => u.id === userId);
 
   const renderView = () => {
-    // If a cashier tries to access the employees view, redirect to overview
-    if (view === 'employees' && currentUser?.role !== 'admin') {
+    // If a cashier tries to access a view they shouldn't, redirect to overview
+    const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
+    if (isUnauthorized) {
       return <Overview storeId={storeId} />;
     }
 
@@ -48,6 +50,8 @@ function DashboardContent() {
         return <PendingOrders />;
       case 'settings':
         return <Settings />;
+      case 'challenges':
+        return <Challenges />;
       case 'overview':
       default:
         return <Overview storeId={storeId} />;
@@ -55,8 +59,9 @@ function DashboardContent() {
   };
 
   const getTitle = () => {
-    // Adjust title if cashier tries to access employees view
-    if (view === 'employees' && currentUser?.role !== 'admin') {
+    // Adjust title if cashier tries to access a restricted view
+    const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
+    if (isUnauthorized) {
       return 'Dashboard Overview';
     }
     
@@ -75,6 +80,8 @@ function DashboardContent() {
         return 'Pending Orders';
         case 'settings':
         return 'Settings';
+      case 'challenges':
+        return 'Employee Challenges';
       case 'overview':
       default:
         return 'Dashboard Overview';

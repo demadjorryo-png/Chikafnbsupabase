@@ -30,7 +30,7 @@ import {
 import { salesData, products, customers, pendingOrders as allPendingOrders, stores, users, transactions } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send } from 'lucide-react';
+import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy } from 'lucide-react';
 import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,7 +43,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer, Transaction } from '@/lib/types';
+import type { Customer, Transaction, User } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 
@@ -77,7 +77,6 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
         }
     }
     
-    // Format phone number for WhatsApp URL (e.g., remove leading 0, add country code)
     const formattedPhone = customer.phone.startsWith('0') 
         ? `62${customer.phone.substring(1)}` 
         : customer.phone;
@@ -86,7 +85,6 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 
 
     React.useEffect(() => {
-        // Reset state when dialog is reopened with a new customer
         if (open) {
             setMessage('');
             setDiscount(15);
@@ -148,7 +146,6 @@ export default function Overview({ storeId }: { storeId: string }) {
   const pendingOrders = allPendingOrders.filter(p => p.storeId === storeId);
   const totalRevenue = storeTransactions.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-  // Top customers are global for now, not store-specific
   const topCustomers = [...customers]
     .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints)
     .slice(0, 3);
@@ -160,9 +157,24 @@ export default function Overview({ storeId }: { storeId: string }) {
   const storeAdmins = storeUsers.filter(u => u.role === 'admin');
   const storeCashiers = storeUsers.filter(u => u.role === 'cashier');
 
+  const employeeSales = React.useMemo(() => {
+    const sales: Record<string, { user: User; totalOmset: number }> = {};
+
+    transactions.forEach(t => {
+      const user = users.find(u => u.id === t.staffId);
+      if (user) {
+        if (!sales[user.id]) {
+          sales[user.id] = { user, totalOmset: 0 };
+        }
+        sales[user.id].totalOmset += t.totalAmount;
+      }
+    });
+
+    return Object.values(sales).sort((a, b) => b.totalOmset - a.totalOmset);
+  }, []);
+
   const weeklySalesData = React.useMemo(() => {
     const today = new Date();
-    // Start of week is Sunday for getDay(), so we adjust for Monday
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
     
@@ -175,7 +187,7 @@ export default function Overview({ storeId }: { storeId: string }) {
         const dailyTransactions = storeTransactions.filter(t => format(new Date(t.createdAt), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
         const revenue = dailyTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
         return {
-            date: format(day, 'E'), // 'Mon', 'Tue', etc.
+            date: format(day, 'E'), 
             revenue: revenue,
         };
     });
@@ -185,7 +197,7 @@ export default function Overview({ storeId }: { storeId: string }) {
 
 
   React.useEffect(() => {
-    const currentMonth = new Date().getMonth(); // 0-11
+    const currentMonth = new Date().getMonth(); 
     const filteredCustomers = customers.filter(customer => {
         const [year, month] = customer.birthDate.split('-').map(Number);
         return month -1 === currentMonth;
@@ -262,8 +274,45 @@ export default function Overview({ storeId }: { storeId: string }) {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+         <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+              Employee Leaderboard
+            </CardTitle>
+            <CardDescription>
+              Top performing employees based on total sales.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+             <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead className="text-right">Total Omset</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employeeSales.slice(0, 5).map(({ user, totalOmset }, index) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold w-4">{index + 1}.</span>
+                        <div className="font-medium">{user.name}</div>
+                        {index === 0 && <Trophy className="h-4 w-4 text-yellow-500" />}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      Rp {totalOmset.toLocaleString('id-ID')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
               Weekly Sales Summary
@@ -291,56 +340,6 @@ export default function Overview({ storeId }: { storeId: string }) {
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="font-headline tracking-wider">
-              Top Customers
-            </CardTitle>
-            <CardDescription>
-              Our most loyal vapers this month.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Tier</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage
-                            src={customer.avatarUrl}
-                            alt={customer.name}
-                          />
-                          <AvatarFallback>
-                            {customer.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="font-medium">{customer.name}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={customer.memberTier === 'Homer' ? 'default' : 'secondary'}>
-                        {customer.memberTier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {customer.loyaltyPoints}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
       </div>
