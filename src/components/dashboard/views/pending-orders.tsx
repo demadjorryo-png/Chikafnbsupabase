@@ -22,6 +22,7 @@ import {
   UserPlus,
   Crown,
   ClipboardList,
+  Plus,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -45,6 +46,7 @@ export default function PendingOrders() {
     Customer | undefined
   >(customers[0]);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [manualItemName, setManualItemName] = React.useState('');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const { toast } = useToast();
 
@@ -81,6 +83,31 @@ export default function PendingOrders() {
       ];
     });
   };
+
+  const handleAddManualItem = () => {
+    if (!manualItemName.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Nama Item Kosong',
+        description: 'Silakan masukkan nama produk yang ingin ditambahkan.',
+      });
+      return;
+    }
+    const manualProductId = `manual-${Date.now()}`;
+    const newItem: CartItem = {
+      productId: manualProductId,
+      productName: manualItemName.trim(),
+      quantity: 1,
+      price: 0, // Price is 0 for items not in inventory
+    };
+    setPendingList((prevList) => [...prevList, newItem]);
+    setManualItemName(''); // Clear input after adding
+    toast({
+      title: 'Item Manual Ditambahkan',
+      description: `${newItem.productName} telah ditambahkan ke daftar tunggu.`,
+    });
+  };
+
 
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
@@ -132,20 +159,32 @@ export default function PendingOrders() {
       <div className="lg:col-span-2 xl:col-span-3">
         <Card>
           <CardHeader className="border-b">
-             <CardTitle className="font-headline tracking-wider">Out of Stock Products</CardTitle>
-             <CardDescription>Select products to add to a customer's pending order list.</CardDescription>
+             <CardTitle className="font-headline tracking-wider">Out of Stock & Manual Products</CardTitle>
+             <CardDescription>Select out-of-stock items or add new unlisted items to a pending order.</CardDescription>
             <div className="relative flex items-center gap-2 pt-2">
               <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products by name..."
+                placeholder="Search out-of-stock products..."
                 className="w-full rounded-lg bg-secondary pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Input
+                placeholder="Add manual item (e.g., 'Liquid FOO BAR v2')"
+                value={manualItemName}
+                onChange={(e) => setManualItemName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddManualItem()}
+              />
+              <Button onClick={handleAddManualItem} className="gap-1 whitespace-nowrap">
+                <Plus className="h-4 w-4" />
+                <span>Add Manual</span>
+              </Button>
+            </div>
           </CardHeader>
-          <ScrollArea className="h-[calc(100vh-270px)]">
+          <ScrollArea className="h-[calc(100vh-320px)]">
             <CardContent className="p-4">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {outOfStockProducts.map((product) => (
@@ -302,3 +341,5 @@ export default function PendingOrders() {
     </div>
   );
 }
+
+    
