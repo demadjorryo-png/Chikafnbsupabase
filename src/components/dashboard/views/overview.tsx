@@ -28,10 +28,11 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { salesData, products, customers } from '@/lib/data';
+import { salesData, products, customers, pendingOrders } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp } from 'lucide-react';
+import { DollarSign, Package, Users, TrendingUp, ClipboardList } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const chartConfig = {
   revenue: {
@@ -189,6 +190,47 @@ export default function Overview() {
           </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+            <CardTitle className="font-headline tracking-wider">Recent Pending Orders</CardTitle>
+            <CardDescription>
+              Products awaited by customers. Follow up when stock is available.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Date Requested</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+                {pendingOrders.map((order) => (
+                    <TableRow key={order.id}>
+                        <TableCell>
+                           <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                <AvatarImage
+                                    src={order.customerAvatarUrl}
+                                    alt={order.customerName}
+                                />
+                                <AvatarFallback>
+                                    {order.customerName.charAt(0)}
+                                </AvatarFallback>
+                                </Avatar>
+                                <div className="font-medium">{order.customerName}</div>
+                            </div>
+                        </TableCell>
+                        <TableCell>{order.productName}</TableCell>
+                        <TableCell className="text-right">{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
