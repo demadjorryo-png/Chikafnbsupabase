@@ -30,7 +30,7 @@ const months = Array.from({ length: 12 }, (_, i) => ({
     value: (i + 1).toString().padStart(2, '0'),
     label: new Date(0, i).toLocaleString('id-ID', { month: 'long' })
 }));
-const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
 
 const FormSchema = z.object({
@@ -77,7 +77,7 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
   function onSubmit(data: z.infer<typeof FormSchema>) {
     console.log({
       ...data,
-      birthDate: `${data.birthYear}-${data.birthMonth}-${data.birthDay.padStart(2, '0')}`,
+      birthDate: `${data.birthYear}-${data.birthMonth}-${data.birthDay}`,
     });
     toast({
       title: 'Member Registered!',
