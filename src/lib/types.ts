@@ -28,6 +28,7 @@ export type User = {
   name: string;
   role: UserRole;
   storeId: string; // The primary store for a user
+  password?: string; // Added password field
 };
 
 export type Product = {
@@ -35,7 +36,7 @@ export type Product = {
   name: string;
   barcode: string;
   category: ProductCategory;
-  stock: Record<string, number>; // e.g. { storeId: quantity }
+  stock: Record<string, number>; // e.g., { storeId: quantity }
   price: number;
   costPrice: number;
   supplierId: string;

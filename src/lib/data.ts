@@ -14,14 +14,14 @@ export const stores: Store[] = [
 
 export const users: User[] = [
     // Admins
-    { id: 'user_001', name: 'Admin Utama', role: 'admin', storeId: 'store_tpg' },
-    { id: 'user_002', name: 'Admin Cabang', role: 'admin', storeId: 'store_swj' },
+    { id: 'admin001', name: 'Admin Utama', role: 'admin', storeId: 'store_tpg', password: 'password123' },
+    { id: 'admin002', name: 'Admin Cabang', role: 'admin', storeId: 'store_swj', password: 'password123' },
     // Cashiers
-    { id: 'user_003', name: 'Chika Kasir', role: 'cashier', storeId: 'store_tpg' },
-    { id: 'user_004', name: 'Bambang Kasir', role: 'cashier', storeId: 'store_tpg' },
-    { id: 'user_005', name: 'Siti Kasir', role: 'cashier', storeId: 'store_swj' },
-    { id: 'user_006', name: 'Asep Kasir', role: 'cashier', storeId: 'store_swj' },
-    { id: 'user_007', name: 'Joko Kasir', role: 'cashier', storeId: 'store_swj' },
+    { id: 'kasir001', name: 'Chika Kasir', role: 'cashier', storeId: 'store_tpg', password: 'password123' },
+    { id: 'kasir002', name: 'Bambang Kasir', role: 'cashier', storeId: 'store_tpg', password: 'password123' },
+    { id: 'kasir003', name: 'Siti Kasir', role: 'cashier', storeId: 'store_swj', password: 'password123' },
+    { id: 'kasir004', name: 'Asep Kasir', role: 'cashier', storeId: 'store_swj', password: 'password123' },
+    { id: 'kasir005', name: 'Joko Kasir', role: 'cashier', storeId: 'store_swj', password: 'password123' },
 ];
 
 
@@ -50,7 +50,7 @@ export const products: Product[] = [
     name: 'Uwell Caliburn G2',
     barcode: '6942012345678',
     category: 'Pod',
-    stock: { 'store_tpg': 0, 'store_sw-j': 10 },
+    stock: { 'store_tpg': 0, 'store_swj': 10 },
     price: 265000,
     costPrice: 210000,
     supplierId: 'sup02',
@@ -151,8 +151,8 @@ const generateCustomers = (count: number): Customer[] => {
     const points = Math.floor(random() * 6000) + 50;
     let tier: 'Squab' | 'Flyer' | 'Homer';
     if (points < 500) tier = 'Squab';
-    else if (points < 2000) tier = 'Flyer';
-    else tier = 'Homer';
+    else if (points < 2000) tier = 'Homer';
+    else tier = 'Flyer';
 
     const birthYear = Math.floor(random() * (2003 - 1980 + 1)) + 1980;
     const birthMonth = Math.floor(random() * 12) + 1;
@@ -223,7 +223,7 @@ const generateTransactions = (count: number): Transaction[] => {
       items: items,
     });
   }
-  return transactions;
+  return transactions.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export const transactions: Transaction[] = generateTransactions(100);

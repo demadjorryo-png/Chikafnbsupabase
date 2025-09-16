@@ -10,6 +10,7 @@ import Products from '@/components/dashboard/views/products';
 import Customers from '@/components/dashboard/views/customers';
 import Transactions from '@/components/dashboard/views/transactions';
 import PendingOrders from '@/components/dashboard/views/pending-orders';
+import Employees from '@/app/dashboard/views/employees';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,8 @@ function DashboardContent() {
         return <Products />;
       case 'customers':
         return <Customers />;
+      case 'employees':
+        return <Employees />;
       case 'transactions':
         return <Transactions />;
       case 'pending-orders':
@@ -44,6 +47,8 @@ function DashboardContent() {
         return 'Product Inventory';
       case 'customers':
         return 'Customer Management';
+      case 'employees':
+        return 'Employee Management';
       case 'transactions':
         return 'Transaction History';
        case 'pending-orders':
