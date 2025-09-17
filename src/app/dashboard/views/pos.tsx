@@ -250,7 +250,7 @@ export default function POS() {
     const transactionFee = Math.max(500, newTransaction.totalAmount * 0.005);
     toast({
         title: "Transaction Fee (Simulation)",
-        description: `Biaya sebesar Rp ${transactionFee.toLocaleString('id-ID')} akan dipotong dari saldo koin toko.`
+        description: `Biaya sebesar Rp ${transactionFee.toLocaleString('id-ID')} akan dipotong dari Pradana Token.`
     })
     // In a real app, you would deduct this from the store's coinBalance in the database.
     // ----------------------------

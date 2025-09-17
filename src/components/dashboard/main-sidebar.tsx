@@ -138,7 +138,7 @@ export function MainSidebar() {
                     <CircleDollarSign className="h-4 w-4" />
                     <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString('id-ID')}</span>
                 </div>
-                 <p className="text-xs text-sidebar-foreground/70">Saldo Koin</p>
+                 <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
             </div>
         )}
       </SidebarHeader>
