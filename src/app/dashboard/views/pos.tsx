@@ -632,7 +632,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Coins className="h-3 w-3" />Biaya Token</span>
-                <span>-{tokenCost.toFixed(2)} Token (Rp {tokenFeeInRp.toLocaleString('id-ID')})</span>
+                <span>-{tokenCost.toFixed(2)} Token</span>
               </div>
             </div>
             
