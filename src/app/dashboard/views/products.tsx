@@ -226,7 +226,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     <div className={cn(isAdmin ? "grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-6" : "")}>
       {isAdmin && (
         <nav className="grid gap-2 text-sm text-muted-foreground">
-          <h3 className="font-semibold text-primary px-4">Tombol tidak berfungsi</h3>
+          <h3 className="font-semibold text-primary px-4">Pilih toko</h3>
           {stores.map(store => (
             <Button
               key={store.id}
