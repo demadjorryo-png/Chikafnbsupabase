@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { Transaction } from '@/lib/types';
 import { stores, users } from '@/lib/data';
-import Image from 'next/image';
+import { Cloud } from 'lucide-react';
 
 type ReceiptProps = {
     transaction: Transaction;
@@ -18,13 +18,9 @@ export function Receipt({ transaction }: ReceiptProps) {
   return (
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">
       <div className="text-center space-y-2 mb-4">
-        <div className="flex justify-center">
-            <Image 
-                src="https://era5758.co.id/wp-content/uploads/2024/07/Remove-background-project-scaled.png"
-                alt="Bekupon Vapestore Logo"
-                width={150}
-                height={75}
-            />
+        <div className="flex justify-center items-center gap-2">
+            <Cloud className="h-8 w-8" />
+            <p className="font-headline text-2xl tracking-wider">BEKUPON</p>
         </div>
         <p>{store?.name || 'Bekupon Vape Store'}</p>
         <p>{store?.location || 'Jl. Vape Master No. 42, Jakarta'}</p>

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Image from 'next/image';
+import { Cloud } from 'lucide-react';
 import Link from 'next/link';
 
 export default function WelcomePage() {
@@ -8,14 +8,8 @@ export default function WelcomePage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-            <div className="mb-4">
-                <Image
-                  src="https://era5758.co.id/wp-content/uploads/2024/07/Remove-background-project-scaled.png"
-                  alt="Bekupon Vapestore Logo"
-                  width={200}
-                  height={100}
-                  priority
-                />
+            <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Cloud className="h-12 w-12" />
             </div>
           <CardTitle className="font-headline text-4xl tracking-wider">
             BEKUPON BASECAMP

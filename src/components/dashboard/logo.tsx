@@ -1,17 +1,13 @@
 import React from 'react';
-import Image from 'next/image';
+import { Cloud } from 'lucide-react';
 
 export function Logo() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center justify-center">
-        <Image 
-            src="https://era5758.co.id/wp-content/uploads/2024/07/Remove-background-project-scaled.png" 
-            alt="Bekupon Vapestore Logo" 
-            width={120} 
-            height={60} 
-        />
+    <div className="flex items-center gap-2 text-primary">
+      <div className="flex items-center justify-center rounded-md bg-primary/20 p-2">
+        <Cloud className="h-6 w-6" />
       </div>
+      <span className="font-headline text-2xl tracking-wider text-sidebar-foreground group-data-[collapsible=icon]:hidden">Bekupon</span>
     </div>
   );
 }
