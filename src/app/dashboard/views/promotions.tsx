@@ -21,7 +21,7 @@ import { redemptionOptions as initialRedemptionOptions, users, products, transac
 import type { RedemptionOption, User, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,10 @@ import { getPromotionRecommendations } from '@/ai/flows/promotion-recommendation
 import type { PromotionRecommendationOutput } from '@/ai/flows/promotion-recommendation';
 import { useToast } from '@/hooks/use-toast';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { pointEarningSettings, updatePointEarningSettings } from '@/lib/point-earning-settings';
+
 
 export default function Promotions() {
   const [redemptionOptions, setRedemptionOptions] = React.useState(initialRedemptionOptions);
@@ -45,6 +49,16 @@ export default function Promotions() {
   const userId = searchParams.get('userId');
   const currentUser = users.find((u) => u.id === userId);
   const isAdmin = currentUser?.role === 'admin';
+
+  const [rpPerPoint, setRpPerPoint] = React.useState(pointEarningSettings.rpPerPoint);
+
+  const handleSavePointEarning = () => {
+    updatePointEarningSettings({ rpPerPoint });
+    toast({
+      title: 'Pengaturan Disimpan!',
+      description: `Sekarang, pelanggan akan mendapatkan 1 poin untuk setiap pembelanjaan Rp ${rpPerPoint.toLocaleString('id-ID')}.`,
+    });
+  };
 
   const toggleStatus = (id: string) => {
     setRedemptionOptions((prevOptions) =>
@@ -116,6 +130,30 @@ export default function Promotions() {
 
   return (
     <div className="grid gap-6">
+       {isAdmin && (
+         <Card>
+            <CardHeader>
+                <CardTitle className="font-headline tracking-wider">Pengaturan Perolehan Poin</CardTitle>
+                <CardDescription>Atur berapa total belanja (dalam Rupiah) yang diperlukan untuk mendapatkan 1 poin loyalitas.</CardDescription>
+            </CardHeader>
+            <CardContent className="max-w-sm space-y-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="rp-per-point">Belanja (Rp) untuk 1 Poin</Label>
+                    <Input 
+                        id="rp-per-point"
+                        type="number"
+                        value={rpPerPoint}
+                        onChange={(e) => setRpPerPoint(Number(e.target.value))}
+                        step="1000"
+                    />
+                </div>
+                 <Button onClick={handleSavePointEarning}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Simpan Pengaturan
+                </Button>
+            </CardContent>
+         </Card>
+      )}
       {isAdmin && (
         <Card>
             <CardHeader>

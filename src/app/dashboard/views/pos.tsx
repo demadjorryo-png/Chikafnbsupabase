@@ -58,6 +58,7 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
+import { pointEarningSettings } from '@/lib/point-earning-settings';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -216,7 +217,8 @@ export default function POS() {
   }, [subtotal, discountType, discountValue]);
   
   const totalAmount = Math.max(0, subtotal - discountAmount);
-  const pointsEarned = Math.floor(totalAmount / 10000);
+  
+  const pointsEarned = Math.floor(totalAmount / pointEarningSettings.rpPerPoint);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
