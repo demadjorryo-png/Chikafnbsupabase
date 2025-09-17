@@ -20,7 +20,7 @@ export function Receipt({ transaction }: ReceiptProps) {
       <div className="text-center space-y-2 mb-4">
         <div className="flex justify-center">
             <Image 
-                src="https://storage.googleapis.com/stedi-studio-outputs/e40b3c69-9407-4286-a51a-790175b2241b/bekupon-logo-black.png"
+                src="https://era5758.co.id/wp-content/uploads/2024/07/Remove-background-project-scaled.png"
                 alt="Bekupon Vapestore Logo"
                 width={150}
                 height={75}
