@@ -61,7 +61,7 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
       return;
     }
 
-    const hasAdjustments = Object.values(adjustments).some(val => val !== 0);
+    const hasAdjustments = Object.values(adjustments).some(val => val !== 0 && !isNaN(val));
     if (!hasAdjustments) {
       toast({ title: 'No changes to save.' });
       return;
@@ -78,17 +78,19 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
         }
 
         const currentStock = productDoc.data().stock as Record<string, number>;
-        const newStock: Record<string, number> = {};
+        const newStock: Record<string, number> = {...currentStock};
 
         for (const store of stores) {
-            const current = currentStock[store.id] || 0;
             const adjustment = adjustments[store.id] || 0;
-            const finalStock = current + adjustment;
-            
-            if (finalStock < 0) {
-                throw new Error(`Adjustment for ${store.name} results in negative stock.`);
+            if(adjustment !== 0) {
+              const current = newStock[store.id] || 0;
+              const finalStock = current + adjustment;
+              
+              if (finalStock < 0) {
+                  throw new Error(`Adjustment for ${store.name} results in negative stock.`);
+              }
+              newStock[store.id] = finalStock;
             }
-            newStock[store.id] = finalStock;
         }
 
         transaction.update(productRef, { stock: newStock });
