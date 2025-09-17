@@ -79,29 +79,6 @@ function DashboardContent() {
     }
     
     try {
-        const userDocRef = doc(db, 'users', userId);
-        const userDocSnap = await getDoc(userDocRef);
-
-        let fetchedUser: User | null = null;
-        if (userDocSnap.exists()) {
-          fetchedUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-        }
-        
-        if (!fetchedUser) {
-            // Fallback for mock admin user
-            const { users: mockUsers } = await import('@/lib/data');
-            const mockAdmin = mockUsers.find(u => u.id === userId);
-            if(mockAdmin) {
-               fetchedUser = mockAdmin;
-            } else {
-               throw new Error('User not found');
-            }
-        }
-        setCurrentUser(fetchedUser);
-
-        // Define fetches based on user role
-        const isAdmin = fetchedUser.role === 'admin';
-       
         const [
             storesSnapshot,
             productsSnapshot,
@@ -117,7 +94,7 @@ function DashboardContent() {
             getDocs(query(collection(db, 'products'), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'transactions'))),
-            getDocs(query(collection(db, 'users'), where("status", "==", "active"))),
+            getDocs(query(collection(db, 'users'))),
             getDocs(query(collection(db, 'pendingOrders'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
@@ -126,6 +103,15 @@ function DashboardContent() {
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
         setStores(allStores);
+
+        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        const { users: mockUsersData } = await import('@/lib/data');
+        const combinedUsers = [...firestoreUsers, ...mockUsersData.filter(mu => !firestoreUsers.some(fu => fu.id === mu.id))];
+        setUsers(combinedUsers);
+        
+        const fetchedUser = combinedUsers.find(u => u.id === userId) || null;
+        setCurrentUser(fetchedUser);
+
         setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
@@ -133,12 +119,6 @@ function DashboardContent() {
         const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setTransactions(sortedTransactions);
         
-        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const { users: mockUsersData } = await import('@/lib/data');
-        const combinedUsers = [...firestoreUsers, ...mockUsersData.filter(mu => !firestoreUsers.some(fu => fu.id === mu.id))];
-        setUsers(combinedUsers);
-
-        // Sort pending orders client-side
         const unsortedPendingOrders = pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
         const sortedPendingOrders = unsortedPendingOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPendingOrders(sortedPendingOrders);
@@ -170,8 +150,6 @@ function DashboardContent() {
   }
   
   if (!currentUser) {
-    // This can happen if fetching fails or if userId is invalid.
-    // The redirect should be handled by the login page if not authenticated.
     return <DashboardSkeleton />;
   }
 
@@ -179,20 +157,16 @@ function DashboardContent() {
     const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
-    // For non-admin, filter data based on their storeId
-    const userTransactions = isAdmin ? transactions : transactions.filter(t => t.storeId === currentUser.storeId);
-    const userPendingOrders = isAdmin ? pendingOrders : pendingOrders.filter(po => po.storeId === currentUser.storeId);
-
-
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-      return <Overview storeId={currentUser.storeId} transactions={userTransactions} users={users} customers={customers} pendingOrders={userPendingOrders} onDataChange={fetchAllData} />;
+       // Redirect cashier to their overview if they try to access an admin-only view
+      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
     }
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview storeId={currentUser.storeId} transactions={userTransactions} users={users} customers={customers} pendingOrders={userPendingOrders} onDataChange={fetchAllData} />;
+          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -232,10 +206,6 @@ function DashboardContent() {
 
   const getTitle = () => {
     const isAdmin = currentUser?.role === 'admin';
-    
-    if (isAdmin && view === 'pos') {
-        return 'Point of Sale';
-    }
     
     if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
       return 'Dashboard Overview';

@@ -161,39 +161,39 @@ type OverviewProps = {
   users: User[];
   customers: Customer[];
   pendingOrders: PendingOrder[];
+  onDataChange: () => void;
 };
 
-export default function Overview({ storeId, transactions, users, customers, pendingOrders: initialPendingOrders }: OverviewProps) {
+export default function Overview({ storeId, transactions, users, customers, pendingOrders: allPendingOrders, onDataChange }: OverviewProps) {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(initialPendingOrders);
+  
   const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
   const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
   const { toast } = useToast();
   
-  React.useEffect(() => {
-    setPendingOrders(initialPendingOrders);
-  }, [initialPendingOrders]);
+  const currentUser = users.find(u => u.id === userId);
+  const isAdmin = currentUser?.role === 'admin';
   
+  const pendingOrders = React.useMemo(() => 
+    isAdmin ? allPendingOrders : allPendingOrders.filter(po => po.storeId === storeId),
+    [allPendingOrders, storeId, isAdmin]
+  );
+
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
-
-  const currentUser = users.find(u => u.id === userId);
-  const isAdmin = currentUser?.role === 'admin';
 
   const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
     const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth);
     
-    const storePendingOrders = pendingOrders
-      .filter(order => order.storeId === storeId)
-      .slice(0, 5);
+    const storePendingOrders = pendingOrders.slice(0, 5);
 
     return { birthdayCustomers: bdayCustomers, recentPendingOrders: storePendingOrders };
-  }, [customers, pendingOrders, storeId]);
+  }, [customers, pendingOrders]);
 
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
@@ -228,6 +228,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
     const endOfThisMonth = endOfMonth(new Date());
 
     const thisMonthTransactions = transactions.filter(t => 
+        t.storeId === storeId &&
         isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth })
     );
 
@@ -242,7 +243,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
     });
 
     return Object.values(sales).sort((a, b) => b.totalOmset - a.totalOmset);
-  }, [transactions, users]);
+  }, [transactions, users, storeId]);
 
   const weeklySalesData = React.useMemo(() => {
     const today = new Date();
@@ -272,7 +273,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
 
     try {
       await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
-      setPendingOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      onDataChange();
       toast({
         title: 'Pesanan Dihapus',
         description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
@@ -346,7 +347,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
               Papan Peringkat Karyawan (Bulan Ini)
             </CardTitle>
             <CardDescription>
-              Karyawan dengan performa terbaik berdasarkan total penjualan.
+              Karyawan dengan performa terbaik di toko ini berdasarkan total penjualan.
             </CardDescription>
           </CardHeader>
           <CardContent>
