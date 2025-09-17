@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon } from 'lucide-react';
+import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
@@ -47,6 +57,9 @@ import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const chartConfig = {
   revenue: {
@@ -149,15 +162,25 @@ type OverviewProps = {
   pendingOrders: PendingOrder[];
 };
 
-export default function Overview({ storeId, transactions, users, customers, pendingOrders }: OverviewProps) {
+export default function Overview({ storeId, transactions, users, customers, pendingOrders: initialPendingOrders }: OverviewProps) {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(initialPendingOrders);
+  const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
+  const { toast } = useToast();
+  
+  React.useEffect(() => {
+    setPendingOrders(initialPendingOrders);
+  }, [initialPendingOrders]);
   
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
+
+  const currentUser = users.find(u => u.id === userId);
+  const isAdmin = currentUser?.role === 'admin';
 
   const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
@@ -241,6 +264,28 @@ export default function Overview({ storeId, transactions, users, customers, pend
 
     return dailyRevenue;
   }, [storeId, transactions]);
+  
+  const handleDeletePendingOrder = async () => {
+    if (!orderToDelete) return;
+
+    try {
+      await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
+      setPendingOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      toast({
+        title: 'Pesanan Dihapus',
+        description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
+      });
+    } catch (error) {
+      console.error("Error deleting pending order: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menghapus',
+        description: 'Terjadi kesalahan saat menghapus pesanan.',
+      });
+    } finally {
+      setOrderToDelete(null);
+    }
+  };
 
 
   return (
@@ -432,6 +477,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
                 <TableHead>Produk</TableHead>
                 <TableHead className="text-center">Qty</TableHead>
                 <TableHead className="text-right">Tanggal Permintaan</TableHead>
+                {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -456,6 +502,14 @@ export default function Overview({ storeId, transactions, users, customers, pend
                         <TableCell className="text-right">
                           {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
                         </TableCell>
+                        {isAdmin && (
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive" onClick={() => setOrderToDelete(order)}>
+                                    <Trash2 className="h-4 w-4"/>
+                                    <span className="sr-only">Delete order</span>
+                                </Button>
+                            </TableCell>
+                        )}
                     </TableRow>
                 ))}
             </TableBody>
@@ -474,6 +528,30 @@ export default function Overview({ storeId, transactions, users, customers, pend
             }}
         />
       )}
+      
+      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pesanan tertunda untuk{' '}
+              <span className="font-bold">{orderToDelete?.productName}</span> dari pelanggan{' '}
+              <span className="font-bold">{orderToDelete?.customerName}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePendingOrder}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+    
