@@ -251,7 +251,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
                       name={`stock.${index}.quantity`}
                       render={({ field: formField }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">{stores.find(s => s.id === field.storeId)?.name}</FormLabel>
+                          <FormLabel className="text-sm font-normal">{field.storeName}</FormLabel>
                           <FormControl>
                             <Input type="number" placeholder="0" {...formField} />
                           </FormControl>
