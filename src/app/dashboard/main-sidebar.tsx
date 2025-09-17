@@ -81,7 +81,7 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
-      roles: ['cashier'],
+      roles: [], // Removed 'admin' and 'cashier' to hide it, will add back cashier
     },
     {
       view: 'products',
@@ -133,6 +133,12 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
     },
   ];
   
+  // Re-add 'cashier' to POS roles
+  const posMenuItem = allMenuItems.find(item => item.view === 'pos');
+  if (posMenuItem) {
+    posMenuItem.roles = ['cashier'];
+  }
+  
   const menuItems = currentUser 
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
     : [];
@@ -165,7 +171,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
                     </div>
                 )}
                 <TopUpDialog 
-                    storeName={activeStore?.name || 'Bekupon Vape Store'} 
                     currentBalance={pradanaTokenBalance}
                     setDialogOpen={setIsTopUpOpen} 
                 />

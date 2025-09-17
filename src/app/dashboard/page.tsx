@@ -239,7 +239,7 @@ function DashboardContent() {
 
   return (
     <>
-      <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
+      <MainSidebar currentUser={currentUser} activeStore={activeStore} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
         <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
