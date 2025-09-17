@@ -180,9 +180,10 @@ export default function Overview({ storeId }: { storeId: string }) {
         const currentMonth = new Date().getMonth();
         setBirthdayCustomers(customerList.filter(c => new Date(c.birthDate).getMonth() === currentMonth));
         
-        const pendingQuery = query(collection(db, 'pendingOrders'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'), limit(5));
+        const pendingQuery = query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'), limit(5));
         const pendingSnapshot = await getDocs(pendingQuery);
-        setPendingOrders(pendingSnapshot.docs.map(doc => doc.data() as PendingOrder));
+        const allPendingOrders = pendingSnapshot.docs.map(doc => doc.data() as PendingOrder);
+        setPendingOrders(allPendingOrders.filter(order => order.storeId === storeId));
 
     } catch (e) {
         console.error("Error fetching overview data: ", e);
