@@ -105,13 +105,14 @@ export function Receipt({ transaction }: ReceiptProps) {
             <span>Rp {transaction.totalAmount.toLocaleString('id-ID')}</span>
          </div>
        </div>
-       <div className="border-t border-dashed border-black" />
-       <div className="text-center mt-4 space-y-2">
+        <div className="border-t border-dashed border-black" />
+         <div className="text-center mt-4 space-y-2">
             {promoText && <p className="font-semibold">{promoText}</p>}
             {footerText.split('\n').map((line, index) => (
                 <p key={index}>{line}</p>
             ))}
           <p className="font-semibold">Poin didapat: +{transaction.pointsEarned}</p>
+          {transaction.pointsRedeemed > 0 && <p className="font-semibold">Poin ditukar: -{transaction.pointsRedeemed}</p>}
        </div>
     </div>
   );

@@ -21,7 +21,7 @@ import { redemptionOptions as initialRedemptionOptions, users, products, transac
 import type { RedemptionOption, User, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target, Settings, Coins } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +34,11 @@ import { getPromotionRecommendations } from '@/ai/flows/promotion-recommendation
 import type { PromotionRecommendationOutput } from '@/ai/flows/promotion-recommendation';
 import { useToast } from '@/hooks/use-toast';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { pointSettings, updatePointValue } from '@/lib/point-settings';
 
 export default function Promotions() {
   const [redemptionOptions, setRedemptionOptions] = React.useState(initialRedemptionOptions);
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [pointValue, setPointValue] = React.useState(pointSettings.pointValueInRp);
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
@@ -60,14 +55,6 @@ export default function Promotions() {
      toast({
         title: 'Status Updated',
         description: `Promotion status has been successfully changed.`,
-    });
-  };
-
-  const handlePointValueSave = () => {
-    updatePointValue(pointValue);
-    toast({
-        title: 'Pengaturan Nilai Poin Disimpan!',
-        description: `Sekarang, 1 poin bernilai Rp ${pointValue.toLocaleString('id-ID')}.`,
     });
   };
 
@@ -129,33 +116,6 @@ export default function Promotions() {
 
   return (
     <div className="grid gap-6">
-      {isAdmin && (
-         <Card>
-            <CardHeader>
-                <CardTitle className="font-headline tracking-wider flex items-center gap-2"><Coins className="h-6 w-6" />Pengaturan Nilai Poin</CardTitle>
-                <CardDescription>Atur nilai konversi 1 poin loyalitas ke dalam Rupiah untuk penukaran di kasir.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="max-w-xs space-y-2">
-                    <Label htmlFor="point-value">Nilai 1 Poin (Rp)</Label>
-                    <Input
-                        id="point-value"
-                        type="number"
-                        value={pointValue}
-                        onChange={(e) => setPointValue(Number(e.target.value))}
-                        placeholder="e.g., 25"
-                    />
-                </div>
-            </CardContent>
-            <CardFooter>
-                 <Button onClick={handlePointValueSave}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Simpan Nilai Poin
-                </Button>
-            </CardFooter>
-        </Card>
-      )}
-      
       {isAdmin && (
         <Card>
             <CardHeader>

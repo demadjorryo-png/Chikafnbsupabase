@@ -58,7 +58,6 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
-import { pointSettings } from '@/lib/point-settings';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -209,17 +208,14 @@ export default function POS() {
     0
   );
   
-  const manualDiscountAmount = React.useMemo(() => {
+  const discountAmount = React.useMemo(() => {
     if (discountType === 'percent') {
       return (subtotal * discountValue) / 100;
     }
     return discountValue;
   }, [subtotal, discountType, discountValue]);
   
-  const pointsRedeemedValue = pointsToRedeem * pointSettings.pointValueInRp;
-  const totalDiscount = manualDiscountAmount + pointsRedeemedValue;
-
-  const totalAmount = Math.max(0, subtotal - totalDiscount);
+  const totalAmount = Math.max(0, subtotal - discountAmount);
   const pointsEarned = Math.floor(totalAmount / 10000);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,10 +254,11 @@ export default function POS() {
         staffId: currentStaff.id,
         createdAt: new Date().toISOString(),
         subtotal: subtotal,
-        discountAmount: totalDiscount,
+        discountAmount: discountAmount,
         totalAmount: totalAmount,
         paymentMethod: paymentMethod,
         pointsEarned: pointsEarned,
+        pointsRedeemed: pointsToRedeem,
         items: cart,
     };
 
@@ -530,11 +527,15 @@ export default function POS() {
 
               <div className="flex justify-between text-muted-foreground">
                 <span>Total Diskon</span>
-                <span className="text-destructive">- Rp {totalDiscount.toLocaleString('id-ID')}</span>
+                <span className="text-destructive">- Rp {discountAmount.toLocaleString('id-ID')}</span>
               </div>
                <div className="flex justify-between text-muted-foreground">
                  <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Poin Didapat</span>
                 <span>+ {pointsEarned.toLocaleString('id-ID')} pts</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                 <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
+                <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">

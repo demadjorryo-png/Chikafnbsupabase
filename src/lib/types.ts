@@ -78,6 +78,7 @@ export type Transaction = {
   totalAmount: number; // subtotal - discountAmount
   paymentMethod: 'Cash' | 'Card' | 'QRIS';
   pointsEarned: number;
+  pointsRedeemed: number;
   items: CartItem[];
 };
 
