@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -78,8 +79,6 @@ function DashboardContent() {
       return;
     }
     
-    // For cashier, product collection is specific to their store.
-    // For admin, we might need a different logic, but for now we'll scope it to the selected store.
     const productCollectionName = `products_${storeId.replace('store_', '')}`;
     
     try {
@@ -95,7 +94,7 @@ function DashboardContent() {
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, productCollectionName), orderBy('name'))), // Fetch from dynamic collection
+            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(collection(db, 'transactions')),
             getDocs(query(collection(db, 'users'))),
@@ -110,7 +109,14 @@ function DashboardContent() {
 
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         const { users: mockUsersData } = await import('@/lib/data');
-        const combinedUsers = [...firestoreUsers, ...mockUsersData.filter(mu => !firestoreUsers.some(fu => fu.id === mu.id))];
+        
+        // Ensure mock admin is only added if not present in Firestore
+        const adminUser = mockUsersData.find(u => u.userId === 'Pradana01');
+        let combinedUsers = [...firestoreUsers];
+        if (adminUser && !firestoreUsers.some(fu => fu.userId === adminUser.userId)) {
+            combinedUsers.push(adminUser);
+        }
+
         setUsers(combinedUsers);
         
         const fetchedUser = combinedUsers.find(u => u.id === userId) || null;
@@ -119,11 +125,12 @@ function DashboardContent() {
         setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
-        // Client-side sorting
+        // Client-side sorting for transactions
         const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setTransactions(sortedTransactions);
         
+        // Client-side sorting for pending orders
         const unsortedPendingOrders = pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
         const sortedPendingOrders = unsortedPendingOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPendingOrders(sortedPendingOrders);
@@ -165,23 +172,28 @@ function DashboardContent() {
     
     // Redirect cashier to their overview if they try to access an admin-only view
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-        const cashierStoreId = currentUser.storeId;
-        const filteredTransactions = transactions.filter(t => t.storeId === cashierStoreId);
-        const filteredUsers = users.filter(u => u.storeId === cashierStoreId);
-        const filteredPendingOrders = pendingOrders.filter(po => po.storeId === cashierStoreId);
-        return <Overview storeId={cashierStoreId} transactions={filteredTransactions} users={filteredUsers} customers={customers} pendingOrders={filteredPendingOrders} onDataChange={fetchAllData} />;
+        return <Overview 
+          storeId={storeId} 
+          transactions={transactions} 
+          users={users} 
+          customers={customers} 
+          pendingOrders={pendingOrders} 
+          onDataChange={fetchAllData} 
+        />;
     }
-
-    // Filter data for cashier views
-    const viewTransactions = isAdmin ? transactions : transactions.filter(t => t.storeId === storeId);
-    const viewPendingOrders = isAdmin ? pendingOrders : pendingOrders.filter(po => po.storeId === storeId);
-    const viewUsers = isAdmin ? users : users.filter(u => u.storeId === storeId);
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview storeId={storeId} transactions={viewTransactions} users={viewUsers} customers={customers} pendingOrders={viewPendingOrders} onDataChange={fetchAllData} />;
+          : <Overview 
+              storeId={storeId} 
+              transactions={transactions} 
+              users={users} 
+              customers={customers} 
+              pendingOrders={pendingOrders} 
+              onDataChange={fetchAllData} 
+            />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -199,7 +211,7 @@ function DashboardContent() {
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={viewTransactions} stores={stores} users={users} isLoading={isLoading} />;
+        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isLoading} />;
       case 'pending-orders':
         return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'settings':
@@ -215,7 +227,14 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       default:
-        return <Overview storeId={storeId} transactions={viewTransactions} users={viewUsers} customers={customers} pendingOrders={viewPendingOrders} onDataChange={fetchAllData} />;
+        return <Overview 
+                  storeId={storeId} 
+                  transactions={transactions} 
+                  users={users} 
+                  customers={customers} 
+                  pendingOrders={pendingOrders} 
+                  onDataChange={fetchAllData} 
+                />;
     }
   };
 
@@ -287,3 +306,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    
