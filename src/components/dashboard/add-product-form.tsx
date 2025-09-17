@@ -140,6 +140,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
 
   return (
     <>
+    <div className="max-h-[80vh] overflow-y-auto pr-6 pl-2 -mr-6 -ml-2">
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -268,6 +269,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
         </Button>
       </form>
     </Form>
+    </div>
     
       <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
