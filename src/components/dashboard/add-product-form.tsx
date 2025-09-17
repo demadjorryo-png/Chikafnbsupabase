@@ -30,8 +30,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Separator } from '../ui/separator';
-import { Label } from '../ui/label';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -83,8 +81,10 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
 
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
+    
+    // Set initial stock to 1 for all stores automatically
     const initialStock = stores.reduce((acc, store) => {
-      acc[store.id] = 0;
+      acc[store.id] = 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -106,7 +106,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
         
         toast({
             title: 'Produk Berhasil Ditambahkan!',
-            description: `${data.name} telah ditambahkan ke inventaris Anda.`,
+            description: `${data.name} telah ditambahkan dengan stok awal 1 di setiap toko.`,
         });
 
         onProductAdded();
