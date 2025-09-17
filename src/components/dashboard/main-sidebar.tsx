@@ -131,7 +131,7 @@ export function MainSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
         <Logo />
-        {currentUser?.role !== 'admin' && activeStore && (
+        {currentUser?.role === 'cashier' && activeStore && (
             <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
                 <Separator className="mb-2 bg-sidebar-border" />
                 <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
