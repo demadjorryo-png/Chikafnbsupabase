@@ -15,7 +15,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Banknote, Info, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
@@ -85,7 +84,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
     const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
 
 Detail:
-- Toko: ${storeName}
+- Top-up untuk: Saldo Global Aplikasi
 - Jumlah Token: ${finalAmount} Token
 - Total Transfer: Rp ${totalRp.toLocaleString('id-ID')}
 
@@ -109,7 +108,7 @@ Mohon segera diproses. Terima kasih.`;
       <DialogHeader>
         <DialogTitle className="font-headline tracking-wider">Top Up Pradana Token</DialogTitle>
         <DialogDescription>
-          Isi ulang saldo token untuk toko: <span className="font-semibold">{storeName}</span>
+          Isi ulang saldo token global untuk seluruh aplikasi.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4">

@@ -33,3 +33,20 @@ export async function getTransactionFeeSettings(): Promise<TransactionFeeSetting
     return defaultFeeSettings;
   }
 }
+
+export async function getPradanaTokenBalance(): Promise<number> {
+    try {
+        const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
+        const docSnap = await getDoc(tokenDocRef);
+
+        if (docSnap.exists()) {
+            return docSnap.data().balance || 0;
+        } else {
+            console.warn("Pradana Token balance document not found, returning 0.");
+            return 0;
+        }
+    } catch (error) {
+        console.error("Error fetching Pradana Token balance:", error);
+        return 0;
+    }
+}

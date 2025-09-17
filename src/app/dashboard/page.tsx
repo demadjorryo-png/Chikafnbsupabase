@@ -23,7 +23,7 @@ import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings, getPradanaTokenBalance } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
@@ -66,6 +66,7 @@ function DashboardContent() {
   const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
+  const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
@@ -96,6 +97,7 @@ function DashboardContent() {
             pendingOrdersSnapshot,
             redemptionOptionsSnapshot,
             feeSettingsData,
+            tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             getDocs(collection(db, 'products')),
@@ -105,6 +107,7 @@ function DashboardContent() {
             getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
+            getPradanaTokenBalance(),
         ]);
 
         setStores(storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
@@ -119,6 +122,7 @@ function DashboardContent() {
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
+        setPradanaTokenBalance(tokenBalanceData);
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -225,7 +229,7 @@ function DashboardContent() {
 
   return (
     <>
-      <MainSidebar currentUser={currentUser} activeStore={activeStore} />
+      <MainSidebar currentUser={currentUser} activeStore={activeStore} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
         <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">

@@ -58,7 +58,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentReference, DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
@@ -265,10 +265,13 @@ export default function POS({ products, customers, users, stores, onDataChange, 
       
       await runTransaction(db, async (transaction) => {
         // --- READ PHASE ---
-        const storeRef = doc(db, 'stores', storeId);
-        const storeDoc = await transaction.get(storeRef);
-        if (!storeDoc.exists()) throw new Error("Store not found.");
-        const currentTokenBalance = storeDoc.data().coinBalance || 0;
+        const tokenRef = doc(db, 'appSettings', 'pradanaToken');
+        const tokenDoc = await transaction.get(tokenRef);
+        
+        if (!tokenDoc.exists()) {
+            throw new Error("Pengaturan Pradana Token tidak ditemukan. Hubungi admin.");
+        }
+        const currentTokenBalance = tokenDoc.data().balance || 0;
 
         if (currentTokenBalance < tokenCost) {
             throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Hubungi admin.`);
@@ -304,7 +307,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
             }
             stockUpdates.push({ ref: productDoc.ref, newStock: newStock });
         }
-        const newStoreTokenBalance = currentTokenBalance - tokenCost;
+        const newGlobalTokenBalance = currentTokenBalance - tokenCost;
 
         // --- WRITE PHASE ---
         for (const update of stockUpdates) {
@@ -317,7 +320,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
             transaction.update(customerRef, { loyaltyPoints: newPoints });
         }
         
-        transaction.update(storeRef, { coinBalance: newStoreTokenBalance });
+        transaction.update(tokenRef, { balance: newGlobalTokenBalance });
 
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,

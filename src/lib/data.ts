@@ -4,8 +4,8 @@ import type { Product, Customer, Transaction, PendingOrder, Store, User, Redempt
 // The primary data source is now Firebase Firestore.
 
 export const stores: Store[] = [
-    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang', coinBalance: 50 },
-    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang', coinBalance: 75 },
+    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang' },
+    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang' },
 ];
 
 // Superadmin data is kept for login purposes. Other users are managed in Firebase.

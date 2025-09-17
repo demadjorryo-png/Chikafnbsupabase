@@ -37,9 +37,10 @@ import { auth } from '@/lib/firebase';
 type MainSidebarProps = {
   currentUser: User | null;
   activeStore: Store | null;
+  pradanaTokenBalance: number;
 }
 
-export function MainSidebar({ currentUser, activeStore }: MainSidebarProps) {
+export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
@@ -141,7 +142,7 @@ export function MainSidebar({ currentUser, activeStore }: MainSidebarProps) {
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
           <CircleDollarSign className="h-4 w-4" />
-          {activeStore && <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>}
+          <span className="font-mono text-sm font-semibold">{pradanaTokenBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
       </div>
   )
 
@@ -166,7 +167,7 @@ export function MainSidebar({ currentUser, activeStore }: MainSidebarProps) {
                     )}
                     <TopUpDialog 
                         storeName={activeStore.name} 
-                        currentBalance={activeStore.coinBalance}
+                        currentBalance={pradanaTokenBalance}
                         setDialogOpen={setIsTopUpOpen} 
                     />
                  </Dialog>
