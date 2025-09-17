@@ -24,6 +24,7 @@ import type { User } from '@/lib/types';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 export default function LoginPage() {
+  const [role, setRole] = React.useState<'admin' | 'cashier'>('cashier');
   const [userId, setUserId] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [storeId, setStoreId] = React.useState<string>(stores[0]?.id || '');
@@ -31,7 +32,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSuccessfulLogin = (userData: User, selectedStoreId?: string) => {
+  const handleSuccessfulLogin = (userData: User) => {
     if (userData.status === 'inactive') {
       toast({
         variant: 'destructive',
@@ -52,8 +53,8 @@ export default function LoginPage() {
     params.set('userId', userData.id);
 
     // Hanya tambahkan storeId untuk kasir
-    if (userData.role === 'cashier' && selectedStoreId) {
-      params.set('storeId', selectedStoreId);
+    if (userData.role === 'cashier' && storeId) {
+      params.set('storeId', storeId);
     }
       
     router.push(`/dashboard?${params.toString()}`);
@@ -63,9 +64,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    const isLoginAsCashier = storeId !== '';
-
-    if (isLoginAsCashier && !storeId) {
+    if (role === 'cashier' && !storeId) {
       toast({
         variant: "destructive",
         title: "Toko Belum Dipilih",
@@ -88,31 +87,19 @@ export default function LoginPage() {
 
       const userData = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as User;
       
-      // Jika user adalah admin tapi mencoba login dengan memilih toko, block login
-      if (userData.role === 'admin' && isLoginAsCashier) {
+      // Validasi peran
+      if (userData.role !== role) {
           toast({
               variant: 'destructive',
-              title: 'Login Admin Salah',
-              description: 'Admin harus login tanpa memilih toko. Hapus pilihan toko untuk melanjutkan.'
+              title: 'Peran Tidak Sesuai',
+              description: `Anda mencoba login sebagai ${role}, tetapi akun Anda terdaftar sebagai ${userData.role}.`
           });
           setIsLoading(false);
           auth.signOut();
           return;
       }
       
-      // Jika user adalah kasir tapi mencoba login tanpa memilih toko, block login
-      if (userData.role === 'cashier' && !isLoginAsCashier) {
-           toast({
-              variant: 'destructive',
-              title: 'Login Kasir Salah',
-              description: 'Kasir harus memilih toko untuk login.'
-          });
-          setIsLoading(false);
-          auth.signOut();
-          return;
-      }
-      
-      handleSuccessfulLogin(userData, storeId);
+      handleSuccessfulLogin(userData);
 
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
@@ -144,26 +131,43 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
-              Masukkan kredensial Anda untuk melanjutkan.
+              Pilih peran Anda untuk melanjutkan.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="grid gap-4">
                
                 <div className="grid gap-2">
-                  <Label htmlFor="store">Pilih Toko (Kosongkan jika Anda Admin)</Label>
-                  <Select value={storeId} onValueChange={setStoreId}>
-                    <SelectTrigger id="store">
-                      <SelectValue placeholder="Pilih toko..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Login Sebagai Admin</SelectItem>
-                      {stores.map(store => (
-                        <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Login Sebagai</Label>
+                  <ToggleGroup 
+                    type="single"
+                    value={role}
+                    onValueChange={(value: 'admin' | 'cashier') => {
+                        if (value) setRole(value);
+                    }}
+                    className="grid grid-cols-2"
+                  >
+                    <ToggleGroupItem value="cashier">Kasir</ToggleGroupItem>
+                    <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
+                
+                {role === 'cashier' && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="store">Pilih Toko</Label>
+                    <Select value={storeId} onValueChange={setStoreId} required>
+                      <SelectTrigger id="store">
+                        <SelectValue placeholder="Pilih toko..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores.map(store => (
+                          <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
 
               <div className="grid gap-2">
                 <Label htmlFor="userId">User ID</Label>
