@@ -137,7 +137,7 @@ function DashboardContent() {
 
   const renderView = () => {
     if (view === 'overview' && currentUser?.role === 'admin') {
-      return <AdminOverview />;
+      return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
     }
 
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];

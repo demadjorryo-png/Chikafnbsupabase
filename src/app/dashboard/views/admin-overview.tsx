@@ -20,9 +20,9 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { stores, transactions, products } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday } from 'date-fns';
+import { transactions as mockTransactions, products as mockProducts, stores as mockStores } from '@/lib/data';
+import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, ClipboardList, Trash2 } from 'lucide-react';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday, formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import type { PendingOrder, Store } from '@/lib/types';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const chartConfig = {
@@ -54,7 +58,12 @@ type AppliedStrategy = {
   status: 'active'; // In a real app, this could be more complex
 };
 
-export default function AdminOverview() {
+type AdminOverviewProps = {
+    pendingOrders: PendingOrder[];
+    stores: Store[];
+};
+
+export default function AdminOverview({ pendingOrders: allPendingOrders, stores }: AdminOverviewProps) {
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -64,6 +73,18 @@ export default function AdminOverview() {
   });
   const [exportStore, setExportStore] = React.useState<string>('all');
   const { toast } = useToast();
+
+  const [dateFnsLocale, setDateFnsLocale] = React.useState<any | undefined>(undefined);
+   React.useEffect(() => {
+    import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
+  }, []);
+
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(allPendingOrders);
+   React.useEffect(() => {
+    setPendingOrders(allPendingOrders);
+  }, [allPendingOrders]);
+  
+  const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
 
   React.useEffect(() => {
     const fetchStrategies = async () => {
@@ -107,7 +128,7 @@ export default function AdminOverview() {
       const end = endOfMonth(targetMonth);
       const monthName = format(targetMonth, 'MMM', { locale: idLocale });
       
-      const monthlyRevenue = transactions
+      const monthlyRevenue = mockTransactions
         .filter(t => isWithinInterval(new Date(t.createdAt), { start, end }))
         .reduce((sum, t) => sum + t.totalAmount, 0);
         
@@ -116,12 +137,12 @@ export default function AdminOverview() {
 
     // Store Stats (Overall)
     const stats = stores.map(store => {
-      const storeTransactions = transactions.filter(t => t.storeId === store.id);
+      const storeTransactions = mockTransactions.filter(t => t.storeId === store.id);
       const totalRevenue = storeTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
       
       const totalCost = storeTransactions.reduce((sum, t) => {
         return sum + t.items.reduce((itemSum, item) => {
-          const product = products.find(p => p.id === item.productId);
+          const product = mockProducts.find(p => p.id === item.productId);
           return itemSum + ((product?.costPrice || 0) * item.quantity);
         }, 0);
       }, 0);
@@ -136,10 +157,10 @@ export default function AdminOverview() {
     });
 
     // Top and Worst Products
-    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
-    const lastMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
+    const thisMonthTransactions = mockTransactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
+    const lastMonthTransactions = mockTransactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
 
-    const calculateProductSales = (txs: typeof transactions) => {
+    const calculateProductSales = (txs: typeof mockTransactions) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
           t.items.forEach(item => {
@@ -168,7 +189,7 @@ export default function AdminOverview() {
       topProductsLastMonth: topLastMonth,
       worstProductsLastMonth: worstLastMonth
     };
-  }, []);
+  }, [stores]);
 
   const handleGenerateRecommendations = async () => {
     setIsLoading(true);
@@ -237,6 +258,28 @@ export default function AdminOverview() {
         description: `Preparing to export data for ${stores.find(s => s.id === exportStore)?.name || 'All Stores'} from ${format(exportDate?.from!, 'PPP')} to ${format(exportDate?.to!, 'PPP')}.`,
     })
   }
+
+  const handleDeletePendingOrder = async () => {
+    if (!orderToDelete) return;
+
+    try {
+      await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
+      setPendingOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      toast({
+        title: 'Pesanan Dihapus',
+        description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
+      });
+    } catch (error) {
+      console.error("Error deleting pending order: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menghapus',
+        description: 'Terjadi kesalahan saat menghapus pesanan.',
+      });
+    } finally {
+      setOrderToDelete(null);
+    }
+  };
 
   return (
     <div className="grid gap-6">
@@ -444,6 +487,62 @@ export default function AdminOverview() {
 
       <Card>
         <CardHeader>
+            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda Terbaru (Semua Toko)</CardTitle>
+            <CardDescription>
+              Produk yang ditunggu pelanggan di semua cabang.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pelanggan</TableHead>
+                <TableHead>Produk</TableHead>
+                <TableHead>Toko</TableHead>
+                <TableHead className="text-center">Qty</TableHead>
+                <TableHead className="text-right">Tanggal</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+                {pendingOrders.slice(0, 5).map((order) => (
+                    <TableRow key={order.id}>
+                        <TableCell>
+                           <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                <AvatarImage
+                                    src={order.customerAvatarUrl}
+                                    alt={order.customerName}
+                                />
+                                <AvatarFallback>
+                                    {order.customerName.charAt(0)}
+                                </AvatarFallback>
+                                </Avatar>
+                                <div className="font-medium">{order.customerName}</div>
+                            </div>
+                        </TableCell>
+                        <TableCell>{order.productName}</TableCell>
+                        <TableCell>{stores.find(s => s.id === order.storeId)?.name || order.storeId}</TableCell>
+                        <TableCell className="text-center font-mono">{order.quantity}</TableCell>
+                        <TableCell className="text-right">
+                          {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive" onClick={() => setOrderToDelete(order)}>
+                                <Trash2 className="h-4 w-4"/>
+                                <span className="sr-only">Delete order</span>
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
             <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
             <CardDescription>Unduh data transaksi dalam format CSV untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
@@ -509,6 +608,28 @@ export default function AdminOverview() {
             </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pesanan tertunda untuk{' '}
+              <span className="font-bold">{orderToDelete?.productName}</span> dari pelanggan{' '}
+              <span className="font-bold">{orderToDelete?.customerName}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePendingOrder}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
