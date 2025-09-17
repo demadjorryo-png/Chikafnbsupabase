@@ -50,21 +50,3 @@ export async function getPradanaTokenBalance(): Promise<number> {
         return 0;
     }
 }
-
-export async function updatePradanaTokenBalance(amountToAdd: number): Promise<void> {
-    const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
-    try {
-        const docSnap = await getDoc(tokenDocRef);
-        if (docSnap.exists()) {
-            await updateDoc(tokenDocRef, {
-                balance: increment(amountToAdd)
-            });
-        } else {
-            // If the document doesn't exist, create it with the new balance
-            await setDoc(tokenDocRef, { balance: amountToAdd });
-        }
-    } catch (error) {
-        console.error("Error updating Pradana Token balance:", error);
-        throw new Error("Failed to update token balance in Firestore.");
-    }
-}

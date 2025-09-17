@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Banknote, Info, Loader, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings, updatePradanaTokenBalance } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
@@ -64,7 +64,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
   const finalAmount = typeof selectedAmount === 'number' ? selectedAmount : Number(manualAmount);
   const totalRp = finalAmount * feeSettings.tokenValueRp;
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (finalAmount <= 0) {
         toast({
             variant: 'destructive',
@@ -84,44 +84,26 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
 
     setIsProcessing(true);
 
-    try {
-        // Step 1: Update Firestore
-        await updatePradanaTokenBalance(finalAmount);
-
-        // Step 2: Prepare WhatsApp message
-        const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
+    const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
 
 Detail:
 - Top-up untuk: Saldo Global Aplikasi
 - Jumlah Token: ${finalAmount} Token
 - Total Transfer: Rp ${totalRp.toLocaleString('id-ID')}
 
-Pembayaran sudah ditransfer. Mohon segera dicek. Terima kasih.
-(Pembaruan saldo sudah tercatat di sistem).`;
+Mohon segera diproses. Terima kasih.`;
 
-        const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
-        
-        // Step 3: Open WhatsApp and show success toast
-        window.open(whatsappUrl, '_blank');
+    const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
 
-        toast({
-            title: 'Top Up Berhasil!',
-            description: `Saldo Pradana Token telah berhasil ditambahkan sebesar ${finalAmount}. Lanjutkan konfirmasi di WhatsApp.`,
-        });
+    toast({
+        title: 'Lanjutkan di WhatsApp',
+        description: `Buka WhatsApp untuk mengirim konfirmasi top-up. Saldo akan diperbarui manual oleh admin.`,
+    });
 
-        // Step 4: Close dialog
-        setDialogOpen(false);
-
-    } catch (error) {
-        console.error("Error during top-up process:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Top Up Gagal',
-            description: 'Terjadi kesalahan saat memperbarui saldo token. Silakan coba lagi.'
-        });
-    } finally {
-        setIsProcessing(false);
-    }
+    setIsProcessing(false);
+    setDialogOpen(false);
   };
 
   return (
@@ -184,8 +166,8 @@ Pembayaran sudah ditransfer. Mohon segera dicek. Terima kasih.
                 <ol className="list-decimal pl-4 text-xs space-y-1 mt-2">
                     <li>Silakan transfer ke rekening berikut:</li>
                     <li className="list-none ml-2 font-semibold">{BANK_INFO.name}: {BANK_INFO.account} a.n {BANK_INFO.holder}</li>
-                    <li>Setelah transfer berhasil, klik tombol konfirmasi di bawah untuk memperbarui saldo dan mengirim bukti via WhatsApp.</li>
-                    <li>Saldo token akan langsung diperbarui di sistem.</li>
+                    <li>Setelah transfer berhasil, klik tombol konfirmasi di bawah untuk mengirim bukti via WhatsApp.</li>
+                    <li>Saldo akan diperbarui secara manual oleh admin setelah konfirmasi diterima.</li>
                 </ol>
             </AlertDescription>
         </Alert>
@@ -194,7 +176,7 @@ Pembayaran sudah ditransfer. Mohon segera dicek. Terima kasih.
       <DialogFooter>
         <Button className="w-full" onClick={handleConfirm} disabled={isProcessing}>
             {isProcessing && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-            Konfirmasi & Kirim Bukti via WhatsApp
+            Konfirmasi via WhatsApp
         </Button>
       </DialogFooter>
     </DialogContent>
