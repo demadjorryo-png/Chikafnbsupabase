@@ -27,6 +27,14 @@ import {
   Printer,
   Plus,
 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -41,19 +49,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt } from '@/components/dashboard/receipt';
+import { cn } from '@/lib/utils';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
