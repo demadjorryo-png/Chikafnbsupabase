@@ -23,10 +23,12 @@ import {
   UsersRound,
   Trophy,
   TicketPercent,
+  CircleDollarSign,
 } from 'lucide-react';
 import * as React from 'react';
-import { users } from '@/lib/data';
-import type { User } from '@/lib/types';
+import { users, stores } from '@/lib/data';
+import type { User, Store } from '@/lib/types';
+import { Separator } from '../ui/separator';
 
 export function MainSidebar() {
   const router = useRouter();
@@ -36,13 +38,18 @@ export function MainSidebar() {
   const userId = searchParams.get('userId'); 
   
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [activeStore, setActiveStore] = React.useState<Store | null>(null);
 
   React.useEffect(() => {
     if (userId) {
       const user = users.find(u => u.id === userId);
       setCurrentUser(user || null);
     }
-  }, [userId]);
+    if (storeId) {
+        const store = stores.find(s => s.id === storeId);
+        setActiveStore(store || null);
+    }
+  }, [userId, storeId]);
 
 
   const navigate = (view: string) => {
@@ -122,8 +129,18 @@ export function MainSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="items-center">
         <Logo />
+        {currentUser?.role !== 'admin' && activeStore && (
+            <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
+                <Separator className="mb-2 bg-sidebar-border" />
+                <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
+                    <CircleDollarSign className="h-4 w-4" />
+                    <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString('id-ID')}</span>
+                </div>
+                 <p className="text-xs text-sidebar-foreground/70">Saldo Koin</p>
+            </div>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
