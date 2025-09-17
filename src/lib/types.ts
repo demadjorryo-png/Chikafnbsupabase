@@ -97,3 +97,11 @@ export type PendingOrder = {
   productName: string;
   createdAt: string; // ISO 8601
 };
+
+export type RedemptionOption = {
+  id: string;
+  description: string;
+  pointsRequired: number;
+  value: number;
+  isActive: boolean;
+};

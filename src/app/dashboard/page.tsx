@@ -13,6 +13,7 @@ import PendingOrders from '@/app/dashboard/views/pending-orders';
 import Employees from '@/app/dashboard/views/employees';
 import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
+import Promotions from '@/app/dashboard/views/promotions';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -81,6 +82,8 @@ function DashboardContent() {
         return <Settings />;
       case 'challenges':
         return <Challenges />;
+      case 'promotions':
+        return <Promotions />;
       case 'overview':
       default:
         return <Overview storeId={storeId} />;
@@ -116,6 +119,8 @@ function DashboardContent() {
         return 'Settings';
       case 'challenges':
         return 'Employee Challenges';
+      case 'promotions':
+        return 'Promotions';
       case 'overview':
       default:
         return 'Dashboard Overview';

@@ -22,6 +22,7 @@ import {
   History,
   UsersRound,
   Trophy,
+  TicketPercent,
 } from 'lucide-react';
 import * as React from 'react';
 import { users } from '@/lib/data';
@@ -98,6 +99,12 @@ export function MainSidebar() {
       view: 'pending-orders',
       label: 'Pending Orders',
       icon: <ClipboardList />,
+      roles: ['admin', 'cashier'],
+    },
+    {
+      view: 'promotions',
+      label: 'Promotions',
+      icon: <TicketPercent />,
       roles: ['admin', 'cashier'],
     },
     {

@@ -1,4 +1,4 @@
-import type { Product, Customer, Transaction, PendingOrder, Store, User } from './types';
+import type { Product, Customer, Transaction, PendingOrder, Store, User, RedemptionOption } from './types';
 
 // Seeded random function to ensure consistent data generation
 let seed = 1;
@@ -214,7 +214,7 @@ const generateTransactions = (count: number): Transaction[] => {
 
     const transactionDate = new Date(Date.now() - Math.floor(random() * 30) * 24 * 60 * 60 * 1000).toISOString();
     
-    const discountAmount = 0; // No discount in mock data for now
+    const discountAmount = random() > 0.8 ? subtotal * (Math.floor(random() * 20) / 100) : 0; // 20% chance of discount up to 20%
     const totalAmount = subtotal - discountAmount;
 
     transactions.push({
@@ -269,4 +269,12 @@ export const salesData = [
   { date: 'Fri', revenue: 3450000 },
   { date: 'Sat', revenue: 4580000 },
   { date: 'Sun', revenue: 4100000 },
+];
+
+export const redemptionOptions: RedemptionOption[] = [
+  { id: 'redeem001', description: 'Potongan Rp 25.000', pointsRequired: 100, value: 25000, isActive: true },
+  { id: 'redeem002', description: 'Potongan Rp 75.000', pointsRequired: 250, value: 75000, isActive: true },
+  { id: 'redeem003', description: 'Liquid Gratis (senilai Rp 150.000)', pointsRequired: 500, value: 150000, isActive: true },
+  { id: 'redeem004', description: 'Merchandise Eksklusif Topi', pointsRequired: 1000, value: 200000, isActive: true },
+  { id: 'redeem005', description: 'Diskon 50% Semua Liquid (Maks. 1 botol)', pointsRequired: 750, value: 75000, isActive: false },
 ];

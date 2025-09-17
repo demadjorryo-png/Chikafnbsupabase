@@ -6,27 +6,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader, Sparkles } from 'lucide-react';
 import type { Customer } from '@/lib/types';
 import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommendation';
-import { Card, CardContent } from '../ui/card';
+import { redemptionOptions } from '@/lib/data';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
   totalPurchaseAmount: number;
 };
-
-const availableRedemptionOptions = [
-  { description: 'Potongan Rp 25.000', pointsRequired: 100, value: 25000 },
-  { description: 'Potongan Rp 75.000', pointsRequired: 250, value: 75000 },
-  {
-    description: 'Liquid Gratis (senilai Rp 150.000)',
-    pointsRequired: 500,
-    value: 150000,
-  },
-  {
-    description: 'Merchandise Eksklusif Topi',
-    pointsRequired: 1000,
-    value: 200000,
-  },
-];
 
 export function LoyaltyRecommendation({
   customer,
@@ -39,10 +24,13 @@ export function LoyaltyRecommendation({
     setIsLoading(true);
     setRecommendation('');
     try {
+      // Filter for active redemption options only
+      const activeRedemptionOptions = redemptionOptions.filter(o => o.isActive);
+
       const result = await getLoyaltyPointRecommendation({
         loyaltyPoints: customer.loyaltyPoints,
         totalPurchaseAmount,
-        availableRedemptionOptions,
+        availableRedemptionOptions: activeRedemptionOptions,
       });
       setRecommendation(result.recommendation);
     } catch (error) {
