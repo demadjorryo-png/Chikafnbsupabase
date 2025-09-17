@@ -18,11 +18,13 @@ import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import { users } from '@/lib/data'; // Import mock user data
+import { users, stores } from '@/lib/data'; // Import mock user and store data
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function LoginPage() {
   const [userId, setUserId] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [storeId, setStoreId] = React.useState<string>(stores[0]?.id || '');
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -46,7 +48,8 @@ export default function LoginPage() {
           title: 'Login Berhasil!',
           description: `Selamat datang kembali, ${mockUser.name}.`,
         });
-        router.push(`/dashboard?view=overview&storeId=${mockUser.storeId}&userId=${mockUser.id}`);
+        // For superadmin, use the selected store ID
+        router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${mockUser.id}`);
         return;
     }
     
@@ -67,17 +70,31 @@ export default function LoginPage() {
 
     const userDoc = querySnapshot.docs[0];
     const userData = { id: userDoc.id, ...userDoc.data() };
+
+    // For regular users, we can decide if they should be restricted to their store
+    // or if they can also use the selector. For now, let's use the selected store.
+    const targetStoreId = storeId || userData.storeId;
     
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali, ${userData.name}.`,
     });
-    router.push(`/dashboard?view=overview&storeId=${userData.storeId}&userId=${userData.id}`);
+    router.push(`/dashboard?view=overview&storeId=${targetStoreId}&userId=${userData.id}`);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (!storeId) {
+        toast({
+            variant: "destructive",
+            title: "Toko Belum Dipilih",
+            description: "Silakan pilih toko terlebih dahulu.",
+        });
+        setIsLoading(false);
+        return;
+    }
 
     // Superadmin check against mock data
     const superAdmin = users.find(u => u.userId === userId && u.role === 'admin');
@@ -86,7 +103,7 @@ export default function LoginPage() {
             uid: superAdmin.id,
             email: superAdmin.email!,
             name: superAdmin.name,
-            storeId: superAdmin.storeId
+            storeId: superAdmin.storeId // Pass original storeId, but redirect will use the selected one
         });
         setIsLoading(false);
         return;
@@ -99,7 +116,7 @@ export default function LoginPage() {
       await handleSuccessfulLogin(userCredential.user);
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         description = "Login Gagal: User ID atau Password yang Anda masukkan salah.";
       } else if (error.code === 'auth/operation-not-allowed') {
         description = "Metode login Email/Password belum diaktifkan di Firebase Console."
@@ -130,6 +147,19 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="store">Pilih Toko</Label>
+                <Select value={storeId} onValueChange={setStoreId}>
+                    <SelectTrigger id="store">
+                        <SelectValue placeholder="Pilih toko..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {stores.map(store => (
+                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="userId">User ID</Label>
                 <Input
