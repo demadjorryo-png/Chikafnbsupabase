@@ -31,6 +31,7 @@ import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Separator } from '../ui/separator';
+import { Label } from '../ui/label';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -43,7 +44,6 @@ const FormSchema = z.object({
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
-  // Stock is handled outside the form schema
 });
 
 type AddProductFormProps = {
