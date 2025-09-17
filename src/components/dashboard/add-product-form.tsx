@@ -43,7 +43,7 @@ const FormSchema = z.object({
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
-  // We'll handle stock inputs separately and merge them on submit
+  // Stock is handled outside the form schema
 });
 
 type AddProductFormProps = {
@@ -245,7 +245,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
         <Separator />
         
         <div className="space-y-2">
-            <FormLabel>Initial Stock</FormLabel>
+            <Label>Initial Stock</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
                 {stores.map(store => (
                     <div key={store.id} className="grid gap-2">
@@ -261,7 +261,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                 ))}
             </div>
         </div>
-
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
