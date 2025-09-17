@@ -20,7 +20,7 @@ import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { File, ListFilter, MoreHorizontal, PlusCircle, Search } from 'lucide-react';
+import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -51,7 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
@@ -105,10 +105,40 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
+  const [updatingStock, setUpdatingStock] = React.useState<string | null>(null);
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
+
+  const handleStockChange = async (productId: string, storeId: string, currentStock: number, adjustment: 1 | -1) => {
+    const newStock = currentStock + adjustment;
+    if (newStock < 0) return;
+
+    const updateKey = `${productId}_${storeId}`;
+    setUpdatingStock(updateKey);
+
+    const productRef = doc(db, 'products', productId);
+    try {
+      await updateDoc(productRef, {
+        [`stock.${storeId}`]: newStock
+      });
+      onDataChange(); // Refresh data from parent
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Memperbarui Stok',
+        description: 'Terjadi kesalahan. Coba lagi.',
+      });
+    } finally {
+      // It's better to let the onDataChange prop handle the loading state,
+      // but for instant feedback, we'll clear the specific updating key.
+      // A small delay helps prevent UI flashing.
+      setTimeout(() => setUpdatingStock(null), 300);
+    }
+  };
+
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
@@ -276,8 +306,8 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
@@ -293,18 +323,54 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      {stockTumpang <= lowStockThreshold ? (
-                        <Badge variant="destructive">Low ({stockTumpang})</Badge>
-                      ) : (
-                        stockTumpang
-                      )}
+                        <div className="flex items-center justify-center gap-2">
+                           <Button 
+                             size="icon" 
+                             variant="ghost" 
+                             className="h-6 w-6" 
+                             onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, -1)}
+                             disabled={updatingStock === `${product.id}_store_tpg`}
+                           >
+                            <Minus className="h-4 w-4" />
+                           </Button>
+                           <span className={`w-8 font-mono ${stockTumpang <= lowStockThreshold ? 'text-destructive' : ''}`}>
+                             {updatingStock === `${product.id}_store_tpg` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockTumpang}
+                           </span>
+                           <Button 
+                             size="icon" 
+                             variant="ghost" 
+                             className="h-6 w-6"
+                             onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, 1)}
+                             disabled={updatingStock === `${product.id}_store_tpg`}
+                           >
+                            <Plus className="h-4 w-4" />
+                           </Button>
+                        </div>
                     </TableCell>
-                    <TableCell className="text-center">
-                      {stockSawojajar <= lowStockThreshold ? (
-                        <Badge variant="destructive">Low ({stockSawojajar})</Badge>
-                      ) : (
-                        stockSawojajar
-                      )}
+                     <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                           <Button 
+                             size="icon" 
+                             variant="ghost" 
+                             className="h-6 w-6"
+                             onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, -1)}
+                             disabled={updatingStock === `${product.id}_store_swj`}
+                           >
+                            <Minus className="h-4 w-4" />
+                           </Button>
+                           <span className={`w-8 font-mono ${stockSawojajar <= lowStockThreshold ? 'text-destructive' : ''}`}>
+                             {updatingStock === `${product.id}_store_swj` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockSawojajar}
+                           </span>
+                           <Button 
+                             size="icon" 
+                             variant="ghost" 
+                             className="h-6 w-6"
+                             onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, 1)}
+                             disabled={updatingStock === `${product.id}_store_swj`}
+                           >
+                            <Plus className="h-4 w-4" />
+                           </Button>
+                        </div>
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
