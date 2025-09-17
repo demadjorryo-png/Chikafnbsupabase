@@ -90,6 +90,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
 
+    // If cashier is adding, cost price is same as selling price
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
 
     // Create the stock object for Firestore, ensuring all stores are included
