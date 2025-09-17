@@ -27,8 +27,10 @@ export type PromotionRecommendationInput = z.infer<typeof PromotionRecommendatio
 
 const RecommendationSchema = z.object({
   title: z.string().describe('A short, catchy title for the recommendation in Indonesian.'),
-  description: z.string().describe('A concise, actionable recommendation in Indonesian.'),
+  description: z.string().describe('A concise, actionable recommendation in Indonesian. This will be the promo description.'),
   justification: z.string().describe('A brief explanation of why this recommendation is being made, in Indonesian.'),
+  pointsRequired: z.number().describe('The suggested number of points required for this new promotion.'),
+  value: z.number().describe('The suggested value (in Rupiah) of this new promotion, if applicable (e.g., for a discount). For free items, this can be 0.'),
 });
 
 const PromotionRecommendationOutputSchema = z.object({
@@ -64,7 +66,12 @@ Berdasarkan data ini, berikan rekomendasi yang berfokus pada:
 2.  **Meningkatkan Penjualan Produk Kurang Laris**: Usulkan promo yang melibatkan produk yang kurang laku. Contoh: "Adakan promo 'Diskon 50% untuk produk {{worstSellingProducts.[0]}}' hanya dengan 100 poin."
 3.  **Mengoptimalkan Promo yang Ada**: Sarankan untuk menonaktifkan atau mengubah promo yang mungkin kurang efektif.
 
-Setiap rekomendasi harus memiliki judul, deskripsi (tindakan yang disarankan), dan justifikasi (alasan mengapa ini ide yang bagus).`,
+Setiap rekomendasi HARUS memiliki:
+- 'title': Judul yang menarik.
+- 'description': Deskripsi promo yang akan dilihat pelanggan.
+- 'justification': Alasan mengapa ini ide yang bagus.
+- 'pointsRequired': Jumlah poin yang Anda sarankan untuk promo ini.
+- 'value': Nilai promo dalam Rupiah (misal, jika diskon Rp 25.000, value-nya 25000). Jika promo berupa barang gratis (seperti merchandise), value bisa 0.`,
 });
 
 const promotionRecommendationFlow = ai.defineFlow(

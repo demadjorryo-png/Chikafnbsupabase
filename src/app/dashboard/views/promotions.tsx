@@ -206,12 +206,38 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
     }
   };
 
-  const handleApply = (title: string) => {
-    toast({
-        title: 'Strategy Marked for Implementation!',
-        description: `The "${title}" strategy has been noted. You can now create the promotion manually.`,
-    });
-  }
+  const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
+     try {
+        const docRef = await addDoc(collection(db, "redemptionOptions"), {
+            description: rec.description,
+            pointsRequired: rec.pointsRequired,
+            value: rec.value,
+            isActive: false, // New promos from AI are inactive by default
+        });
+
+        const newPromotion: RedemptionOption = {
+            id: docRef.id,
+            description: rec.description,
+            pointsRequired: rec.pointsRequired,
+            value: rec.value,
+            isActive: false,
+        };
+
+        setRedemptionOptions(prev => [...prev, newPromotion]);
+        toast({
+            title: 'Draf Promo Dibuat!',
+            description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
+        });
+
+    } catch (error) {
+        console.error("Error applying recommendation:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menerapkan Promo',
+            description: 'Terjadi kesalahan saat menyimpan draf promo. Silakan coba lagi.',
+        });
+    }
+  };
 
   const handlePromotionAdded = (newPromotion: RedemptionOption) => {
     setRedemptionOptions(prev => [...prev, newPromotion]);
@@ -270,9 +296,13 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
                                 <CardContent className="space-y-2">
                                      <p className="text-sm">{rec.description}</p>
                                      <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
+                                     <div className='flex justify-between text-xs pt-2'>
+                                        <span className='font-semibold'>{rec.pointsRequired} Poin</span>
+                                        <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
+                                     </div>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={() => handleApply(rec.title)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleApplyRecommendation(rec)}>
                                         <Target className="mr-2 h-4 w-4" />
                                         Terapkan
                                     </Button>
