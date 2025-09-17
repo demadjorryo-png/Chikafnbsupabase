@@ -44,7 +44,7 @@ export default function LoginPage() {
     
     // Find in mock data first for superadmin
     const mockUser = users.find(u => u.email === userEmail);
-    if(mockUser) {
+    if(mockUser && mockUser.role === 'admin') {
          toast({
           title: 'Login Berhasil!',
           description: `Selamat datang kembali, ${mockUser.name}.`,
@@ -140,7 +140,7 @@ export default function LoginPage() {
             <Logo />
         </div>
         <Card>
-          <CardHeader>
+          <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
               Masukkan User ID dan Password Anda untuk masuk.
