@@ -99,7 +99,6 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
 }
 
 export default function Products({ products, stores, userRole, onDataChange, isLoading }: ProductsProps) {
-  const lowStockThreshold = 10;
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -204,6 +203,13 @@ export default function Products({ products, stores, userRole, onDataChange, isL
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
   });
+
+  const getStockColorClass = (stock: number): string => {
+    if (stock < 3) return 'text-destructive'; // red
+    if (stock < 10) return 'text-yellow-500'; // yellow
+    if (stock < 20) return ''; // white (default)
+    return 'text-green-600'; // green
+  };
 
 
   return (
@@ -333,7 +339,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                            >
                             <Minus className="h-4 w-4" />
                            </Button>
-                           <span className={`w-8 font-mono ${stockTumpang <= lowStockThreshold ? 'text-destructive' : ''}`}>
+                           <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
                              {updatingStock === `${product.id}_store_tpg` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockTumpang}
                            </span>
                            <Button 
@@ -358,7 +364,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                            >
                             <Minus className="h-4 w-4" />
                            </Button>
-                           <span className={`w-8 font-mono ${stockSawojajar <= lowStockThreshold ? 'text-destructive' : ''}`}>
+                           <span className={`w-8 font-mono ${getStockColorClass(stockSawojajar)}`}>
                              {updatingStock === `${product.id}_store_swj` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockSawojajar}
                            </span>
                            <Button 
