@@ -18,12 +18,9 @@ import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores } from '@/lib/data';
+import { stores, users } from '@/lib/data';
 import type { User } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -53,33 +50,22 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId') || stores[0].id;
+  const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = React.useState(true);
   
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
-        } else {
-          // If user exists in Auth but not in Firestore, there's a data inconsistency.
-          // For a robust app, you might want to handle this, e.g., by logging out.
-          console.warn("User document not found in Firestore for UID:", user.uid);
-          setCurrentUser(null);
-        }
-      } else {
-        // No user is signed in.
-        setCurrentUser(null);
-      }
-      setIsLoadingUser(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    // TEMPORARY: Set a default user to bypass auth checks
+    if (userId) {
+        const user = users.find(u => u.id === userId);
+        setCurrentUser(user || null);
+    } else {
+        // Fallback to a default admin if no userId is in URL
+        setCurrentUser(users.find(u => u.role === 'admin') || null);
+    }
+  }, [userId]);
 
-  if (isLoadingUser) {
+  if (!currentUser) {
     return <DashboardSkeleton />;
   }
 

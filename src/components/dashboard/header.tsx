@@ -14,9 +14,7 @@ import { ChevronRight, LogOut, Settings, UserCircle } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import * as React from 'react';
 import type { User } from '@/lib/types';
-import { auth, db } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { users } from '@/lib/data';
 
 export function Header({
   title,
@@ -32,21 +30,17 @@ export function Header({
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
 
   React.useEffect(() => {
-    const fetchUser = async () => {
-      if (userId) {
-        const userDocRef = doc(db, 'users', userId);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-        }
-      }
-    };
-    fetchUser();
+    if (userId) {
+        const user = users.find(u => u.id === userId);
+        setCurrentUser(user || null);
+    } else {
+        // Fallback to a default admin if no userId is in URL
+        setCurrentUser(users.find(u => u.role === 'admin') || null);
+    }
   }, [userId]);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
+    alert("Logout clicked. Login functionality is temporarily disabled.");
   };
 
   const navigate = (view: string) => {
