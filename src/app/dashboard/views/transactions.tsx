@@ -87,16 +87,24 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
                    <Separator />
                    <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
-                            <p className="text-muted-foreground">Total Amount</p>
-                            <p className="font-medium">Rp {transaction.totalAmount.toLocaleString('id-ID')}</p>
+                            <p className="text-muted-foreground">Subtotal</p>
+                            <p>Rp {transaction.subtotal.toLocaleString('id-ID')}</p>
+                        </div>
+                        <div className="flex justify-between text-destructive">
+                            <p className="text-muted-foreground">Discount</p>
+                            <p>- Rp {transaction.discountAmount.toLocaleString('id-ID')}</p>
+                        </div>
+                        <div className="flex justify-between font-medium">
+                            <p>Total Amount</p>
+                            <p>Rp {transaction.totalAmount.toLocaleString('id-ID')}</p>
                         </div>
                         <div className="flex justify-between">
                             <p className="text-muted-foreground">Payment Method</p>
-                            <p className="font-medium">{transaction.paymentMethod}</p>
+                            <p>{transaction.paymentMethod}</p>
                         </div>
                          <div className="flex justify-between">
                             <p className="text-muted-foreground">Points Earned</p>
-                            <p className="font-medium text-primary">+{transaction.pointsEarned} pts</p>
+                            <p className="text-primary">+{transaction.pointsEarned} pts</p>
                         </div>
                    </div>
                 </div>

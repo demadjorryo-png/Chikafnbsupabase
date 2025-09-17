@@ -190,7 +190,7 @@ const generateTransactions = (count: number): Transaction[] => {
 
     const numItems = Math.floor(random() * 3) + 1;
     const items = [];
-    let totalAmount = 0;
+    let subtotal = 0;
 
     for (let j = 0; j < numItems; j++) {
       const product = products[Math.floor(random() * products.length)];
@@ -205,7 +205,7 @@ const generateTransactions = (count: number): Transaction[] => {
               quantity: quantity,
               price: product.price,
             });
-            totalAmount += product.price * quantity;
+            subtotal += product.price * quantity;
         }
       }
     }
@@ -213,6 +213,9 @@ const generateTransactions = (count: number): Transaction[] => {
     if (items.length === 0) continue;
 
     const transactionDate = new Date(Date.now() - Math.floor(random() * 30) * 24 * 60 * 60 * 1000).toISOString();
+    
+    const discountAmount = 0; // No discount in mock data for now
+    const totalAmount = subtotal - discountAmount;
 
     transactions.push({
       id: `trx${String(i).padStart(3, '0')}`,
@@ -221,6 +224,8 @@ const generateTransactions = (count: number): Transaction[] => {
       customerName: customer.name,
       staffId: cashier.id,
       createdAt: transactionDate,
+      subtotal: subtotal,
+      discountAmount: discountAmount,
       totalAmount: totalAmount,
       paymentMethod: paymentMethods[Math.floor(random() * paymentMethods.length)],
       pointsEarned: Math.floor(totalAmount / 10000),

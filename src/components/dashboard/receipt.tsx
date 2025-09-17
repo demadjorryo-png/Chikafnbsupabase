@@ -31,6 +31,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+
 export function Receipt({ transaction }: ReceiptProps) {
   if (!transaction) return null;
 
@@ -85,6 +86,17 @@ export function Receipt({ transaction }: ReceiptProps) {
           </div>
         ))}
       </div>
+       <div className="border-t border-dashed border-black" />
+       <div className="my-2 space-y-1">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>Rp {transaction.subtotal.toLocaleString('id-ID')}</span>
+          </div>
+           <div className="flex justify-between">
+            <span>Diskon</span>
+            <span>-Rp {transaction.discountAmount.toLocaleString('id-ID')}</span>
+          </div>
+       </div>
        <div className="border-t border-dashed border-black" />
        <div className="my-2 space-y-1 font-semibold">
          <div className="flex justify-between">

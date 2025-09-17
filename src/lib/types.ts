@@ -72,7 +72,9 @@ export type Transaction = {
   customerName: string;
   staffId: string;
   createdAt: string; // ISO 8601
-  totalAmount: number;
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number; // subtotal - discountAmount
   paymentMethod: 'Cash' | 'Card' | 'QRIS';
   pointsEarned: number;
   items: CartItem[];

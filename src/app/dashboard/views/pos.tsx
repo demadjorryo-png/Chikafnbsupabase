@@ -55,6 +55,8 @@ import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt } from '@/components/dashboard/receipt';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -91,6 +93,8 @@ export default function POS() {
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
+  const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
+  const [discountValue, setDiscountValue] = React.useState(0);
   const { toast } = useToast();
   
   // For now, let's assume we are operating from the first store with a cashier
@@ -196,12 +200,20 @@ export default function POS() {
     }
   };
 
-  const cartTotal = cart.reduce(
+  const subtotal = cart.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
   
-  const pointsEarned = Math.floor(cartTotal / 10000);
+  const discountAmount = React.useMemo(() => {
+    if (discountType === 'percent') {
+      return (subtotal * discountValue) / 100;
+    }
+    return discountValue;
+  }, [subtotal, discountType, discountValue]);
+
+  const totalAmount = Math.max(0, subtotal - discountAmount);
+  const pointsEarned = Math.floor(totalAmount / 10000);
 
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -224,7 +236,9 @@ export default function POS() {
         customerName: selectedCustomer?.name || 'Guest',
         staffId: currentStaff.id,
         createdAt: new Date().toISOString(),
-        totalAmount: cartTotal,
+        subtotal: subtotal,
+        discountAmount: discountAmount,
+        totalAmount: totalAmount,
         paymentMethod: paymentMethod,
         pointsEarned: pointsEarned,
         items: cart,
@@ -232,6 +246,7 @@ export default function POS() {
     
     setLastTransaction(newTransaction);
     setCart([]);
+    setDiscountValue(0);
   }
 
   const handlePrint = () => {
@@ -437,11 +452,38 @@ export default function POS() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
+                <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor='discount' className="flex items-center gap-1 text-muted-foreground"><Percent className="h-3 w-3" /> Discount</Label>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        id="discount"
+                        type="number"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(Number(e.target.value))}
+                        className="h-9"
+                    />
+                    <ToggleGroup 
+                        type="single" 
+                        variant="outline"
+                        value={discountType}
+                        onValueChange={(value) => {
+                            if (value) setDiscountType(value as 'percent' | 'nominal');
+                        }}
+                    >
+                        <ToggleGroupItem value="percent" aria-label="Toggle percent" className="h-9">
+                            %
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="nominal" aria-label="Toggle nominal" className="h-9">
+                            Rp
+                        </ToggleGroupItem>
+                    </ToggleGroup>
+                </div>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span className="flex items-center gap-1"><Percent className="h-3 w-3" /> Discount</span>
-                <span>- Rp 0</span>
+                <span/>
+                <span className="text-destructive">- Rp {discountAmount.toLocaleString('id-ID')}</span>
               </div>
                <div className="flex justify-between text-muted-foreground">
                  <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Points Earned</span>
@@ -450,12 +492,12 @@ export default function POS() {
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
+                <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
             </div>
             
             {selectedCustomer && cart.length > 0 && (
-              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={cartTotal} />
+              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} />
             )}
 
             <div className="grid grid-cols-3 gap-2">
