@@ -21,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
+import * as React from 'react';
+import { Loader } from 'lucide-react';
+import { UserRole } from '@/lib/types';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) =>
@@ -90,10 +96,14 @@ const FormSchema = z
 
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
+  onCustomerAdded?: () => void;
+  userRole?: UserRole; // Optional, might not be available in all contexts
 };
 
-export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
+export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: AddCustomerFormProps) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -102,16 +112,41 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
     },
   });
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log({
-      ...data,
-      birthDate: `${data.birthYear}-${data.birthMonth}-${data.birthDay}`,
-    });
-    toast({
-      title: 'Member Registered!',
-      description: `${data.name} is now part of the Bekupon community.`,
-    });
-    setDialogOpen(false);
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    setIsLoading(true);
+    const birthDate = `${data.birthYear}-${data.birthMonth}-${data.birthDay}`;
+    const avatarUrl = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
+
+
+    try {
+        await addDoc(collection(db, "customers"), {
+            name: data.name,
+            phone: data.phone,
+            birthDate: birthDate,
+            joinDate: new Date().toISOString(),
+            loyaltyPoints: 0,
+            memberTier: 'Squab',
+            avatarUrl: avatarUrl,
+        });
+
+        toast({
+            title: 'Member Berhasil Didaftarkan!',
+            description: `${data.name} sekarang menjadi bagian dari komunitas Bekupon.`,
+        });
+
+        onCustomerAdded?.();
+        setDialogOpen(false);
+
+    } catch (error) {
+        console.error("Error adding customer:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Mendaftarkan Member',
+            description: 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -228,7 +263,8 @@ export function AddCustomerForm({ setDialogOpen }: AddCustomerFormProps) {
               form.formState.errors.birthYear?.message}
           </FormMessage>
         </div>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Register Member
         </Button>
       </form>

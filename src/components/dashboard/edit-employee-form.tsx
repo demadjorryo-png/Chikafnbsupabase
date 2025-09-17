@@ -23,6 +23,10 @@ import {
 } from '@/components/ui/select';
 import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
+import * as React from 'react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { Loader } from 'lucide-react';
 
 const FormSchema = z.object({
     name: z.string().min(2, {
@@ -37,10 +41,13 @@ const FormSchema = z.object({
 type EditEmployeeFormProps = {
   setDialogOpen: (open: boolean) => void;
   employee: User;
+  onEmployeeUpdated: () => void;
 };
 
-export function EditEmployeeForm({ setDialogOpen, employee }: EditEmployeeFormProps) {
+export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }: EditEmployeeFormProps) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
+  
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -50,13 +57,34 @@ export function EditEmployeeForm({ setDialogOpen, employee }: EditEmployeeFormPr
     },
   });
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log(data);
-    toast({
-      title: 'Employee Updated!',
-      description: `${data.name}'s details have been updated.`,
-    });
-    setDialogOpen(false);
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    setIsLoading(true);
+    const userDocRef = doc(db, 'users', employee.id);
+
+    try {
+        await updateDoc(userDocRef, {
+            name: data.name,
+            role: data.role,
+            storeId: data.storeId,
+        });
+        
+        toast({
+        title: 'Karyawan Diperbarui!',
+        description: `Data untuk ${data.name} telah berhasil diperbarui.`,
+        });
+
+        onEmployeeUpdated();
+        setDialogOpen(false);
+    } catch (error) {
+        console.error("Error updating employee:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memperbarui',
+            description: 'Terjadi kesalahan saat menyimpan perubahan. Silakan coba lagi.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -120,7 +148,8 @@ export function EditEmployeeForm({ setDialogOpen, employee }: EditEmployeeFormPr
             )}
             />
         </div>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
       </form>

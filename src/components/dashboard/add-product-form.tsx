@@ -21,11 +21,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { productCategories, UserRole } from '@/lib/types';
+import { productCategories } from '@/lib/types';
+import type { UserRole } from '@/lib/types';
 import * as React from 'react';
-import { ScanBarcode } from 'lucide-react';
+import { Loader, ScanBarcode } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
+import { stores } from '@/lib/data';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -33,8 +38,7 @@ const FormSchema = z.object({
   }),
   category: z.enum(productCategories),
   barcode: z.string().optional(),
-  stock: z.coerce.number().int().min(0),
-  price: z.coerce.number().min(0),
+  price: z.coerce.number().min(0, "Harga harus diisi"),
   costPrice: z.coerce.number().min(0).optional(),
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
@@ -44,18 +48,19 @@ const FormSchema = z.object({
 type AddProductFormProps = {
   setDialogOpen: (open: boolean) => void;
   userRole: UserRole;
+  onProductAdded: () => void;
 };
 
-export function AddProductForm({ setDialogOpen, userRole }: AddProductFormProps) {
+export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddProductFormProps) {
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: '',
       barcode: '',
-      stock: 0,
       price: 0,
       costPrice: 0,
       brand: '',
@@ -71,19 +76,57 @@ export function AddProductForm({ setDialogOpen, userRole }: AddProductFormProps)
     setIsScannerOpen(false);
   };
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    const finalData = { ...data };
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    setIsLoading(true);
+
     // If the user is a cashier, set the cost price to be the same as the selling price.
-    if (userRole === 'cashier') {
-      finalData.costPrice = finalData.price;
+    const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
+
+    // Create a default stock object with 0 stock for all stores
+    const stock = stores.reduce((acc, store) => {
+        acc[store.id] = 0;
+        return acc;
+    }, {} as Record<string, number>);
+
+    // Find a random placeholder image
+    const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
+
+
+    try {
+        await addDoc(collection(db, "products"), {
+            name: data.name,
+            category: data.category,
+            barcode: data.barcode || '',
+            price: data.price,
+            costPrice: costPrice,
+            brand: data.brand,
+            stock: stock,
+            supplierId: '', // Default to empty string
+            imageUrl: placeholderImage.imageUrl,
+            imageHint: placeholderImage.imageHint,
+            attributes: { // Add default attributes based on category or keep them generic
+                brand: data.brand,
+            }
+        });
+        
+        toast({
+            title: 'Produk Berhasil Ditambahkan!',
+            description: `${data.name} telah ditambahkan ke inventaris Anda.`,
+        });
+
+        onProductAdded(); // Callback to refresh the product list
+        setDialogOpen(false);
+
+    } catch (error) {
+        console.error("Error adding product:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menambahkan Produk',
+            description: 'Terjadi kesalahan saat menyimpan produk. Silakan coba lagi.',
+        });
+    } finally {
+        setIsLoading(false);
     }
-    
-    console.log(finalData);
-    toast({
-      title: 'Product Added!',
-      description: `${finalData.name} has been added to your inventory.`,
-    });
-    setDialogOpen(false);
   }
 
   return (
@@ -159,50 +202,38 @@ export function AddProductForm({ setDialogOpen, userRole }: AddProductFormProps)
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="stock"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Stock</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           {userRole === 'admin' && (
+        
+        {userRole === 'admin' && (
             <FormField
-              control={form.control}
-              name="costPrice"
-              render={({ field }) => (
+                control={form.control}
+                name="costPrice"
+                render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cost Price (Rp)</FormLabel>
-                  <FormControl>
+                    <FormLabel>Cost Price (Rp)</FormLabel>
+                    <FormControl>
                     <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                    </FormControl>
+                    <FormMessage />
                 </FormItem>
-              )}
+                )}
             />
-          )}
-          </div>
-          <FormField
+        )}
+        
+        <FormField
             control={form.control}
             name="price"
             render={({ field }) => (
-              <FormItem>
+                <FormItem>
                 <FormLabel>Selling Price (Rp)</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} />
+                    <Input type="number" {...field} />
                 </FormControl>
                 <FormMessage />
-              </FormItem>
+                </FormItem>
             )}
-          />
-        <Button type="submit" className="w-full">
+        />
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Add Product
         </Button>
       </form>

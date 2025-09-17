@@ -39,7 +39,7 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -64,14 +64,25 @@ export default function Employees() {
 
   const fetchUsers = React.useCallback(async () => {
     setIsLoading(true);
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef);
-    const querySnapshot = await getDocs(q);
-    const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-    
-    setUsers(firestoreUsers);
-    setIsLoading(false);
-  }, []);
+    try {
+        const usersRef = collection(db, 'users');
+        // Filter out the superadmin
+        const q = query(usersRef, where("userId", "!=", "Pradana01"));
+        const querySnapshot = await getDocs(q);
+        const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        
+        setUsers(firestoreUsers);
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Karyawan',
+            description: 'Terjadi kesalahan saat mengambil data dari database.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
 
   React.useEffect(() => {
     fetchUsers();
@@ -97,6 +108,7 @@ export default function Employees() {
     try {
         await updateDoc(userDocRef, { status: newStatus });
         
+        // Update state locally to reflect the change immediately
         setUsers(prevUsers => prevUsers.map(u => u.id === selectedUser.id ? {...u, status: newStatus} : u));
 
         toast({
@@ -121,6 +133,14 @@ export default function Employees() {
   const handleDialogClose = () => {
     setIsEditDialogOpen(false);
     setSelectedUser(null);
+  }
+
+  const handleUserAdded = () => {
+    fetchUsers(); // Re-fetch users when a new one is added
+  }
+  
+  const handleUserUpdated = () => {
+      fetchUsers(); // Re-fetch users when one is updated
   }
 
   return (
@@ -154,7 +174,7 @@ export default function Employees() {
                     Create a new user account for an employee.
                   </DialogDescription>
                 </DialogHeader>
-                <AddEmployeeForm setDialogOpen={setIsAddDialogOpen} />
+                <AddEmployeeForm setDialogOpen={setIsAddDialogOpen} onEmployeeAdded={handleUserAdded} />
               </DialogContent>
             </Dialog>
           </div>
@@ -256,6 +276,7 @@ export default function Employees() {
             <EditEmployeeForm 
               setDialogOpen={handleDialogClose} 
               employee={selectedUser}
+              onEmployeeUpdated={handleUserUpdated}
             />
           </DialogContent>
         </Dialog>

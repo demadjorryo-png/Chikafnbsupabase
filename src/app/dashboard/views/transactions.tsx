@@ -16,8 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { transactions, stores, users } from '@/lib/data';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, Store, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
@@ -38,8 +37,12 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Receipt } from '@/components/dashboard/receipt';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void }) {
+function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; stores: Store[], users: User[] }) {
     if (!transaction) return null;
     
     const store = stores.find(s => s.id === transaction.storeId);
@@ -91,7 +94,7 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
                             <p>Rp {transaction.subtotal.toLocaleString('id-ID')}</p>
                         </div>
                         <div className="flex justify-between text-destructive">
-                            <p className="text-muted-foreground">Discount</p>
+                            <p>Discount</p>
                             <p>- Rp {transaction.discountAmount.toLocaleString('id-ID')}</p>
                         </div>
                         <div className="flex justify-between font-medium">
@@ -106,6 +109,10 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
                             <p className="text-muted-foreground">Points Earned</p>
                             <p className="text-primary">+{transaction.pointsEarned} pts</p>
                         </div>
+                         <div className="flex justify-between text-destructive">
+                            <p>Points Redeemed</p>
+                            <p>-{transaction.pointsRedeemed} pts</p>
+                        </div>
                    </div>
                 </div>
             </DialogContent>
@@ -114,8 +121,46 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange }: { transac
 }
 
 export default function Transactions() {
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [stores, setStores] = React.useState<Store[]>([]);
+  const [users, setUsers] = React.useState<User[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
+  const { toast } = useToast();
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const transactionsQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        const transactionList = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+        setTransactions(transactionList);
+
+        const storesSnapshot = await getDocs(collection(db, 'stores'));
+        const storeList = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+        setStores(storeList);
+        
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const userList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        setUsers(userList);
+
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Data',
+            description: 'Terjadi kesalahan saat mengambil riwayat transaksi.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
@@ -155,50 +200,63 @@ export default function Transactions() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((transaction) => {
-                  const store = stores.find(s => s.id === transaction.storeId);
-                  return (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell>{store?.name || 'N/A'}</TableCell>
-                    <TableCell>{transaction.customerName}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{transaction.paymentMethod}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      Rp {transaction.totalAmount.toLocaleString('id-ID')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setSelectedTransaction(transaction)}>
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handlePrint(transaction)}>
-                            Print Receipt
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
-                            Return
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                )})}
+                {isLoading ? (
+                    Array.from({length: 5}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-24"/></TableCell>
+                            <TableCell><Skeleton className="h-5 w-28"/></TableCell>
+                            <TableCell><Skeleton className="h-5 w-32"/></TableCell>
+                            <TableCell><Skeleton className="h-6 w-16"/></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto"/></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto"/></TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    transactions.map((transaction) => {
+                    const store = stores.find(s => s.id === transaction.storeId);
+                    return (
+                    <TableRow key={transaction.id}>
+                        <TableCell>
+                        {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                        })}
+                        </TableCell>
+                        <TableCell>{store?.name || 'N/A'}</TableCell>
+                        <TableCell>{transaction.customerName}</TableCell>
+                        <TableCell>
+                        <Badge variant="secondary">{transaction.paymentMethod}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                        Rp {transaction.totalAmount.toLocaleString('id-ID')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setSelectedTransaction(transaction)}>
+                                View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePrint(transaction)}>
+                                Print Receipt
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive">
+                                Return
+                            </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    )})
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -209,6 +267,8 @@ export default function Transactions() {
               transaction={selectedTransaction}
               open={!!selectedTransaction}
               onOpenChange={() => setSelectedTransaction(null)}
+              stores={stores}
+              users={users}
           />
       )}
     </>

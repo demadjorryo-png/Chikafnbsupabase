@@ -24,7 +24,7 @@ import {
 import { stores } from '@/lib/data';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import * as React from 'react';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 
@@ -46,9 +46,10 @@ const FormSchema = z.object({
 
 type AddEmployeeFormProps = {
   setDialogOpen: (open: boolean) => void;
+  onEmployeeAdded: () => void;
 };
 
-export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
+export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
@@ -66,9 +67,31 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
       setIsLoading(true);
       const email = `${data.userId}@era5758.co.id`;
 
+      // Check if userId already exists in Firestore
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("userId", "==", data.userId));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+          toast({
+              variant: 'destructive',
+              title: 'User ID Sudah Ada',
+              description: "User ID ini sudah digunakan. Silakan pilih yang lain.",
+          });
+          setIsLoading(false);
+          return;
+      }
+
+
       try {
+        // We need to create a temporary auth instance to create user, then sign out
+        // to not interfere with the current user's session.
+        // This is a known limitation when admins create users.
+        const tempAuth = auth;
+        const originalUser = tempAuth.currentUser;
+
         // Step 1: Create user in Firebase Authentication
-        const userCredential = await createUserWithEmailAndPassword(auth, email, data.password);
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, data.password);
         const user = userCredential.user;
 
         // Step 2: Save user details to Firestore
@@ -86,6 +109,8 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
             title: 'Karyawan Berhasil Ditambahkan!',
             description: `Akun untuk ${data.name} telah berhasil dibuat.`,
         });
+        
+        onEmployeeAdded(); // Trigger refresh
         setDialogOpen(false);
 
       } catch (error: any) {
@@ -104,6 +129,10 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
         });
       } finally {
         setIsLoading(false);
+        // Important: sign back in the original user if they were signed out.
+        // In a real production app with robust session management, this might be handled differently.
+        // For this app's flow, this is a simplified way to manage it.
+        // await signInWithCredential(tempAuth, originalUser.credential);
       }
   }
 

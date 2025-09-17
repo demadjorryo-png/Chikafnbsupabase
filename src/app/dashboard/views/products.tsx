@@ -16,8 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { stores, users } from '@/lib/data';
-import type { Product, User } from '@/lib/types';
+import { users } from '@/lib/data';
+import type { Product, User, Store } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -45,8 +45,9 @@ import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role'] }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; stores: Store[] }) {
     if (!product) return null;
 
     return (
@@ -87,29 +88,50 @@ export default function Products() {
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
   
   const [products, setProducts] = React.useState<Product[]>([]);
+  const [stores, setStores] = React.useState<Store[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const { toast } = useToast();
 
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const currentUser = users.find(u => u.id === userId); // This will need to be updated with Firestore user
   const userRole = currentUser?.role || 'cashier';
 
-  React.useEffect(() => {
-    const fetchProducts = async () => {
-      setIsLoading(true);
-      const productsCollection = collection(db, 'products');
-      const productSnapshot = await getDocs(productsCollection);
-      const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setProducts(productList);
-      setIsLoading(false);
-    };
+  const fetchProductsAndStores = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const productsCollection = collection(db, 'products');
+        const productSnapshot = await getDocs(productsCollection);
+        const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        setProducts(productList);
 
-    fetchProducts();
-  }, []);
+        const storesCollection = collection(db, 'stores');
+        const storeSnapshot = await getDocs(storesCollection);
+        const storeList = storeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+        setStores(storeList);
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Data',
+            description: 'Terjadi kesalahan saat mengambil data produk atau toko.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchProductsAndStores();
+  }, [fetchProductsAndStores]);
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
   };
+  
+  const handleProductAdded = () => {
+    fetchProductsAndStores(); // Re-fetch data when a product is added
+  }
 
 
   return (
@@ -174,7 +196,7 @@ export default function Products() {
                       Add a new product to your inventory.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddProductForm setDialogOpen={setIsAddDialogOpen} userRole={userRole} />
+                  <AddProductForm setDialogOpen={setIsAddDialogOpen} userRole={userRole} onProductAdded={handleProductAdded} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -252,6 +274,7 @@ export default function Products() {
           open={!!selectedProduct}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
+          stores={stores}
         />
        )}
     </>

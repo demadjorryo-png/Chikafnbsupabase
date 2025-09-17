@@ -16,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { customers } from '@/lib/data';
 import type { Customer } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,6 +37,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!customer) return null;
@@ -70,12 +73,44 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
 }
 
 export default function Customers() {
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const { toast } = useToast();
+
+  const fetchCustomers = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const customersRef = collection(db, 'customers');
+        const q = query(customersRef);
+        const querySnapshot = await getDocs(q);
+        const firestoreCustomers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+        setCustomers(firestoreCustomers);
+    } catch (error) {
+        console.error("Error fetching customers:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Pelanggan',
+            description: 'Terjadi kesalahan saat mengambil data dari database.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
   };
+  
+  const handleCustomerAdded = () => {
+    fetchCustomers();
+  }
 
   return (
     <>
@@ -109,7 +144,7 @@ export default function Customers() {
                     verified.
                   </DialogDescription>
                 </DialogHeader>
-                <AddCustomerForm setDialogOpen={setIsAddDialogOpen} />
+                <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} />
               </DialogContent>
             </Dialog>
           </div>
@@ -126,57 +161,74 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 border-2 border-primary/50">
-                        <AvatarImage
-                          src={customer.avatarUrl}
-                          alt={customer.name}
-                        />
-                        <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="font-medium">{customer.name}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        customer.memberTier === 'Homer'
-                          ? 'default'
-                          : 'secondary'
-                      }
-                    >
-                      {customer.memberTier}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {customer.loyaltyPoints.toLocaleString('id-ID')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleViewDetails(customer)}>
-                            View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {isLoading ? (
+                 Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <Skeleton className="h-5 w-32" />
+                        </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                    <TableCell>
+                        <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-primary/50">
+                            <AvatarImage
+                            src={customer.avatarUrl}
+                            alt={customer.name}
+                            />
+                            <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="font-medium">{customer.name}</div>
+                        </div>
+                    </TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>
+                        <Badge
+                        variant={
+                            customer.memberTier === 'Homer'
+                            ? 'default'
+                            : 'secondary'
+                        }
+                        >
+                        {customer.memberTier}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                        {customer.loyaltyPoints.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleViewDetails(customer)}>
+                                View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                            Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                    </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
