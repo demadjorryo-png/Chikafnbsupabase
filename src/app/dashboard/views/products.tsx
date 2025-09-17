@@ -23,7 +23,6 @@ import { Input } from '@/components/ui/input';
 import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -323,12 +322,12 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                   const stockTumpang = product.stock['store_tpg'] || 0;
                   const stockSawojajar = product.stock['store_swj'] || 0;
                   return (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                         {userRole === 'admin' ? (
                           <div className="flex items-center justify-center gap-2">
                             <Button 
@@ -359,7 +358,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                           </span>
                         )}
                     </TableCell>
-                     <TableCell className="text-center">
+                     <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                         {userRole === 'admin' ? (
                           <div className="flex items-center justify-center gap-2">
                             <Button 
@@ -393,7 +392,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -403,7 +402,6 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleViewDetails(product)}>View Details</DropdownMenuItem>
                           {userRole === 'admin' && <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>}
                           {userRole === 'admin' && <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>}
                         </DropdownMenuContent>
