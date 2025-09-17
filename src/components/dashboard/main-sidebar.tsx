@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Logo } from './logo';
+import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
   ShoppingCart,
@@ -28,57 +28,36 @@ import {
   UserCircle,
 } from 'lucide-react';
 import * as React from 'react';
-import { stores } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
-import { TopUpDialog } from './top-up-dialog';
+import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '../ui/dialog';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 
+type MainSidebarProps = {
+  currentUser: User | null;
+  activeStore: Store | null;
+  pradanaTokenBalance: number;
+}
 
-export function MainSidebar() {
+export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId');
   const userId = searchParams.get('userId'); 
   
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [activeStore, setActiveStore] = React.useState<Store | null>(null);
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
-
   React.useEffect(() => {
-    const fetchUser = async () => {
-        if (userId) {
-            // Special case for mock superadmin
-            if (userId === 'admin001') {
-                const { users } = await import('@/lib/data');
-                setCurrentUser(users.find(u => u.id === 'admin001') || null);
-            } else {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-                } else {
-                    router.push('/login');
-                }
-            }
-        } else {
-            router.push('/login');
-        }
-    }
-
-    fetchUser();
-
-    if (storeId) {
-        const store = stores.find(s => s.id === storeId);
-        setActiveStore(store || null);
+    // Redirect if essential data is missing
+    if (!userId || !storeId) {
+        router.push('/login');
     }
   }, [userId, storeId, router]);
 
-
   const navigate = (view: string) => {
+    // Admin overview has a special route structure for now
     if (currentUser?.role === 'admin' && view === 'overview') {
         router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
         return;
@@ -163,7 +142,7 @@ export function MainSidebar() {
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
           <CircleDollarSign className="h-4 w-4" />
-          {activeStore && <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>}
+          <span className="font-mono text-sm font-semibold">{pradanaTokenBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
       </div>
   )
 
@@ -188,7 +167,7 @@ export function MainSidebar() {
                     )}
                     <TopUpDialog 
                         storeName={activeStore.name} 
-                        currentBalance={activeStore.coinBalance}
+                        currentBalance={pradanaTokenBalance}
                         setDialogOpen={setIsTopUpOpen} 
                     />
                  </Dialog>
