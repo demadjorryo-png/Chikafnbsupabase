@@ -97,7 +97,10 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
 
 export default function POS({ products, customers, currentUser, stores, onDataChange, isLoading, feeSettings }: POSProps) {
   const searchParams = useSearchParams();
-  const storeId = searchParams.get('storeId')!;
+  const urlStoreId = searchParams.get('storeId')!;
+  
+  // For cashiers, always use their assigned storeId. For admins, use the one from the URL.
+  const transactionStoreId = currentUser.role === 'admin' ? urlStoreId : currentUser.storeId;
   
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -112,7 +115,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
   const { toast } = useToast();
   
-  const currentStore = stores.find(s => s.id === storeId);
+  const currentStore = stores.find(s => s.id === transactionStoreId);
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -120,7 +123,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   }));
 
   const addToCart = (product: Product) => {
-    const stockInStore = product.stock[storeId] || 0;
+    const stockInStore = product.stock[transactionStoreId] || 0;
     if (stockInStore === 0) {
       toast({
         variant: 'destructive',
@@ -167,7 +170,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
     }
 
     const product = products.find(p => p.id === productId);
-    const stockInStore = product?.stock[storeId] || 0;
+    const stockInStore = product?.stock[transactionStoreId] || 0;
     if(product && quantity > stockInStore) {
         toast({
             variant: 'destructive',
@@ -298,7 +301,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
                 throw new Error(`Produk ${item.productName} tidak ditemukan.`);
             }
             
-            const currentStock = productDoc.data().stock[storeId] || 0;
+            const currentStock = productDoc.data().stock[transactionStoreId] || 0;
             const newStock = currentStock - item.quantity;
             if (newStock < 0) {
                 throw new Error(`Stok tidak cukup untuk ${item.productName}.`);
@@ -309,7 +312,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
 
         // --- WRITE PHASE ---
         for (const update of stockUpdates) {
-            transaction.update(update.ref, { [`stock.${storeId}`]: update.newStock });
+            transaction.update(update.ref, { [`stock.${transactionStoreId}`]: update.newStock });
         }
 
         if (customerDoc && customerRef) {
@@ -322,7 +325,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
 
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
-            storeId: storeId,
+            storeId: transactionStoreId,
             customerId: selectedCustomer?.id || 'N/A',
             customerName: selectedCustomer?.name || 'Guest',
             staffId: currentUser.id,
@@ -408,7 +411,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
                         </TableRow>
                     ))
                   ) : filteredProducts.map((product) => {
-                    const stockInStore = product.stock[storeId] || 0;
+                    const stockInStore = product.stock[transactionStoreId] || 0;
                     const isOutOfStock = stockInStore === 0;
                     return (
                       <TableRow key={product.id} className={cn(isOutOfStock && "text-muted-foreground")}>
