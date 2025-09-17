@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -197,20 +198,22 @@ export default function Products({ products: allProducts, stores, userRole, onDa
 
   // The categories available in the dropdown should be based on the products of the currently selected store
   const availableCategories = React.useMemo(() => {
-    const productsForCurrentStore = allProducts.filter(p => p.storeId === currentStoreId);
+    const productsForCurrentStore = allProducts.filter(p => isAdmin ? p.storeId === currentStoreId : true);
     const categories = new Set(productsForCurrentStore.map(p => p.category));
     return Array.from(categories).sort();
-  }, [allProducts, currentStoreId]);
+  }, [allProducts, currentStoreId, isAdmin]);
   
   const filteredProducts = React.useMemo(() => {
-    const productsForCurrentStore = allProducts.filter(p => p.storeId === currentStoreId);
+    const productsForCurrentStore = isAdmin 
+      ? allProducts.filter(p => p.storeId === currentStoreId)
+      : allProducts;
 
     return productsForCurrentStore.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
     });
-  }, [allProducts, currentStoreId, searchTerm, selectedCategories]);
+  }, [allProducts, currentStoreId, searchTerm, selectedCategories, isAdmin]);
 
 
   const getStockColorClass = (stock: number): string => {
@@ -409,7 +412,6 @@ export default function Products({ products: allProducts, stores, userRole, onDa
       </Card>
       </main>
       </div>
-      
       {selectedProduct && currentStore && (
         <ProductDetailsDialog
           product={selectedProduct}
