@@ -74,7 +74,9 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
+    // Start loading, even if it's a re-fetch
     setIsLoading(true);
+
     if (!userId) {
       toast({
           variant: 'destructive',
@@ -115,13 +117,22 @@ function DashboardContent() {
         const fetchedUser = firestoreUsers.find(u => u.id === userId) || null;
         setCurrentUser(fetchedUser);
 
-        if (fetchedUser && fetchedUser.role === 'cashier' && storeId) {
-            const foundStore = allStores.find(s => s.id === storeId);
-            setActiveStore(foundStore);
-        }
+        const foundStore = storeId ? allStores.find(s => s.id === storeId) : undefined;
+        setActiveStore(foundStore);
         
         const isAdmin = fetchedUser?.role === 'admin';
         
+        // Final validation before stopping the loading
+        if (!fetchedUser || (!isAdmin && !foundStore)) {
+             toast({
+                variant: 'destructive',
+                title: 'Data Sesi Tidak Lengkap',
+                description: 'Data pengguna atau toko tidak valid. Silakan login kembali.'
+             });
+             // Keep loading to prevent rendering a broken page. A redirect might be better here.
+             return;
+        }
+
         let allProducts: Product[] = [];
         if (isAdmin) {
             // Admin: fetch products from all stores, adding a 'storeId' to each product.
@@ -159,17 +170,6 @@ function DashboardContent() {
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
         setPradanaTokenBalance(tokenBalanceData);
-        
-        // Final validation before stopping the loading
-        if (!fetchedUser || (!isAdmin && !allStores.find(s => s.id === storeId))) {
-             toast({
-                variant: 'destructive',
-                title: 'Data Sesi Tidak Lengkap',
-                description: 'Data pengguna atau toko tidak valid. Silakan login kembali.'
-             });
-             // Keep loading to prevent rendering a broken page
-             return;
-        }
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
