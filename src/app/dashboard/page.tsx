@@ -18,11 +18,10 @@ import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores } from '@/lib/data';
-import type { User, RedemptionOption } from '@/lib/types';
+import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -52,15 +51,24 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId') || stores[0].id;
+  const storeId = searchParams.get('storeId') || 'store_tpg';
   const userId = searchParams.get('userId');
-  const activeStore = stores.find(s => s.id === storeId);
+  
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [stores, setStores] = React.useState<Store[]>([]);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [users, setUsers] = React.useState<User[]>([]);
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
+  
+  const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    const fetchInitialData = async () => {
+  const fetchAllData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
         // Fetch User
         if (userId) {
              if (userId === 'admin001') {
@@ -74,71 +82,103 @@ function DashboardContent() {
             }
         }
         
-        // Fetch Redemption Options
-        try {
-            const querySnapshot = await getDocs(collection(db, 'redemptionOptions'));
-            const options = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption));
-            setRedemptionOptions(options);
-        } catch (error) {
-            console.error("Error fetching redemption options: ", error);
-            toast({
-                variant: 'destructive',
-                title: 'Gagal Memuat Promo',
-                description: 'Tidak dapat mengambil data promosi dari database.'
-            });
-        }
-    };
-    
-    fetchInitialData();
-  }, [userId, toast]);
+        // Batch fetch all collections
+        const [
+            storesSnapshot,
+            productsSnapshot,
+            customersSnapshot,
+            transactionsSnapshot,
+            usersSnapshot,
+            pendingOrdersSnapshot,
+            redemptionOptionsSnapshot,
+        ] = await Promise.all([
+            getDocs(collection(db, 'stores')),
+            getDocs(collection(db, 'products')),
+            getDocs(collection(db, 'customers')),
+            getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
+            getDocs(collection(db, 'users')),
+            getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
+            getDocs(collection(db, 'redemptionOptions')),
+        ]);
 
-  if (!currentUser) {
+        setStores(storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
+        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+        setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
+        setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        
+        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        const { users: mockUsers } = await import('@/lib/data');
+        setUsers([...firestoreUsers, ...mockUsers.filter(u => u.role === 'admin')]);
+
+        setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
+        setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
+
+    } catch (error) {
+        console.error("Error fetching dashboard data: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Data',
+            description: 'Terjadi kesalahan saat mengambil data dari database. Coba muat ulang halaman.'
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [userId, toast]);
+  
+  React.useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const activeStore = stores.find(s => s.id === storeId);
+
+  if (!currentUser || isLoading) {
     return <DashboardSkeleton />;
   }
 
   const renderView = () => {
-    // If admin is on overview, show the special admin overview
     if (view === 'overview' && currentUser?.role === 'admin') {
       return <AdminOverview />;
     }
 
-    // If a cashier tries to access a view they shouldn't, redirect to overview
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     const isUnauthorized = unauthorizedCashierViews.includes(view) && currentUser?.role !== 'admin';
     
     if (isUnauthorized) {
-      return <Overview storeId={storeId} />;
+      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
 
     switch (view) {
       case 'pos':
-        return <POS />;
+        return <POS products={products} customers={customers} users={users} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'products':
-        return <Products />;
+        return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'customers':
-        return <Customers />;
+        return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions />;
+        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isLoading} />;
       case 'pending-orders':
-        return <PendingOrders />;
+        return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'settings':
         return <Settings />;
       case 'challenges':
         return <Challenges />;
       case 'promotions':
-        return <Promotions redemptionOptions={redemptionOptions} setRedemptionOptions={setRedemptionOptions} />;
+        return <Promotions 
+                    redemptionOptions={redemptionOptions} 
+                    setRedemptionOptions={setRedemptionOptions} 
+                    transactions={transactions} 
+                />;
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       case 'overview':
       default:
-        return <Overview storeId={storeId} />;
+        return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
   };
 
   const getTitle = () => {
-    // Adjust title for admin overview
     if (view === 'overview' && currentUser?.role === 'admin') {
         return 'Admin Dashboard';
     }

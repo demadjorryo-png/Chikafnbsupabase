@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -19,7 +18,6 @@ import {
 } from '@/components/ui/table';
 import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { File, ListFilter, MoreHorizontal, PlusCircle, Search } from 'lucide-react';
@@ -52,12 +50,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { StockAdjustmentCard } from '@/components/dashboard/stock-adjustment-card';
+
+type ProductsProps = {
+    products: Product[];
+    stores: Store[];
+    userRole: User['role'];
+    onDataChange: () => void;
+    isLoading: boolean;
+};
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; stores: Store[] }) {
     if (!product) return null;
@@ -95,70 +100,17 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
 }
 
 
-export default function Products() {
+export default function Products({ products, stores, userRole, onDataChange, isLoading }: ProductsProps) {
   const lowStockThreshold = 10;
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
-  
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [stores, setStores] = React.useState<Store[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [userRole, setUserRole] = React.useState<User['role']>('cashier');
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
-
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
-
-  React.useEffect(() => {
-    const fetchUserData = async () => {
-        if(userId) {
-             if (userId === 'admin001') { // Superadmin case
-                setUserRole('admin');
-            } else {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    setUserRole(userDoc.data().role);
-                }
-            }
-        }
-    };
-    fetchUserData();
-  }, [userId]);
-
-
-  const fetchProductsAndStores = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const productsCollection = collection(db, 'products');
-        const productSnapshot = await getDocs(productsCollection);
-        const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setProducts(productList);
-
-        const storesCollection = collection(db, 'stores');
-        const storeSnapshot = await getDocs(storesCollection);
-        const storeList = storeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
-        setStores(storeList);
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Memuat Data',
-            description: 'Terjadi kesalahan saat mengambil data produk atau toko.'
-        });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    fetchProductsAndStores();
-  }, [fetchProductsAndStores]);
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
@@ -183,7 +135,7 @@ export default function Products() {
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-        fetchProductsAndStores(); // Re-fetch products after deletion
+        onDataChange(); 
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -199,7 +151,7 @@ export default function Products() {
 
 
   const handleDataUpdate = () => {
-    fetchProductsAndStores(); // Re-fetch data when a product is added or updated
+    onDataChange();
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {

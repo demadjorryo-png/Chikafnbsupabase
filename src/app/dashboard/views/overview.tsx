@@ -27,7 +27,6 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { stores, users as mockUsers } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon } from 'lucide-react';
@@ -48,10 +47,6 @@ import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-
 
 const chartConfig = {
   revenue: {
@@ -146,54 +141,34 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
     )
 }
 
+type OverviewProps = {
+  storeId: string;
+  transactions: Transaction[];
+  users: User[];
+  customers: Customer[];
+  pendingOrders: PendingOrder[];
+};
 
-export default function Overview({ storeId }: { storeId: string }) {
+export default function Overview({ storeId, transactions, users, customers, pendingOrders }: OverviewProps) {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
-  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
-  const { toast } = useToast();
-
+  
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
 
-  const fetchData = React.useCallback(async () => {
-    try {
-        const transQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-        const transSnapshot = await getDocs(transQuery);
-        setTransactions(transSnapshot.docs.map(doc => doc.data() as Transaction));
-        
-        const usersQuery = query(collection(db, 'users'));
-        const usersSnapshot = await getDocs(usersQuery);
-        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        // Manually add mock superadmin to the list for display purposes (leaderboard)
-        setUsers([...firestoreUsers, ...mockUsers.filter(u => u.role === 'admin')]);
+  const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth);
+    
+    const storePendingOrders = pendingOrders
+      .filter(order => order.storeId === storeId)
+      .slice(0, 5);
 
-        const customersQuery = query(collection(db, 'customers'));
-        const customersSnapshot = await getDocs(customersQuery);
-        const customerList = customersSnapshot.docs.map(doc => doc.data() as Customer);
-        const currentMonth = new Date().getMonth();
-        setBirthdayCustomers(customerList.filter(c => new Date(c.birthDate).getMonth() === currentMonth));
-        
-        const pendingQuery = query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'), limit(5));
-        const pendingSnapshot = await getDocs(pendingQuery);
-        const allPendingOrders = pendingSnapshot.docs.map(doc => doc.data() as PendingOrder);
-        setPendingOrders(allPendingOrders.filter(order => order.storeId === storeId));
-
-    } catch (e) {
-        console.error("Error fetching overview data: ", e);
-        toast({ variant: 'destructive', title: 'Gagal memuat data dashboard' });
-    }
-  }, [storeId, toast]);
-
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    return { birthdayCustomers: bdayCustomers, recentPendingOrders: storePendingOrders };
+  }, [customers, pendingOrders, storeId]);
 
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
@@ -459,7 +434,7 @@ export default function Overview({ storeId }: { storeId: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-                {pendingOrders.map((order) => (
+                {recentPendingOrders.map((order) => (
                     <TableRow key={order.id}>
                         <TableCell>
                            <div className="flex items-center gap-3">

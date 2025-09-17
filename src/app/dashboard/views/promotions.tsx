@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { users } from '@/lib/data';
 import type { RedemptionOption, User, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,7 +47,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, collection, getDocs, addDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, addDoc } from 'firebase/firestore';
 import {
   Dialog,
   DialogContent,
@@ -59,28 +58,28 @@ import {
 } from '@/components/ui/dialog';
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 
-
 type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
     setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
+    transactions: Transaction[];
 }
 
-export default function Promotions({ redemptionOptions, setRedemptionOptions }: PromotionsProps) {
+export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions }: PromotionsProps) {
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
+  const [users, setUsers] = React.useState<User[]>([]);
   React.useEffect(() => {
-    const fetchTransactions = async () => {
-        const querySnapshot = await getDocs(collection(db, 'transactions'));
-        setTransactions(querySnapshot.docs.map(doc => doc.data() as Transaction));
+    async function loadUsers() {
+        const { users } = await import('@/lib/data');
+        setUsers(users);
     }
-    fetchTransactions();
-  }, [])
+    loadUsers();
+  }, []);
   
   const userId = searchParams.get('userId');
   const currentUser = users.find((u) => u.id === userId);

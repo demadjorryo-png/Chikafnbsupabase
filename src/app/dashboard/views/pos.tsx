@@ -57,8 +57,16 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, runTransaction, DocumentReference, setDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
+type POSProps = {
+    products: Product[];
+    customers: Customer[];
+    users: User[];
+    onDataChange: () => void;
+    isLoading: boolean;
+};
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
     if (!transaction) return null;
@@ -83,17 +91,12 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS() {
+export default function POS({ products, customers, users, onDataChange, isLoading }: POSProps) {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId')!;
   const userId = searchParams.get('userId')!;
   
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [customers, setCustomers] = React.useState<Customer[]>([]);
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
-
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -105,35 +108,6 @@ export default function POS() {
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
   const { toast } = useToast();
-
-  const fetchInitialData = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const productsSnapshot = await getDocs(collection(db, 'products'));
-        const productList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setProducts(productList);
-
-        const customersSnapshot = await getDocs(collection(db, 'customers'));
-        const customerList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-        setCustomers(customerList);
-
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const userList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        setUsers(userList);
-
-    } catch (error) {
-        console.error("Error fetching initial data for POS:", error);
-        toast({ variant: 'destructive', title: 'Gagal memuat data', description: 'Tidak dapat mengambil data produk atau pelanggan.' });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    if (storeId && userId) {
-        fetchInitialData();
-    }
-  }, [storeId, userId, fetchInitialData]);
   
   const currentStaff = users.find(u => u.id === userId);
 
@@ -332,7 +306,7 @@ export default function POS() {
       setDiscountValue(0);
       setPointsToRedeem(0);
       setSelectedCustomer(undefined);
-      fetchInitialData(); 
+      onDataChange(); 
 
     } catch (error) {
       console.error("Checkout failed:", error);
@@ -347,12 +321,7 @@ export default function POS() {
   };
   
   const handleCustomerAdded = () => {
-    fetchInitialData();
-  }
-
-
-  if (isLoading && products.length === 0) {
-    return <div className="p-6">Loading POS...</div>
+    onDataChange();
   }
 
 

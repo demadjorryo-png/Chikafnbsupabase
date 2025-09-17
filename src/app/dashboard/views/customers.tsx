@@ -37,10 +37,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
+
+type CustomersProps = {
+    customers: Customer[];
+    onDataChange: () => void;
+    isLoading: boolean;
+};
 
 function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!customer) return null;
@@ -72,44 +75,16 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
     );
 }
 
-export default function Customers() {
-  const [customers, setCustomers] = React.useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export default function Customers({ customers, onDataChange, isLoading }: CustomersProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const { toast } = useToast();
-
-  const fetchCustomers = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const customersRef = collection(db, 'customers');
-        const q = query(customersRef);
-        const querySnapshot = await getDocs(q);
-        const firestoreCustomers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-        setCustomers(firestoreCustomers);
-    } catch (error) {
-        console.error("Error fetching customers:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Memuat Pelanggan',
-            description: 'Terjadi kesalahan saat mengambil data dari database.'
-        });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
-
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
   };
   
   const handleCustomerAdded = () => {
-    fetchCustomers();
+    onDataChange();
   }
 
   return (

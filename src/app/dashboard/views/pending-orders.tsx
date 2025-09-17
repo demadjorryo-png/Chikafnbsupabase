@@ -44,12 +44,18 @@ import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type PendingOrdersProps = {
+    products: Product[];
+    customers: Customer[];
+    onDataChange: () => void;
+    isLoading: boolean;
+};
 
-export default function PendingOrders() {
+export default function PendingOrders({ products, customers, onDataChange, isLoading }: PendingOrdersProps) {
   const [pendingList, setPendingList] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -59,34 +65,6 @@ export default function PendingOrders() {
   
   const searchParams = useSearchParams();
   const currentStoreId = searchParams.get('storeId') || '';
-
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [customers, setCustomers] = React.useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const productsSnapshot = await getDocs(collection(db, 'products'));
-        const customersSnapshot = await getDocs(collection(db, 'customers'));
-        
-        const productList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        const customerList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-
-        setProducts(productList);
-        setCustomers(customerList);
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({ variant: 'destructive', title: 'Gagal memuat data' });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -195,6 +173,7 @@ export default function PendingOrders() {
         description: `Pesanan untuk ${pendingList.length} item telah dibuat untuk ${selectedCustomer.name}.`,
         });
         setPendingList([]);
+        onDataChange();
 
     } catch (error) {
         console.error("Error creating pending order:", error);
@@ -203,7 +182,7 @@ export default function PendingOrders() {
   };
 
   const handleCustomerAdded = () => {
-      fetchData();
+      onDataChange();
   }
 
   return (

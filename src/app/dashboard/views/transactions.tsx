@@ -37,10 +37,14 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Receipt } from '@/components/dashboard/receipt';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+
+type TransactionsProps = {
+    transactions: Transaction[];
+    stores: Store[];
+    users: User[];
+    isLoading: boolean;
+};
 
 function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; stores: Store[], users: User[] }) {
     if (!transaction) return null;
@@ -120,47 +124,9 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, use
     );
 }
 
-export default function Transactions() {
-  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
-  const [stores, setStores] = React.useState<Store[]>([]);
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export default function Transactions({ transactions, stores, users, isLoading }: TransactionsProps) {
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
-  const { toast } = useToast();
-
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const transactionsQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-        const transactionsSnapshot = await getDocs(transactionsQuery);
-        const transactionList = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-        setTransactions(transactionList);
-
-        const storesSnapshot = await getDocs(collection(db, 'stores'));
-        const storeList = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
-        setStores(storeList);
-        
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const userList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        setUsers(userList);
-
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Memuat Data',
-            description: 'Terjadi kesalahan saat mengambil riwayat transaksi.'
-        });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
