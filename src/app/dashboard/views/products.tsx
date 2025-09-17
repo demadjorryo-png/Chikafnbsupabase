@@ -109,16 +109,19 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
 
   // Admin state for store selection
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
+  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>('');
   const isAdmin = userRole === 'admin';
   // Use admin's selection if admin, otherwise use the prop for cashier
   const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
   
-  // This is the crucial fix: determine the currentStore object based on the correct ID.
-  const currentStore = React.useMemo(() => 
-    stores.find(s => s.id === currentStoreId),
-    [stores, currentStoreId]
-  );
+  const currentStore = React.useMemo(() => {
+    // If we're admin and no store is selected yet, but stores are loaded, default to the first one.
+    if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
+        setAdminSelectedStoreId(stores[0].id);
+        return stores[0];
+    }
+    return stores.find(s => s.id === currentStoreId);
+  }, [stores, currentStoreId, isAdmin, adminSelectedStoreId]);
 
 
   React.useEffect(() => {
@@ -209,18 +212,14 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     });
   };
 
-  // The categories available in the dropdown should be based on the products of the currently selected store
-  const availableCategories = React.useMemo(() => {
-    const productsForCurrentStore = allProducts.filter(p => isAdmin ? p.storeId === currentStoreId : true);
-    const categories = new Set(productsForCurrentStore.map(p => p.category));
-    return Array.from(categories).sort();
-  }, [allProducts, currentStoreId, isAdmin]);
-  
   const filteredProducts = React.useMemo(() => {
-    const productsForCurrentStore = isAdmin 
+    // If admin, filter allProducts by the selected storeId.
+    // If cashier, allProducts is already pre-filtered, so just use it.
+    const productsForCurrentStore = isAdmin
       ? allProducts.filter(p => p.storeId === currentStoreId)
       : allProducts;
 
+    // Apply search and category filters to the determined list of products
     return productsForCurrentStore.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
@@ -228,6 +227,11 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     });
   }, [allProducts, currentStoreId, searchTerm, selectedCategories, isAdmin]);
 
+  // The categories available in the dropdown should be based on the products of the currently selected store
+  const availableCategories = React.useMemo(() => {
+    const categories = new Set(filteredProducts.map(p => p.category));
+    return Array.from(categories).sort();
+  }, [filteredProducts]);
 
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
