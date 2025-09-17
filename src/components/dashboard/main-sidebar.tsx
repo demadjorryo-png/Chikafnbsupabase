@@ -135,7 +135,7 @@ export function MainSidebar() {
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
           <CircleDollarSign className="h-4 w-4" />
-          <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>
+          {activeStore && <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>}
       </div>
   )
 
