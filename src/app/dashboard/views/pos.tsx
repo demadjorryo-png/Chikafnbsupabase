@@ -58,7 +58,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
@@ -96,9 +96,6 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
 }
 
 export default function POS({ products, customers, currentUser, activeStore, onDataChange, isLoading, feeSettings }: POSProps) {
-  const searchParams = useSearchParams();
-  const urlStoreId = searchParams.get('storeId')!;
-  
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -225,9 +222,6 @@ export default function POS({ products, customers, currentUser, activeStore, onD
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
-  // Temporarily disable token cost
-  const tokenCost = 0;
-
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -248,25 +242,23 @@ export default function POS({ products, customers, currentUser, activeStore, onD
   
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong.' });
+      toast({ variant: 'destructive', title: 'Keranjang Kosong', description: 'Silakan tambahkan produk ke keranjang.' });
       return;
     }
     if (!currentUser || !activeStore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Data staff atau toko tidak ditemukan.' });
+        toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
     }
     
     setIsProcessingCheckout(true);
     
+    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    
     try {
-      const newTransactionRef = doc(collection(db, 'transactions'));
-      const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
-      
       await runTransaction(db, async (transaction) => {
-        // --- Token Logic Disabled ---
-        
+        // --- 1. Update Product Stock ---
         for (const item of cart) {
-            // Skip stock check for manual items
+            // Skip stock check for manual items, as they don't exist in the DB
             if (item.productId.startsWith('manual-')) {
                 continue;
             }
@@ -275,7 +267,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
             const productDoc = await transaction.get(productRef);
 
             if (!productDoc.exists()) {
-                throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+                throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
             }
             const currentStock = productDoc.data().stock || 0;
             const newStock = currentStock - item.quantity;
@@ -285,8 +277,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
             transaction.update(productRef, { stock: newStock });
         }
         
-        // --- Token Logic Disabled ---
-
+        // --- 2. Update Customer Points (if a customer is selected) ---
         if (selectedCustomer) {
             const customerRef = doc(db, "customers", selectedCustomer.id);
             const customerDoc = await transaction.get(customerRef);
@@ -298,9 +289,11 @@ export default function POS({ products, customers, currentUser, activeStore, onD
             transaction.update(customerRef, { loyaltyPoints: newPoints });
         }
 
+        // --- 3. Create Transaction Record ---
+        const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
-            storeId: urlStoreId,
+            storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
             customerName: selectedCustomer?.name || 'Guest',
             staffId: currentUser.id,
@@ -315,9 +308,11 @@ export default function POS({ products, customers, currentUser, activeStore, onD
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
+        // --- 4. Set transaction data for receipt dialog ---
         setLastTransaction(finalTransactionData);
       });
 
+      // --- 5. Post-Transaction Success Actions ---
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       setCart([]);
       setDiscountValue(0);
@@ -327,7 +322,8 @@ export default function POS({ products, customers, currentUser, activeStore, onD
 
     } catch (error) {
       console.error("Checkout failed:", error);
-      toast({ variant: 'destructive', title: 'Checkout Gagal', description: String(error) });
+      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.";
+      toast({ variant: 'destructive', title: 'Checkout Gagal', description: errorMessage });
     } finally {
       setIsProcessingCheckout(false);
     }
