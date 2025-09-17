@@ -3,7 +3,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { stores, users } from '@/lib/data';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -33,17 +32,13 @@ export default function WelcomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to the dashboard with default admin and store IDs.
-    // This bypasses the login page for testing purposes.
-    const defaultAdmin = users.find(u => u.role === 'admin');
-    const defaultStore = stores[0];
+    // For testing purposes, redirect directly to the dashboard, bypassing login.
+    // We'll use a default admin ID and store ID to ensure the dashboard loads correctly.
+    const defaultAdminId = 'admin001'; 
+    const defaultStoreId = 'store_tpg';
     
-    if (defaultAdmin && defaultStore) {
-        router.replace(`/dashboard?view=overview&storeId=${defaultStore.id}&userId=${defaultAdmin.id}`);
-    } else {
-        // Fallback if no admin/store is found in static data
-        router.replace('/login');
-    }
+    router.replace(`/dashboard?view=overview&storeId=${defaultStoreId}&userId=${defaultAdminId}`);
+
   }, [router]);
 
   return (
