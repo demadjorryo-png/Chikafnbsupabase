@@ -10,11 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, LogOut, Settings, UserCircle } from 'lucide-react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import * as React from 'react';
-import type { User } from '@/lib/types';
-import { users } from '@/lib/data';
+import { ChevronRight } from 'lucide-react';
+
 
 export function Header({
   title,
@@ -23,29 +20,6 @@ export function Header({
   title: string;
   storeName?: string;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
-  const storeId = searchParams.get('storeId');
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-
-  React.useEffect(() => {
-    if (userId) {
-        const user = users.find(u => u.id === userId);
-        setCurrentUser(user || null);
-    } else {
-        // Fallback to a default admin if no userId is in URL
-        setCurrentUser(users.find(u => u.role === 'admin') || null);
-    }
-  }, [userId]);
-
-  const handleLogout = async () => {
-    alert("Logout clicked. Login functionality is temporarily disabled.");
-  };
-
-  const navigate = (view: string) => {
-    router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
-  };
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
@@ -65,36 +39,6 @@ export function Header({
           )}
         </div>
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <UserCircle className="h-6 w-6" />
-            <span className="sr-only">User Menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {currentUser && (
-            <>
-              <DropdownMenuLabel>
-                <div className="font-medium">{currentUser.name}</div>
-                <div className="text-xs font-normal capitalize text-muted-foreground">
-                  {currentUser.role}
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem onClick={() => navigate('settings')}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Logout</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </header>
   );
 }

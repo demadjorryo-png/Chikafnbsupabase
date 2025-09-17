@@ -25,6 +25,7 @@ import {
   TicketPercent,
   CircleDollarSign,
   Receipt,
+  UserCircle,
 } from 'lucide-react';
 import * as React from 'react';
 import { stores } from '@/lib/data';
@@ -213,6 +214,18 @@ export function MainSidebar() {
       </SidebarContent>
       <SidebarFooter>
          <SidebarMenu>
+            {currentUser && (
+               <div className="mb-2 w-full p-2 group-data-[collapsible=icon]:hidden">
+                  <Separator className="mb-2 bg-sidebar-border" />
+                  <div className="flex items-center gap-2 rounded-md p-2">
+                     <UserCircle className="h-8 w-8 shrink-0" />
+                     <div className="overflow-hidden">
+                        <p className="truncate font-semibold">{currentUser.name}</p>
+                        <p className="truncate text-xs text-sidebar-foreground/70 capitalize">{currentUser.role}</p>
+                     </div>
+                  </div>
+               </div>
+            )}
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Settings" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />

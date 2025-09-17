@@ -230,12 +230,14 @@ export default function Products() {
     <>
     <div className="grid gap-6">
 
-      <StockAdjustmentCard 
-        products={products}
-        stores={stores}
-        onStockUpdated={handleDataUpdate}
-        isLoading={isLoading}
-      />
+      {userRole === 'admin' && (
+        <StockAdjustmentCard 
+            products={products}
+            stores={stores}
+            onStockUpdated={handleDataUpdate}
+            isLoading={isLoading}
+        />
+      )}
       
       <Card>
         <CardHeader>
@@ -368,10 +370,8 @@ export default function Products() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleViewDetails(product)}>View Details</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>
-                            Delete
-                          </DropdownMenuItem>
+                          {userRole === 'admin' && <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>}
+                          {userRole === 'admin' && <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

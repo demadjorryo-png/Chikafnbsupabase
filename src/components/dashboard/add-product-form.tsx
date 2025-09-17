@@ -69,12 +69,21 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
       brand: '',
     },
   });
+  
+  React.useEffect(() => {
+    // Initialize stock levels for all stores to 0
+    const initialStock = stores.reduce((acc, store) => {
+      acc[store.id] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+    setStockLevels(initialStock);
+  }, [stores]);
 
   const handleStockChange = (storeId: string, value: string) => {
     const numberValue = Number(value);
     setStockLevels(prev => ({
       ...prev,
-      [storeId]: isNaN(numberValue) ? 0 : numberValue,
+      [storeId]: isNaN(numberValue) || numberValue < 0 ? 0 : numberValue,
     }));
   };
 
@@ -91,12 +100,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
     setIsLoading(true);
 
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
-
-    const stockForFirestore = stores.reduce((acc, store) => {
-        acc[store.id] = stockLevels[store.id] || 0;
-        return acc;
-    }, {} as Record<string, number>);
-
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
 
     try {
@@ -105,7 +108,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: stockForFirestore,
+            stock: stockLevels, // Use the state for stock levels
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
