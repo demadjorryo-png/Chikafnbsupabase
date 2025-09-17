@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -166,7 +165,7 @@ export default function LoginPage() {
                 <Input
                   id="userId"
                   type="text"
-                  placeholder="e.g., Pradana01"
+                  placeholder="e.g., Bekupon...."
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
