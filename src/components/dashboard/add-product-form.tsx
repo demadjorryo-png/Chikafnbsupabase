@@ -58,8 +58,13 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   
-  // SOLUSI BARU: Gunakan state terpisah untuk mengelola stok
-  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>({});
+  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>(() => {
+     const initialStock = stores.reduce((acc, store) => {
+      acc[store.id] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+    return initialStock;
+  });
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -72,17 +77,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
     },
   });
 
-  // Inisialisasi state stok saat komponen dimuat
-  React.useEffect(() => {
-    const initialStock = stores.reduce((acc, store) => {
-      acc[store.id] = 0;
-      return acc;
-    }, {} as Record<string, number>);
-    setStockLevels(initialStock);
-  }, [stores]);
-
-
-  // Handler untuk mengubah state stok
   const handleStockChange = (storeId: string, value: string) => {
     const numberValue = Number(value);
     setStockLevels(prev => ({
@@ -112,7 +106,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: stockLevels, // Ambil data stok dari state, bukan dari form
+            stock: stockLevels,
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
@@ -259,7 +253,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                             id={`stock-${store.id}`}
                             type="number"
                             placeholder="0"
-                            value={stockLevels[store.id] ?? ''}
+                            value={stockLevels[store.id] ?? 0}
                             onChange={(e) => handleStockChange(store.id, e.target.value)}
                             className="w-full"
                         />
