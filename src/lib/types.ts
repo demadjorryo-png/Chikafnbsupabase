@@ -31,6 +31,7 @@ export type User = {
   storeId: string; // The primary store for a user
   userId?: string; // The login ID
   password?: string; // NOTE: Storing plain text password is not secure. For temporary use only.
+  email?: string;
 };
 
 export type Product = {

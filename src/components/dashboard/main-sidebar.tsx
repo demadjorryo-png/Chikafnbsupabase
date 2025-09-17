@@ -27,15 +27,11 @@ import {
   Receipt,
 } from 'lucide-react';
 import * as React from 'react';
-import { stores } from '@/lib/data';
+import { stores, users } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
 import { TopUpDialog } from './top-up-dialog';
 import { Dialog, DialogTrigger } from '../ui/dialog';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { signOut, onAuthStateChanged } from 'firebase/auth';
-
 
 export function MainSidebar() {
   const router = useRouter();
@@ -50,25 +46,19 @@ export function MainSidebar() {
 
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-                setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
-            }
-        } else {
-            setCurrentUser(null);
-            router.push('/login');
-        }
-    });
+    // TEMPORARY: Set a default user to bypass auth checks
+    if (userId) {
+        const user = users.find(u => u.id === userId);
+        setCurrentUser(user || null);
+    } else {
+        // Fallback to a default admin if no userId is in URL
+        router.push('/login');
+    }
 
     if (storeId) {
         const store = stores.find(s => s.id === storeId);
         setActiveStore(store || null);
     }
-    
-    return () => unsubscribe();
   }, [userId, storeId, router]);
 
 
@@ -82,7 +72,7 @@ export function MainSidebar() {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    // Since login is disabled, this will just simulate a logout
     router.push('/login');
   };
 

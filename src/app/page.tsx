@@ -32,12 +32,8 @@ export default function WelcomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // For testing purposes, redirect directly to the dashboard, bypassing login.
-    // We'll use a default admin ID and store ID to ensure the dashboard loads correctly.
-    const defaultAdminId = 'admin001'; 
-    const defaultStoreId = 'store_tpg';
-    
-    router.replace(`/dashboard?view=overview&storeId=${defaultStoreId}&userId=${defaultAdminId}`);
+    // Redirect to login page
+    router.replace(`/login`);
 
   }, [router]);
 
@@ -46,7 +42,7 @@ export default function WelcomePage() {
        <div className="flex flex-col items-center gap-4">
           <VapeIcon className="h-16 w-16 animate-pulse-slow text-primary/50" />
           <p className="font-headline text-xl tracking-wider text-muted-foreground">
-              Redirecting to Dashboard...
+              Redirecting to Login...
           </p>
       </div>
     </div>
