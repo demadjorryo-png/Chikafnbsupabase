@@ -11,9 +11,8 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { products, customers, transactions, users } from '@/lib/data';
+import { products, customers, transactions, users, stores } from '@/lib/data';
 import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
-import Image from 'next/image';
 import {
   Search,
   PlusCircle,
@@ -57,6 +56,7 @@ import { Receipt } from '@/components/dashboard/receipt';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useSearchParams } from 'next/navigation';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -84,6 +84,10 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
 
 
 export default function POS() {
+  const searchParams = useSearchParams();
+  const storeId = searchParams.get('storeId') || stores[0].id;
+  const userId = searchParams.get('userId');
+  
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<
     Customer | undefined
@@ -97,9 +101,7 @@ export default function POS() {
   const [discountValue, setDiscountValue] = React.useState(0);
   const { toast } = useToast();
   
-  // For now, let's assume we are operating from the first store with a cashier
-  const currentStoreId = 'store_tpg';
-  const currentStaff = users.find(u => u.role === 'cashier' && u.storeId === currentStoreId)!;
+  const currentStaff = users.find(u => u.id === userId)!;
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -107,7 +109,7 @@ export default function POS() {
   }));
 
   const addToCart = (product: Product) => {
-    const stockInStore = product.stock[currentStoreId] || 0;
+    const stockInStore = product.stock[storeId] || 0;
     if (stockInStore === 0) {
       toast({
         variant: 'destructive',
@@ -154,7 +156,7 @@ export default function POS() {
     }
 
     const product = products.find(p => p.id === productId);
-    const stockInStore = product?.stock[currentStoreId] || 0;
+    const stockInStore = product?.stock[storeId] || 0;
     if(product && quantity > stockInStore) {
         toast({
             variant: 'destructive',
@@ -231,7 +233,7 @@ export default function POS() {
     
     const newTransaction: Transaction = {
         id: `trx${String(transactions.length + 1).padStart(3, '0')}`,
-        storeId: currentStoreId,
+        storeId: storeId,
         customerId: selectedCustomer?.id || 'N/A',
         customerName: selectedCustomer?.name || 'Guest',
         staffId: currentStaff.id,
@@ -243,6 +245,15 @@ export default function POS() {
         pointsEarned: pointsEarned,
         items: cart,
     };
+
+    // --- Coin System Simulation ---
+    const transactionFee = Math.max(500, newTransaction.totalAmount * 0.005);
+    toast({
+        title: "Transaction Fee (Simulation)",
+        description: `Biaya sebesar Rp ${transactionFee.toLocaleString('id-ID')} akan dipotong dari saldo koin toko.`
+    })
+    // In a real app, you would deduct this from the store's coinBalance in the database.
+    // ----------------------------
     
     setLastTransaction(newTransaction);
     setCart([]);
@@ -291,7 +302,7 @@ export default function POS() {
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.map((product) => {
-                    const stockInStore = product.stock[currentStoreId] || 0;
+                    const stockInStore = product.stock[storeId] || 0;
                     const isOutOfStock = stockInStore === 0;
                     return (
                       <TableRow key={product.id} className={cn(isOutOfStock && "text-muted-foreground")}>
@@ -362,7 +373,7 @@ export default function POS() {
                       Add a new customer to the Bekupon community. Age will be verified.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} />
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} userRole={currentStaff.role} />
                 </DialogContent>
               </Dialog>
             </div>

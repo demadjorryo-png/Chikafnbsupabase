@@ -8,8 +8,8 @@ function random() {
 }
 
 export const stores: Store[] = [
-    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang' },
-    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang' },
+    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang', coinBalance: 50000 },
+    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang', coinBalance: 75000 },
 ];
 
 export const users: User[] = [

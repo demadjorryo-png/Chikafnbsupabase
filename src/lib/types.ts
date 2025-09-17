@@ -19,6 +19,7 @@ export type Store = {
   id: string;
   name: string;
   location: string;
+  coinBalance: number;
 };
 
 export type UserRole = 'admin' | 'cashier';
