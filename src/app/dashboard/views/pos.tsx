@@ -58,6 +58,7 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
+import { pointSettings } from '@/lib/point-settings';
 
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -82,8 +83,6 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
         </Dialog>
     );
 }
-
-const POINT_TO_RP_CONVERSION_RATE = 25; // 1 point = Rp 25
 
 export default function POS() {
   const searchParams = useSearchParams();
@@ -217,7 +216,7 @@ export default function POS() {
     return discountValue;
   }, [subtotal, discountType, discountValue]);
   
-  const pointsRedeemedValue = pointsToRedeem * POINT_TO_RP_CONVERSION_RATE;
+  const pointsRedeemedValue = pointsToRedeem * pointSettings.pointValueInRp;
   const totalDiscount = manualDiscountAmount + pointsRedeemedValue;
 
   const totalAmount = Math.max(0, subtotal - totalDiscount);
