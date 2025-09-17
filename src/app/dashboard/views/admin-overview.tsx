@@ -35,6 +35,9 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+
 
 const chartConfig = {
   revenue: {
@@ -48,7 +51,7 @@ type AppliedStrategy = {
   type: 'weekly' | 'monthly';
   recommendation: string;
   appliedDate: string;
-  status: 'active' | 'completed';
+  status: 'active'; // In a real app, this could be more complex
 };
 
 export default function AdminOverview() {
@@ -61,6 +64,25 @@ export default function AdminOverview() {
   });
   const [exportStore, setExportStore] = React.useState<string>('all');
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    const fetchStrategies = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, 'appliedStrategies'));
+            const strategies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppliedStrategy));
+            setAppliedStrategies(strategies);
+        } catch (error) {
+            console.error("Error fetching applied strategies:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Gagal memuat strategi',
+                description: 'Tidak dapat mengambil data strategi yang sedang berjalan.'
+            });
+        }
+    };
+    fetchStrategies();
+  }, [toast]);
+
 
   const {
     monthlyGrowthData,
@@ -166,27 +188,47 @@ export default function AdminOverview() {
     }
   }
 
-  const handleApplyStrategy = (type: 'weekly' | 'monthly', recommendation: string) => {
-    const newStrategy: AppliedStrategy = {
-      id: `strat_${Date.now()}`,
+  const handleApplyStrategy = async (type: 'weekly' | 'monthly', recommendation: string) => {
+    const newStrategyData = {
       type,
       recommendation,
       appliedDate: formatISO(new Date()),
-      status: 'active',
+      status: 'active' as const,
     };
-    setAppliedStrategies(prev => [...prev, newStrategy]);
-    toast({
-        title: 'Strategi Diterapkan!',
-        description: `Strategi ${type} telah ditambahkan ke daftar lacak.`,
-    });
+
+    try {
+        const docRef = await addDoc(collection(db, 'appliedStrategies'), newStrategyData);
+        setAppliedStrategies(prev => [...prev, { id: docRef.id, ...newStrategyData }]);
+        toast({
+            title: 'Strategi Diterapkan!',
+            description: `Strategi ${type} telah ditambahkan ke daftar lacak.`,
+        });
+    } catch (error) {
+        console.error("Error applying strategy:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menerapkan Strategi',
+            description: 'Terjadi kesalahan saat menyimpan data ke Firestore.'
+        });
+    }
   };
 
-  const handleCompleteStrategy = (id: string) => {
-    setAppliedStrategies(prev => prev.filter(s => s.id !== id));
-     toast({
-        title: 'Strategi Selesai!',
-        description: 'Strategi telah ditandai sebagai selesai.',
-    });
+  const handleCompleteStrategy = async (id: string) => {
+    try {
+        await deleteDoc(doc(db, 'appliedStrategies', id));
+        setAppliedStrategies(prev => prev.filter(s => s.id !== id));
+        toast({
+            title: 'Strategi Selesai!',
+            description: 'Strategi telah ditandai sebagai selesai dan dihapus dari daftar lacak.',
+        });
+    } catch (error) {
+        console.error("Error completing strategy:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menyelesaikan Strategi',
+            description: 'Terjadi kesalahan saat menghapus data dari Firestore.'
+        });
+    }
   };
 
   const handleExport = () => {
