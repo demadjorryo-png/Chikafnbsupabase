@@ -58,14 +58,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentReference, DocumentData } from 'firebase/firestore';
+import { collection, doc, runTransaction } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
-    currentUser: User;
+    currentUser: User | null;
     activeStore: Store | undefined;
     onDataChange: () => void;
     isLoading: boolean;
@@ -263,31 +263,28 @@ export default function POS({ products, customers, currentUser, activeStore, onD
       
       await runTransaction(db, async (transaction) => {
         // --- Token Logic Disabled ---
-        // const tokenRef = doc(db, 'appSettings', 'pradanaToken');
-        // const tokenDoc = await transaction.get(tokenRef);
-        // const currentTokenBalance = (tokenDoc.data()?.balance || 0);
-        // if (currentTokenBalance < tokenCost) {
-        //     throw new Error(`Pradana Token tidak cukup. Dibutuhkan: ${tokenCost.toFixed(2)}. Top Up sekarang.`);
-        // }
         
         for (const item of cart) {
-            if (!item.productId.startsWith('manual-')) {
-              const productRef = doc(db, "products", item.productId);
-              const productDoc = await transaction.get(productRef);
-              if (!productDoc.exists()) {
-                  throw new Error(`Produk ${item.productName} tidak ditemukan.`);
-              }
-              const currentStock = productDoc.data().stock[urlStoreId] || 0;
-              const newStock = currentStock - item.quantity;
-              if (newStock < 0) {
-                  throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-              }
-              transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
+            // Skip stock check for manual items
+            if (item.productId.startsWith('manual-')) {
+                continue;
             }
+
+            const productRef = doc(db, "products", item.productId);
+            const productDoc = await transaction.get(productRef);
+            if (!productDoc.exists()) {
+                throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+            }
+            const currentStock = productDoc.data().stock[urlStoreId] || 0;
+            const newStock = currentStock - item.quantity;
+            if (newStock < 0) {
+                throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
+            }
+            // Use correct syntax for dynamic field update
+            transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
         }
         
         // --- Token Logic Disabled ---
-        // transaction.update(tokenRef, { balance: currentTokenBalance - tokenCost });
 
         if (selectedCustomer) {
             const customerRef = doc(db, "customers", selectedCustomer.id);
@@ -658,3 +655,5 @@ export default function POS({ products, customers, currentUser, activeStore, onD
     </>
   );
 }
+
+    
