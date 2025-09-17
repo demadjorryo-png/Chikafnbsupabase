@@ -32,18 +32,28 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 
-const FormSchema = z.object({
-  name: z.string().min(2, {
-    message: 'Name must be at least 2 characters.',
-  }),
-  category: z.enum(productCategories),
-  barcode: z.string().optional(),
-  price: z.coerce.number().min(0, "Harga harus diisi"),
-  costPrice: z.coerce.number().min(0).optional(),
-  brand: z.string().min(2, {
-    message: 'Brand must be at least 2 characters.',
-  }),
-});
+// Dynamically create the schema for stocks based on the stores
+const createFormSchema = (stores: Store[]) => {
+  const stockSchema = stores.reduce((acc, store) => {
+    acc[store.id] = z.coerce.number().min(0, "Stock can't be negative.").default(0);
+    return acc;
+  }, {} as Record<string, z.ZodType<number>>);
+
+  return z.object({
+    name: z.string().min(2, {
+      message: 'Name must be at least 2 characters.',
+    }),
+    category: z.enum(productCategories),
+    barcode: z.string().optional(),
+    price: z.coerce.number().min(0, "Price is required"),
+    costPrice: z.coerce.number().min(0).optional(),
+    brand: z.string().min(2, {
+      message: 'Brand must be at least 2 characters.',
+    }),
+    stock: z.object(stockSchema),
+  });
+};
+
 
 type EditProductFormProps = {
   setDialogOpen: (open: boolean) => void;
@@ -57,7 +67,14 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>(product.stock || {});
+  
+  // Memoize the schema creation
+  const FormSchema = React.useMemo(() => createFormSchema(stores), [stores]);
+
+  const defaultStockValues = stores.reduce((acc, store) => {
+    acc[store.id] = product.stock[store.id] || 0;
+    return acc;
+  }, {} as Record<string, number>);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -68,16 +85,10 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
       costPrice: product.costPrice,
       brand: product.attributes.brand,
       category: product.category,
+      stock: defaultStockValues,
     },
   });
 
-  const handleStockChange = (storeId: string, value: string) => {
-    const numberValue = Number(value);
-    setStockLevels(prev => ({
-      ...prev,
-      [storeId]: isNaN(numberValue) ? 0 : numberValue,
-    }));
-  };
 
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
@@ -100,7 +111,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
             barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
-            stock: stockLevels,
+            stock: data.stock,
             'attributes.brand': data.brand,
         });
         
@@ -234,17 +245,25 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
               <Label>Stock Levels</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
                   {stores.map(store => (
-                      <div key={store.id} className="grid gap-2">
-                          <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
-                          <Input
-                              id={`stock-${store.id}`}
-                              type="number"
-                              placeholder="0"
-                              value={stockLevels[store.id] || ''}
-                              onChange={(e) => handleStockChange(store.id, e.target.value)}
-                              className="w-full"
-                          />
-                      </div>
+                    <FormField
+                      key={store.id}
+                      control={form.control}
+                      name={`stock.${store.id}` as any}
+                      render={({ field }) => (
+                        <FormItem className="grid gap-2">
+                          <FormLabel htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</FormLabel>
+                          <FormControl>
+                            <Input
+                                id={`stock-${store.id}`}
+                                type="number"
+                                placeholder="0"
+                                {...field}
+                            />
+                          </FormControl>
+                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   ))}
               </div>
           </div>
