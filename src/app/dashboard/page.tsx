@@ -81,13 +81,10 @@ function DashboardContent() {
           description: 'User ID tidak ada. Silakan login kembali.'
       });
       setIsLoading(false);
-      // Optional: redirect to login
-      // window.location.href = '/login';
       return;
     }
     
     try {
-        // Fetch data that is not store-dependent first
         const [
             storesSnapshot,
             customersSnapshot,
@@ -95,6 +92,8 @@ function DashboardContent() {
             redemptionOptionsSnapshot,
             feeSettingsData,
             tokenBalanceData,
+            transactionsSnapshot,
+            pendingOrdersSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
@@ -102,6 +101,8 @@ function DashboardContent() {
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
+            getDocs(collection(db, 'transactions')),
+            getDocs(collection(db, 'pendingOrders')),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
@@ -115,33 +116,34 @@ function DashboardContent() {
         
         const isAdmin = fetchedUser?.role === 'admin';
         
-        // Now fetch store-dependent data
-        let productsPromise;
-        
-        const targetStoreId = storeId || (isAdmin ? 'store_tpg' : null);
+        let allProducts: Product[] = [];
+        if (isAdmin) {
+            // Admin: fetch products from all stores
+            const productPromises = allStores.map(store => {
+                const productCollectionName = `products_${store.id.replace('store_', '')}`;
+                return getDocs(query(collection(db, productCollectionName), orderBy('name')));
+            });
+            const productSnapshots = await Promise.all(productPromises);
+            
+            productSnapshots.forEach((snapshot, index) => {
+                const storeIdForProducts = allStores[index].id;
+                const storeProducts = snapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    ...doc.data(),
+                    // Manually add storeId to each product for admin view
+                    storeId: storeIdForProducts 
+                } as Product & { storeId: string }));
+                allProducts = allProducts.concat(storeProducts);
+            });
 
-        if (targetStoreId) {
-            const productCollectionName = `products_${targetStoreId.replace('store_', '')}`;
-            productsPromise = getDocs(query(collection(db, productCollectionName), orderBy('name')));
-        } else {
-            // Handle cashier without storeId (should not happen with new login flow)
-            productsPromise = Promise.resolve(null);
+        } else if (storeId) {
+            // Cashier: fetch products from their active store
+            const productCollectionName = `products_${storeId.replace('store_', '')}`;
+            const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
+            allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         }
 
-        const [
-            productsSnapshot,
-            transactionsSnapshot,
-            pendingOrdersSnapshot,
-        ] = await Promise.all([
-            productsPromise,
-            getDocs(collection(db, 'transactions')),
-            getDocs(collection(db, 'pendingOrders')),
-        ]);
-
-        if (productsSnapshot) {
-            setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
-        }
-
+        setProducts(allProducts);
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
         const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
@@ -173,13 +175,12 @@ function DashboardContent() {
   }, [fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
-  const activeStore = storeId ? stores.find(s => s.id === storeId) : (isAdmin ? stores[0] : undefined);
+  const activeStore = storeId ? stores.find(s => s.id === storeId) : undefined;
   
   if (isLoading) {
     return <DashboardSkeleton />;
   }
   
-  // A cashier must have an active store, but an admin does not.
   if (!currentUser || (!isAdmin && !activeStore)) {
     return <DashboardSkeleton />;
   }
@@ -188,34 +189,32 @@ function DashboardContent() {
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-      if (storeId) {
         return <Overview 
-          storeId={storeId} 
+          storeId={storeId!} 
           transactions={transactions} 
           users={users} 
           customers={customers} 
           pendingOrders={pendingOrders} 
           onDataChange={fetchAllData} 
         />;
-      }
-      return <DashboardSkeleton />; // Or some other fallback
     }
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : storeId ? <Overview 
-              storeId={storeId} 
+          : <Overview 
+              storeId={storeId!} 
               transactions={transactions} 
               users={users} 
               customers={customers} 
               pendingOrders={pendingOrders} 
               onDataChange={fetchAllData} 
-            /> : <DashboardSkeleton />;
+            />;
       case 'pos':
+        // For POS, we only pass products for the active store
         return activeStore ? <POS 
-                    products={products} 
+                    products={products.filter(p => !p.storeId || p.storeId === activeStore.id)} 
                     customers={customers} 
                     currentUser={currentUser}
                     activeStore={activeStore}
@@ -224,7 +223,14 @@ function DashboardContent() {
                     feeSettings={feeSettings} 
                 /> : <DashboardSkeleton />;
       case 'products':
-        return activeStore ? <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} activeStore={activeStore} /> : <DashboardSkeleton />;
+        return <Products 
+                  products={products} // Admin gets all products, cashier gets their store's products
+                  stores={stores} 
+                  userRole={currentUser.role} 
+                  onDataChange={fetchAllData} 
+                  isLoading={isLoading} 
+                  activeStoreId={storeId} // Pass cashier's active storeId
+                />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
@@ -248,14 +254,14 @@ function DashboardContent() {
       default:
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : storeId ? <Overview 
-              storeId={storeId} 
+          : <Overview 
+              storeId={storeId!} 
               transactions={transactions} 
               users={users} 
               customers={customers} 
               pendingOrders={pendingOrders} 
               onDataChange={fetchAllData} 
-            /> : <DashboardSkeleton />;
+            />;
     }
   };
 

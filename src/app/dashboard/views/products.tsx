@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,7 +21,7 @@ import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
+import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2, Building } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -54,6 +55,8 @@ import { db } from '@/lib/firebase';
 import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ProductsProps = {
     products: Product[];
@@ -61,10 +64,10 @@ type ProductsProps = {
     userRole: User['role'];
     onDataChange: () => void;
     isLoading: boolean;
-    activeStore: Store;
+    activeStoreId: string | null; // For cashiers
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, activeStore }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; activeStore: Store }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; storeName: string; }) {
     if (!product) return null;
 
     return (
@@ -83,7 +86,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, activeSto
                    {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
                    {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
                    {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                   <div><strong>Stock di {activeStore.name}:</strong> {product.stock}</div>
+                   <div><strong>Stock di {storeName}:</strong> {product.stock}</div>
                    {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
                    <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                 </div>
@@ -92,7 +95,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, activeSto
     );
 }
 
-export default function Products({ products, stores, userRole, onDataChange, isLoading, activeStore }: ProductsProps) {
+export default function Products({ products: allProducts, stores, userRole, onDataChange, isLoading, activeStoreId }: ProductsProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -104,19 +107,24 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
 
+  // Admin state for store selection
+  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
+  const isAdmin = userRole === 'admin';
+  const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
+  const currentStore = stores.find(s => s.id === currentStoreId);
+
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
+    if (!currentStoreId) return;
     const newStock = currentStock + adjustment;
     if (newStock < 0) return;
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
     const productRef = doc(db, productCollectionName, productId);
 
     try {
-      await updateDoc(productRef, {
-        stock: newStock
-      });
+      await updateDoc(productRef, { stock: newStock });
       onDataChange(); // Refresh data from parent
     } catch (error) {
       console.error("Error updating stock:", error);
@@ -146,9 +154,9 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   };
   
   const handleConfirmDelete = async () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
     try {
         await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
         toast({
@@ -187,15 +195,22 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   };
 
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(products.map(p => p.category));
+    const categories = new Set(allProducts.map(p => p.category));
     return Array.from(categories).sort();
-  }, [products]);
+  }, [allProducts]);
   
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = React.useMemo(() => {
+    const productsForCurrentStore = isAdmin 
+      ? allProducts.filter(p => p.storeId === currentStoreId)
+      : allProducts;
+
+    return productsForCurrentStore.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
-  });
+    });
+  }, [isAdmin, allProducts, currentStoreId, searchTerm, selectedCategories]);
+
 
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
@@ -207,7 +222,32 @@ export default function Products({ products, stores, userRole, onDataChange, isL
 
   return (
     <>
-    <div className="grid gap-6">
+    <div className={cn("grid gap-6", isAdmin && "grid-cols-[16rem_1fr]")}>
+      {isAdmin && (
+        <aside className="hidden lg:flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pilih Toko</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                {stores.map(store => (
+                  <Button
+                    key={store.id}
+                    variant={adminSelectedStoreId === store.id ? 'default' : 'ghost'}
+                    onClick={() => setAdminSelectedStoreId(store.id)}
+                    className="justify-start gap-2"
+                  >
+                    <Building className="h-4 w-4"/>
+                    {store.name}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      )}
+      <main>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
@@ -215,10 +255,10 @@ export default function Products({ products, stores, userRole, onDataChange, isL
               <CardTitle className="font-headline tracking-wider">
                 Products
               </CardTitle>
-              <CardDescription>Kelola inventaris produk di toko {activeStore.name}.</CardDescription>
+              <CardDescription>Kelola inventaris produk di {currentStore?.name || 'toko'}.</CardDescription>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="relative w-64">
+              <div className="relative w-full max-w-xs">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
@@ -240,6 +280,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Filter by category</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <ScrollArea className="h-48">
                   {availableCategories.map(category => (
                     <DropdownMenuCheckboxItem 
                         key={category}
@@ -250,18 +291,13 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                         {category}
                     </DropdownMenuCheckboxItem>
                   ))}
+                  </ScrollArea>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button size="sm" variant="outline" className="h-10 gap-1">
-                <File className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Export
-                </span>
-              </Button>
               {userRole === 'admin' && (
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-10 gap-1">
+                  <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
                     <PlusCircle className="h-3.5 w-3.5" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                       Add Product
@@ -274,15 +310,15 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       Add New Product
                     </DialogTitle>
                     <DialogDescription>
-                      Menambahkan produk baru ke inventaris toko {activeStore.name}.
+                      Menambahkan produk baru ke inventaris {currentStore?.name}.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddProductForm 
+                  {currentStore && <AddProductForm 
                     setDialogOpen={setIsAddDialogOpen} 
                     userRole={userRole} 
                     onProductAdded={handleDataUpdate}
-                    activeStore={activeStore}
-                  />
+                    activeStore={currentStore}
+                  />}
                 </DialogContent>
               </Dialog>
               )}
@@ -376,19 +412,20 @@ export default function Products({ products, stores, userRole, onDataChange, isL
           </Table>
         </CardContent>
       </Card>
+      </main>
       </div>
       
-      {selectedProduct && (
+      {selectedProduct && currentStore && (
         <ProductDetailsDialog
           product={selectedProduct}
           open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
-          activeStore={activeStore}
+          storeName={currentStore.name}
         />
        )}
 
-      {selectedProduct && isEditDialogOpen && (
+      {selectedProduct && isEditDialogOpen && currentStore && (
          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
              <DialogContent className="sm:max-w-md">
                   <DialogHeader>
@@ -399,7 +436,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     setDialogOpen={setIsEditDialogOpen} 
                     userRole={userRole} 
                     onProductUpdated={handleDataUpdate}
-                    activeStore={activeStore}
+                    activeStore={currentStore}
                     product={selectedProduct}
                   />
                 </DialogContent>
