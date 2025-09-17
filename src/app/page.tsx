@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -32,17 +31,22 @@ export default function WelcomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to login page
-    router.replace(`/login`);
+    const timer = setTimeout(() => {
+      router.replace(`/login`);
+    }, 2500); // Wait for 2.5 seconds before redirecting
 
+    return () => clearTimeout(timer); // Clean up the timer
   }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-       <div className="flex flex-col items-center gap-4">
-          <VapeIcon className="h-16 w-16 animate-pulse-slow text-primary/50" />
-          <p className="font-headline text-xl tracking-wider text-muted-foreground">
-              Redirecting to Login...
+       <div className="flex flex-col items-center gap-4 text-center">
+          <VapeIcon className="h-20 w-20 text-primary animate-pulse-slow" />
+          <h1 className="font-headline text-5xl tracking-widest text-foreground">
+            BEKUPON BASECAMP
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Aplikasi POS & CRM untuk "Bekupon Vape Store"
           </p>
       </div>
     </div>
