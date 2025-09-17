@@ -126,136 +126,134 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
 
   return (
     <>
-    <div className="max-h-[80vh] overflow-y-auto pr-6 pl-2">
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Dark Luna Grape" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="brand"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Brand</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Emkay" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {productCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="barcode"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Barcode (SKU)</FormLabel>
-                <div className="flex gap-2">
-                    <FormControl>
-                        <Input placeholder="e.g., 899..." {...field} />
-                    </FormControl>
-                    <Button variant="outline" size="icon" type="button" onClick={() => setIsScannerOpen(true)}>
-                        <ScanBarcode className="h-4 w-4" />
-                        <span className="sr-only">Scan Barcode</span>
-                    </Button>
-                </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {userRole === 'admin' && (
-            <FormField
-                control={form.control}
-                name="costPrice"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Cost Price (Rp)</FormLabel>
-                    <FormControl>
-                    <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        )}
-        
-        <FormField
+    <div className="max-h-[80vh] overflow-y-auto pr-6 pl-2 -mr-6 -ml-2">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
             control={form.control}
-            name="price"
+            name="name"
             render={({ field }) => (
-                <FormItem>
-                <FormLabel>Selling Price (Rp)</FormLabel>
+              <FormItem>
+                <FormLabel>Product Name</FormLabel>
                 <FormControl>
-                    <Input type="number" {...field} />
+                  <Input placeholder="e.g., Dark Luna Grape" {...field} />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-        />
-        
-        <Separator />
-
-        <div className="space-y-2">
-            <Label>Stock Levels</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
-                {stores.map(store => (
-                    <div key={store.id} className="grid gap-2">
-                        <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
-                        <Input
-                            id={`stock-${store.id}`}
-                            type="number"
-                            placeholder="0"
-                            value={stockLevels[store.id] || ''}
-                            onChange={(e) => handleStockChange(store.id, e.target.value)}
-                            className="w-full"
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
-
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
-        </Button>
-      </form>
-    </Form>
+          />
+          <FormField
+            control={form.control}
+            name="brand"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Brand</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Emkay" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {productCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="barcode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Barcode (SKU)</FormLabel>
+                  <div className="flex gap-2">
+                      <FormControl>
+                          <Input placeholder="e.g., 899..." {...field} />
+                      </FormControl>
+                      <Button variant="outline" size="icon" type="button" onClick={() => setIsScannerOpen(true)}>
+                          <ScanBarcode className="h-4 w-4" />
+                          <span className="sr-only">Scan Barcode</span>
+                      </Button>
+                  </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {userRole === 'admin' && (
+              <FormField
+                  control={form.control}
+                  name="costPrice"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Cost Price (Rp)</FormLabel>
+                      <FormControl>
+                      <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+          )}
+          
+          <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Selling Price (Rp)</FormLabel>
+                  <FormControl>
+                      <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                  </FormItem>
+              )}
+          />
+          
+          <Separator />
+          <div className="space-y-2">
+              <Label>Stock Levels</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
+                  {stores.map(store => (
+                      <div key={store.id} className="grid gap-2">
+                          <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
+                          <Input
+                              id={`stock-${store.id}`}
+                              type="number"
+                              placeholder="0"
+                              value={stockLevels[store.id] || ''}
+                              onChange={(e) => handleStockChange(store.id, e.target.value)}
+                              className="w-full"
+                          />
+                      </div>
+                  ))}
+              </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </form>
+      </Form>
     </div>
     
       <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
