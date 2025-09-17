@@ -21,7 +21,7 @@ import {
   BarChart,
 } from 'recharts';
 import { stores, transactions, products } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
@@ -193,7 +193,7 @@ export default function AdminOverview() {
         </CardContent>
       </Card>
       
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {storeStats.map(store => (
              <Card key={store.id}>
                 <CardHeader>
@@ -222,6 +222,32 @@ export default function AdminOverview() {
                 </CardContent>
             </Card>
         ))}
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingUp className="text-primary"/>Produk Terlaris</CardTitle>
+                <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ol className="list-decimal list-inside space-y-2">
+                    {topProducts.map((product, index) => (
+                        <li key={index} className="text-sm font-medium">{product}</li>
+                    ))}
+                </ol>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingDown className="text-destructive"/>Produk Kurang Laris</CardTitle>
+                <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ol className="list-decimal list-inside space-y-2">
+                    {worstProducts.map((product, index) => (
+                        <li key={index} className="text-sm font-medium">{product}</li>
+                    ))}
+                </ol>
+            </CardContent>
+        </Card>
       </div>
 
        <Card>
