@@ -115,6 +115,13 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
   const currentStore = stores.find(s => s.id === currentStoreId);
 
+  React.useEffect(() => {
+    if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
+      setAdminSelectedStoreId(stores[0].id);
+    }
+  }, [isAdmin, adminSelectedStoreId, stores]);
+
+
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
     if (!currentStoreId) return;
     const newStock = currentStock + adjustment;
@@ -292,7 +299,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
                   </ScrollArea>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {userRole === 'admin' && (
+              
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
@@ -319,7 +326,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
                   />}
                 </DialogContent>
               </Dialog>
-              )}
+              
             </div>
           </div>
         </CardHeader>
@@ -411,55 +418,55 @@ export default function Products({ products: allProducts, stores, userRole, onDa
         </CardContent>
       </Card>
       </main>
-      </div>
-      {selectedProduct && currentStore && (
+    </div>
+    {selectedProduct && currentStore && (
         <ProductDetailsDialog
-          product={selectedProduct}
-          open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
-          onOpenChange={() => setSelectedProduct(null)}
-          userRole={userRole}
-          storeName={currentStore.name}
+            product={selectedProduct}
+            open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
+            onOpenChange={() => setSelectedProduct(null)}
+            userRole={userRole}
+            storeName={currentStore.name}
         />
-       )}
+    )}
 
-      {selectedProduct && isEditDialogOpen && currentStore && (
-         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-             <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">Edit Product</DialogTitle>
-                    <DialogDescription>Update details for {selectedProduct.name}.</DialogDescription>
-                  </DialogHeader>
-                  <EditProductForm 
-                    setDialogOpen={setIsEditDialogOpen} 
-                    userRole={userRole} 
-                    onProductUpdated={handleDataUpdate}
-                    activeStore={currentStore}
-                    product={selectedProduct}
-                  />
-                </DialogContent>
-         </Dialog>
-      )}
+    {selectedProduct && isEditDialogOpen && currentStore && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                <DialogTitle className="font-headline tracking-wider">Edit Product</DialogTitle>
+                <DialogDescription>Update details for {selectedProduct.name}.</DialogDescription>
+                </DialogHeader>
+                <EditProductForm 
+                setDialogOpen={setIsEditDialogOpen} 
+                userRole={userRole} 
+                onProductUpdated={handleDataUpdate}
+                activeStore={currentStore}
+                product={selectedProduct}
+                />
+            </DialogContent>
+        </Dialog>
+    )}
 
-       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product: <br />
-              <span className="font-bold">"{selectedProduct?.name}"</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-            >
-              Yes, delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+    <AlertDialogContent>
+        <AlertDialogHeader>
+        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+        <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the product: <br />
+            <span className="font-bold">"{selectedProduct?.name}"</span>.
+        </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+        <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+            onClick={handleConfirmDelete}
+            className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+        >
+            Yes, delete
+        </AlertDialogAction>
+        </AlertDialogFooter>
+    </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
