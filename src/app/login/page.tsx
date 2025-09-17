@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -140,7 +141,7 @@ export default function LoginPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-headline tracking-wider">Login</CardTitle>
+            <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
               Masukkan User ID dan Password Anda untuk masuk.
             </CardDescription>
