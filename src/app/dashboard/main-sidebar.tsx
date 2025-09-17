@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Logo } from './logo';
+import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
   ShoppingCart,
@@ -25,13 +25,17 @@ import {
   TicketPercent,
   CircleDollarSign,
   Receipt,
+  UserCircle,
 } from 'lucide-react';
 import * as React from 'react';
-import { stores, users } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
-import { TopUpDialog } from './top-up-dialog';
+import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '../ui/dialog';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export function MainSidebar() {
   const router = useRouter();
@@ -46,24 +50,35 @@ export function MainSidebar() {
 
 
   React.useEffect(() => {
-    // TEMPORARY: Set a default user to bypass auth checks
-    if (userId) {
-        const user = users.find(u => u.id === userId);
-        setCurrentUser(user || null);
-    } else {
-        // Fallback to a default admin if no userId is in URL
-        setCurrentUser(users.find(u => u.role === 'admin') || null);
+    const fetchUser = async () => {
+        if (userId) {
+            // Special case for mock superadmin
+            if (userId === 'admin001') {
+                const { users } = await import('@/lib/data');
+                setCurrentUser(users.find(u => u.id === 'admin001') || null);
+            } else {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                } else {
+                    router.push('/login');
+                }
+            }
+        } else {
+            router.push('/login');
+        }
     }
+
+    fetchUser();
 
     if (storeId) {
         const store = stores.find(s => s.id === storeId);
         setActiveStore(store || null);
     }
-  }, [userId, storeId]);
+  }, [userId, storeId, router]);
 
 
   const navigate = (view: string) => {
-    // For admin, overview should point to the admin overview.
     if (currentUser?.role === 'admin' && view === 'overview') {
         router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
         return;
@@ -72,8 +87,8 @@ export function MainSidebar() {
   };
 
   const handleLogout = async () => {
-    // Since login is disabled, this will just simulate a logout
-    alert("Logout clicked. In a real scenario, you'd be redirected to the login page.");
+    await auth.signOut();
+    router.push('/login');
   };
 
   const allMenuItems = [
@@ -155,22 +170,16 @@ export function MainSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
-        <Logo />
-        {activeStore && (
+        <Logo storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
+        {isAdmin && activeStore && (
             <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
                 <Separator className="mb-2 bg-sidebar-border" />
                  <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
-                    {isAdmin ? (
-                        <DialogTrigger asChild>
-                            <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
-                                {tokenDisplay}
-                            </div>
-                        </DialogTrigger>
-                    ) : (
-                        <div className="p-1">
+                    <DialogTrigger asChild>
+                        <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
                             {tokenDisplay}
                         </div>
-                    )}
+                    </DialogTrigger>
                     <TopUpDialog 
                         storeName={activeStore.name} 
                         currentBalance={activeStore.coinBalance}
@@ -199,6 +208,18 @@ export function MainSidebar() {
       </SidebarContent>
       <SidebarFooter>
          <SidebarMenu>
+            {currentUser && (
+               <div className="mb-2 w-full p-2 group-data-[collapsible=icon]:hidden">
+                  <Separator className="mb-2 bg-sidebar-border" />
+                  <div className="flex items-center gap-2 rounded-md p-2">
+                     <UserCircle className="h-8 w-8 shrink-0" />
+                     <div className="overflow-hidden">
+                        <p className="truncate font-semibold">{currentUser.name}</p>
+                        <p className="truncate text-xs text-sidebar-foreground/70 capitalize">{currentUser.role}</p>
+                     </div>
+                  </div>
+               </div>
+            )}
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Settings" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />
