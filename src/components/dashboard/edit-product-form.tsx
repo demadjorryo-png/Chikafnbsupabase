@@ -32,7 +32,6 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 
-// Schema now matches the Firestore structure for 'stock' (a map/record)
 const FormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   category: z.enum(productCategories),
@@ -67,7 +66,6 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
       costPrice: product.costPrice,
       brand: product.attributes.brand,
       category: product.category,
-      // Directly use the stock object from the product
       stock: stores.reduce((acc, store) => {
         acc[store.id] = product.stock[store.id] || 0;
         return acc;
@@ -95,7 +93,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
             barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
-            stock: data.stock, // The data is already in the correct map format
+            stock: data.stock,
             'attributes.brand': data.brand,
         });
         
@@ -229,19 +227,24 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
               <Label>Stock Levels</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
                   {stores.map((store) => (
-                    <FormItem key={store.id}>
-                        <FormLabel className="text-sm font-normal">{store.name}</FormLabel>
-                        <FormControl>
-                            <Input
-                                type="number"
-                                placeholder="0"
-                                {...form.register(`stock.${store.id}`)}
-                            />
-                        </FormControl>
-                        <FormMessage>
-                            {form.formState.errors.stock?.[store.id]?.message}
-                        </FormMessage>
-                    </FormItem>
+                    <FormField
+                        key={store.id}
+                        control={form.control}
+                        name={`stock.${store.id}`}
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-sm font-normal">{store.name}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                   ))}
               </div>
           </div>
