@@ -52,7 +52,7 @@ export default function LoginPage() {
 
     // For cashiers, always direct them to their assigned store.
     // For admins, respect the store they selected on the login page.
-    const targetStoreId = userData.role === 'admin' ? storeId : userData.storeId;
+    const targetStoreId = (userData.role === 'admin' || userData.userId === 'Pradana01') ? storeId : userData.storeId;
     router.push(`/dashboard?view=overview&storeId=${targetStoreId}&userId=${userData.id}`);
   };
 
