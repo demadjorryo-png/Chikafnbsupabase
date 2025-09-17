@@ -330,67 +330,15 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
-                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {userRole === 'admin' ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-6 w-6" 
-                              onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, -1)}
-                              disabled={updatingStock === `${product.id}_store_tpg`}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
-                              {updatingStock === `${product.id}_store_tpg` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockTumpang}
-                            </span>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, 1)}
-                              disabled={updatingStock === `${product.id}_store_tpg`}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
+                    <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
+                        <span className={`${getStockColorClass(stockTumpang)}`}>
                             {stockTumpang}
-                          </span>
-                        )}
+                        </span>
                     </TableCell>
-                     <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {userRole === 'admin' ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, -1)}
-                              disabled={updatingStock === `${product.id}_store_swj`}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className={`w-8 font-mono ${getStockColorClass(stockSawojajar)}`}>
-                              {updatingStock === `${product.id}_store_swj` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockSawojajar}
-                            </span>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, 1)}
-                              disabled={updatingStock === `${product.id}_store_swj`}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                           <span className={`w-8 font-mono ${getStockColorClass(stockSawojajar)}`}>
-                             {stockSawojajar}
-                           </span>
-                        )}
+                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
+                        <span className={`${getStockColorClass(stockSawojajar)}`}>
+                            {stockSawojajar}
+                        </span>
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
