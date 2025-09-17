@@ -8,27 +8,243 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Cog } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
+import { users, stores } from '@/lib/data';
+import type { User } from '@/lib/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { auth } from '@/lib/firebase';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from 'firebase/auth';
+import { Loader, KeyRound, UserCircle, Building } from 'lucide-react';
+
+const PasswordFormSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Password saat ini harus diisi.'),
+    newPassword: z
+      .string()
+      .min(8, 'Password baru harus minimal 8 karakter.'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Password baru tidak cocok.',
+    path: ['confirmPassword'],
+  });
 
 export default function Settings() {
+  const searchParams = useSearchParams();
+  const userId = searchParams.get('userId');
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof PasswordFormSchema>>({
+    resolver: zodResolver(PasswordFormSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
+
+  React.useEffect(() => {
+    if (userId) {
+      // In a real app with full Firestore users, you'd fetch from there.
+      // For now, we rely on the mock data which includes the superadmin.
+      const user = users.find((u) => u.id === userId);
+      setCurrentUser(user || null);
+    }
+  }, [userId]);
+
+  const store = React.useMemo(() => {
+    if (currentUser?.storeId) {
+      return stores.find((s) => s.id === currentUser.storeId);
+    }
+    return null;
+  }, [currentUser]);
+
+  const handlePasswordChange = async (
+    values: z.infer<typeof PasswordFormSchema>
+  ) => {
+    setIsLoading(true);
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Tidak ada pengguna yang login. Silakan login ulang.',
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    // For superadmin, we simulate the password change as it's not in Firebase Auth
+    if (currentUser?.userId === 'Pradana01' && currentUser.password !== values.currentPassword) {
+         toast({
+            variant: 'destructive',
+            title: 'Gagal',
+            description: 'Password Anda saat ini salah.',
+        });
+        setIsLoading(false);
+        return;
+    }
+     if (currentUser?.userId === 'Pradana01') {
+        // Here you would update the mock data or your separate database for superadmin
+        toast({
+            title: 'Berhasil (Simulasi)!',
+            description: 'Password superadmin telah diperbarui.',
+        });
+        setIsLoading(false);
+        form.reset();
+        return;
+    }
+
+    const credential = EmailAuthProvider.credential(
+      user.email,
+      values.currentPassword
+    );
+
+    try {
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, values.newPassword);
+      toast({
+        title: 'Berhasil!',
+        description: 'Password Anda telah berhasil diubah.',
+      });
+      form.reset();
+    } catch (error: any) {
+      let description = 'Terjadi kesalahan. Silakan coba lagi.';
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'Password Anda saat ini salah.';
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Mengubah Password',
+        description: description,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Card>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <Card className="lg:col-span-1">
         <CardHeader>
-        <CardTitle className="font-headline tracking-wider">
-            Settings
-        </CardTitle>
-        <CardDescription>
-            Manage your application settings here.
-        </CardDescription>
+          <CardTitle className="font-headline tracking-wider">
+            Profil Anda
+          </CardTitle>
+          <CardDescription>
+            Informasi akun Anda yang sedang login.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <UserCircle className="h-6 w-6 text-muted-foreground" />
+            <div>
+                <p className='text-sm text-muted-foreground'>Nama</p>
+                <p className="font-semibold">{currentUser?.name}</p>
+            </div>
+          </div>
+           <div className="flex items-center gap-3">
+            <KeyRound className="h-6 w-6 text-muted-foreground" />
+             <div>
+                <p className='text-sm text-muted-foreground'>Jabatan</p>
+                <p className="font-semibold capitalize">{currentUser?.role}</p>
+            </div>
+          </div>
+           <div className="flex items-center gap-3">
+            <Building className="h-6 w-6 text-muted-foreground" />
+             <div>
+                <p className='text-sm text-muted-foreground'>Toko Utama</p>
+                <p className="font-semibold">{store?.name}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="font-headline tracking-wider">
+            Ubah Password
+          </CardTitle>
+          <CardDescription>
+            Untuk keamanan, masukkan password Anda saat ini sebelum membuat
+            yang baru.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center text-muted-foreground">
-                <Cog className="h-16 w-16" />
-                <p className="text-lg font-semibold">Under Construction</p>
-                <p>This settings page is currently under development. Check back soon!</p>
-            </div>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handlePasswordChange)}
+              className="space-y-6 max-w-md"
+            >
+              <FormField
+                control={form.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password Saat Ini</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password Baru</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Konfirmasi Password Baru</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && (
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Simpan Password Baru
+              </Button>
+            </form>
+          </Form>
         </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
