@@ -58,13 +58,19 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   
-  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>(() => {
-     const initialStock = stores.reduce((acc, store) => {
+  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    // Prepares the form when it opens.
+    // This creates a state to hold stock values for each store, starting them at 0.
+    // The user's input will then update this state.
+    const initialStock = stores.reduce((acc, store) => {
       acc[store.id] = 0;
       return acc;
     }, {} as Record<string, number>);
-    return initialStock;
-  });
+    setStockLevels(initialStock);
+  }, [stores]);
+
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -106,7 +112,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: stockLevels,
+            stock: stockLevels, // Use the state for stock levels here
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
