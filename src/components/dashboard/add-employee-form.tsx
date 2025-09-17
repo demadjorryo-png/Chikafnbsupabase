@@ -79,6 +79,7 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
             role: data.role,
             storeId: data.storeId,
             email: email,
+            status: 'active', // Set initial status to active
         });
 
         toast({

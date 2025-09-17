@@ -10,7 +10,7 @@ export const stores: Store[] = [
 
 // Superadmin data is kept for login purposes. Other users are managed in Firebase.
 export const users: User[] = [
-    { id: 'admin001', name: 'Rio Pradana', role: 'admin', storeId: 'store_tpg', userId: 'Pradana01', password: 'Mangankabel1$', email: 'rioyulipradana@gmail.com' },
+    { id: 'admin001', name: 'Rio Pradana', role: 'admin', storeId: 'store_tpg', userId: 'Pradana01', password: 'Mangankabel1$', email: 'rioyulipradana@gmail.com', status: 'active' },
 ];
 
 

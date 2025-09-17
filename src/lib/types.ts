@@ -32,6 +32,7 @@ export type User = {
   userId?: string; // The login ID
   password?: string; // NOTE: Storing plain text password is not secure. For temporary use only.
   email?: string;
+  status: 'active' | 'inactive';
 };
 
 export type Product = {

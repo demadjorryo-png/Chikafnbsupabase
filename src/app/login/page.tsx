@@ -18,8 +18,10 @@ import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import { users, stores } from '@/lib/data'; // Import mock user and store data
+import { users as mockUsers, stores } from '@/lib/data'; // Import mock user and store data
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { User } from '@/lib/types';
+
 
 export default function LoginPage() {
   const [userId, setUserId] = React.useState('');
@@ -29,58 +31,29 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSuccessfulLogin = async (authUser: FirebaseAuthUser | (Omit<FirebaseAuthUser, 'uid'> & {uid: string, name?: string, storeId?: string})) => {
-    // After any successful login, find the user doc in Firestore or mock
-    const userEmail = authUser.email;
-    if (!userEmail) {
+  const handleSuccessfulLogin = (userData: User) => {
+    // After any successful login, redirect user to the dashboard
+    
+    // Check if the user is inactive
+    if (userData.status === 'inactive') {
         toast({
-            variant: "destructive",
-            title: "Login Gagal",
-            description: "Email pengguna tidak ditemukan.",
+            variant: 'destructive',
+            title: "Akun Tidak Aktif",
+            description: "Akun Anda saat ini nonaktif. Silakan hubungi admin.",
         });
+        if (auth.currentUser) auth.signOut();
         return;
     }
-    
-    // Find in mock data first for superadmin
-    const mockUser = users.find(u => u.email === userEmail);
-    if(mockUser && mockUser.role === 'admin') {
-         toast({
-          title: 'Login Berhasil!',
-          description: `Selamat datang kembali, ${mockUser.name}.`,
-        });
-        // For superadmin, use the selected store ID
-        router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${mockUser.id}`);
-        return;
-    }
-    
-    // Then check firestore for other users
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("email", "==", userEmail));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      if (auth.currentUser) await auth.signOut();
-      toast({
-        variant: "destructive",
-        title: "Login Gagal",
-        description: "Data karyawan tidak ditemukan di database.",
-      });
-      return;
-    }
-
-    const userDoc = querySnapshot.docs[0];
-    const userData = { id: userDoc.id, ...userDoc.data() };
-
-    // For regular users, we can decide if they should be restricted to their store
-    // or if they can also use the selector. For now, let's use the selected store.
-    const targetStoreId = storeId || userData.storeId;
     
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali, ${userData.name}.`,
     });
+
+    const targetStoreId = userData.role === 'admin' ? storeId : userData.storeId;
     router.push(`/dashboard?view=overview&storeId=${targetStoreId}&userId=${userData.id}`);
   };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,14 +70,9 @@ export default function LoginPage() {
     }
 
     // Superadmin check against mock data
-    const superAdmin = users.find(u => u.userId === userId && u.role === 'admin');
+    const superAdmin = mockUsers.find(u => u.userId === userId && u.role === 'admin');
     if (superAdmin && superAdmin.password === password) {
-        await handleSuccessfulLogin({
-            uid: superAdmin.id,
-            email: superAdmin.email!,
-            name: superAdmin.name,
-            storeId: superAdmin.storeId // Pass original storeId, but redirect will use the selected one
-        });
+        handleSuccessfulLogin(superAdmin);
         setIsLoading(false);
         return;
     }
@@ -113,7 +81,25 @@ export default function LoginPage() {
     try {
       const email = `${userId}@era5758.co.id`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleSuccessfulLogin(userCredential.user);
+      
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        if (auth.currentUser) await auth.signOut();
+        toast({
+            variant: "destructive",
+            title: "Login Gagal",
+            description: "Data karyawan tidak ditemukan di database.",
+        });
+        return;
+      }
+      const userDoc = querySnapshot.docs[0];
+      const userData = { id: userDoc.id, ...userDoc.data() } as User;
+      
+      handleSuccessfulLogin(userData);
+
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {

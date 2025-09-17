@@ -20,7 +20,7 @@ import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, CheckCircle, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -58,7 +58,7 @@ export default function Employees() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-  const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = React.useState(false);
+  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
   const { toast } = useToast();
 
@@ -83,26 +83,38 @@ export default function Employees() {
     setIsEditDialogOpen(true);
   };
   
-  const handleDeactivateClick = (user: User) => {
+  const handleStatusChangeClick = (user: User) => {
     setSelectedUser(user);
-    setIsDeactivateDialogOpen(true);
+    setIsStatusChangeDialogOpen(true);
   }
 
-  const handleConfirmDeactivate = async () => {
+  const handleConfirmStatusChange = async () => {
     if (!selectedUser) return;
     
-    // In a real scenario, you'd call a Cloud Function to disable the user in Firebase Auth.
-    // For now, we'll simulate it and remove the user from the local state.
-    console.log(`Deactivating user: ${selectedUser.name} (simulation)`);
+    const newStatus = selectedUser.status === 'active' ? 'inactive' : 'active';
+    const userDocRef = doc(db, 'users', selectedUser.id);
 
-    setUsers(prevUsers => prevUsers.filter(u => u.id !== selectedUser.id));
+    try {
+        await updateDoc(userDocRef, { status: newStatus });
+        
+        setUsers(prevUsers => prevUsers.map(u => u.id === selectedUser.id ? {...u, status: newStatus} : u));
 
-    toast({
-      title: 'Karyawan Dinonaktifkan',
-      description: `Akun untuk ${selectedUser.name} telah dinonaktifkan.`,
-    });
+        toast({
+        title: 'Status Karyawan Diperbarui',
+        description: `Status untuk ${selectedUser.name} telah diubah menjadi ${newStatus}.`,
+        });
 
-    setIsDeactivateDialogOpen(false);
+    } catch (error) {
+        console.error("Error updating user status:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memperbarui Status',
+            description: 'Terjadi kesalahan saat mengubah status karyawan. Silakan coba lagi.'
+        });
+    }
+
+
+    setIsStatusChangeDialogOpen(false);
     setSelectedUser(null);
   };
 
@@ -154,6 +166,7 @@ export default function Employees() {
                 <TableHead>Name</TableHead>
                 <TableHead>User ID</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Primary Store</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -165,13 +178,14 @@ export default function Employees() {
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : (
                 users.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id} className={user.status === 'inactive' ? 'text-muted-foreground' : ''}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.userId}</TableCell>
                     <TableCell>
@@ -179,6 +193,14 @@ export default function Employees() {
                         variant={user.role === 'admin' ? 'default' : 'secondary'}
                       >
                         {user.role}
+                      </Badge>
+                    </TableCell>
+                     <TableCell>
+                      <Badge
+                        variant={user.status === 'active' ? 'secondary' : 'destructive'}
+                        className={user.status === 'active' ? 'border-green-500/50 text-green-700' : ''}
+                      >
+                        {user.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -197,10 +219,18 @@ export default function Employees() {
                           <DropdownMenuItem onClick={() => handleEditClick(user)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem>Reset Password</DropdownMenuItem>
                           <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDeactivateClick(user)}
+                            className={user.status === 'active' ? 'text-destructive' : 'text-green-600 focus:text-green-600'}
+                            onClick={() => handleStatusChangeClick(user)}
                           >
-                            Deactivate
+                            {user.status === 'active' ? (
+                                <>
+                                 <XCircle className="mr-2 h-4 w-4"/> Deactivate
+                                </>
+                            ) : (
+                                <>
+                                 <CheckCircle className="mr-2 h-4 w-4"/> Activate
+                                </>
+                            )}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -231,23 +261,25 @@ export default function Employees() {
         </Dialog>
       )}
 
-      <AlertDialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
+      <AlertDialog open={isStatusChangeDialogOpen} onOpenChange={setIsStatusChangeDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently deactivate the account for{' '}
-              <span className="font-bold">{selectedUser?.name}</span>. They will no
-              longer be able to log in. This action cannot be undone.
+              This action will {selectedUser?.status === 'active' ? 'deactivate' : 'activate'} the account for{' '}
+              <span className="font-bold">{selectedUser?.name}</span>. 
+              {selectedUser?.status === 'active' 
+                ? ' They will no longer be able to log in.' 
+                : ' They will be able to log in again.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDeactivate}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmStatusChange}
+              className={selectedUser?.status === 'active' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
-              Yes, Deactivate
+              Yes, {selectedUser?.status === 'active' ? 'Deactivate' : 'Activate'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
