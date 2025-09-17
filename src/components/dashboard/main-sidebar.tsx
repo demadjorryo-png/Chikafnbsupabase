@@ -29,6 +29,8 @@ import * as React from 'react';
 import { users, stores } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
+import { TopUpDialog } from './top-up-dialog';
+import { Dialog, DialogTrigger } from '../ui/dialog';
 
 export function MainSidebar() {
   const router = useRouter();
@@ -39,6 +41,8 @@ export function MainSidebar() {
   
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [activeStore, setActiveStore] = React.useState<Store | null>(null);
+  const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
+
 
   React.useEffect(() => {
     if (userId) {
@@ -126,6 +130,14 @@ export function MainSidebar() {
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
     : [];
 
+  const isAdmin = currentUser?.role === 'admin';
+
+  const tokenDisplay = (
+      <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
+          <CircleDollarSign className="h-4 w-4" />
+          <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>
+      </div>
+  )
 
   return (
     <Sidebar collapsible="icon">
@@ -134,10 +146,24 @@ export function MainSidebar() {
         {activeStore && (
             <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
                 <Separator className="mb-2 bg-sidebar-border" />
-                <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
-                    <CircleDollarSign className="h-4 w-4" />
-                    <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>
-                </div>
+                 <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
+                    {isAdmin ? (
+                        <DialogTrigger asChild>
+                            <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
+                                {tokenDisplay}
+                            </div>
+                        </DialogTrigger>
+                    ) : (
+                        <div className="p-1">
+                            {tokenDisplay}
+                        </div>
+                    )}
+                    <TopUpDialog 
+                        storeName={activeStore.name} 
+                        currentBalance={activeStore.coinBalance}
+                        setDialogOpen={setIsTopUpOpen} 
+                    />
+                 </Dialog>
                  <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
             </div>
         )}
