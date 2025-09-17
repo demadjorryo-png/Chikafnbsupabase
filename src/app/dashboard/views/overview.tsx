@@ -60,6 +60,7 @@ import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 
 const chartConfig = {
   revenue: {
@@ -169,6 +170,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(initialPendingOrders);
   const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
+  const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
   const { toast } = useToast();
   
   React.useEffect(() => {
@@ -476,8 +478,8 @@ export default function Overview({ storeId, transactions, users, customers, pend
                 <TableHead>Pelanggan</TableHead>
                 <TableHead>Produk</TableHead>
                 <TableHead className="text-center">Qty</TableHead>
-                <TableHead className="text-right">Tanggal Permintaan</TableHead>
-                {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
+                <TableHead>Tanggal</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -499,17 +501,23 @@ export default function Overview({ storeId, transactions, users, customers, pend
                         </TableCell>
                         <TableCell>{order.productName}</TableCell>
                         <TableCell className="text-center font-mono">{order.quantity}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
                         </TableCell>
-                        {isAdmin && (
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive" onClick={() => setOrderToDelete(order)}>
+                        <TableCell className="text-right">
+                           <div className="flex items-center justify-end gap-2">
+                             <Button variant="outline" size="sm" className="gap-2" onClick={() => setOrderToFollowUp(order)}>
+                                <Send className="h-3 w-3" />
+                                Follow Up
+                             </Button>
+                            {isAdmin && (
+                                <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive h-8 w-8" onClick={() => setOrderToDelete(order)}>
                                     <Trash2 className="h-4 w-4"/>
                                     <span className="sr-only">Delete order</span>
                                 </Button>
-                            </TableCell>
-                        )}
+                            )}
+                           </div>
+                        </TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -529,6 +537,14 @@ export default function Overview({ storeId, transactions, users, customers, pend
         />
       )}
       
+      {orderToFollowUp && (
+        <PendingOrderFollowUpDialog
+          order={orderToFollowUp}
+          open={!!orderToFollowUp}
+          onOpenChange={() => setOrderToFollowUp(null)}
+        />
+      )}
+
       <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -21,7 +21,7 @@ import {
   BarChart,
 } from 'recharts';
 import { transactions as mockTransactions, products as mockProducts, stores as mockStores } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, ClipboardList, Trash2 } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, ClipboardList, Trash2, Send } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday, formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
@@ -41,6 +41,7 @@ import type { PendingOrder, Store } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 
 
 const chartConfig = {
@@ -85,6 +86,8 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
   }, [allPendingOrders]);
   
   const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
+  const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
+
 
   React.useEffect(() => {
     const fetchStrategies = async () => {
@@ -500,7 +503,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
                 <TableHead>Produk</TableHead>
                 <TableHead>Toko</TableHead>
                 <TableHead className="text-center">Qty</TableHead>
-                <TableHead className="text-right">Tanggal</TableHead>
+                <TableHead>Tanggal</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -524,14 +527,20 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
                         <TableCell>{order.productName}</TableCell>
                         <TableCell>{stores.find(s => s.id === order.storeId)?.name || order.storeId}</TableCell>
                         <TableCell className="text-center font-mono">{order.quantity}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
                         </TableCell>
                         <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive" onClick={() => setOrderToDelete(order)}>
+                           <div className="flex items-center justify-end gap-2">
+                             <Button variant="outline" size="sm" className="gap-2" onClick={() => setOrderToFollowUp(order)}>
+                                <Send className="h-3 w-3" />
+                                Follow Up
+                             </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive h-8 w-8" onClick={() => setOrderToDelete(order)}>
                                 <Trash2 className="h-4 w-4"/>
                                 <span className="sr-only">Delete order</span>
                             </Button>
+                           </div>
                         </TableCell>
                     </TableRow>
                 ))}
@@ -608,6 +617,14 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
             </div>
         </CardContent>
       </Card>
+      
+      {orderToFollowUp && (
+        <PendingOrderFollowUpDialog
+          order={orderToFollowUp}
+          open={!!orderToFollowUp}
+          onOpenChange={() => setOrderToFollowUp(null)}
+        />
+      )}
 
       <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
         <AlertDialogContent>
