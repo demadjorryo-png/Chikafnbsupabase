@@ -269,12 +269,12 @@ export default function POS({ products, customers, users, stores, onDataChange, 
         const tokenDoc = await transaction.get(tokenRef);
         
         if (!tokenDoc.exists()) {
-            throw new Error("Pengaturan Pradana Token tidak ditemukan. Hubungi admin.");
+            throw new Error("Saldo Pradana Token belum ada. Silakan lakukan Top Up terlebih dahulu.");
         }
         const currentTokenBalance = tokenDoc.data().balance || 0;
 
         if (currentTokenBalance < tokenCost) {
-            throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Hubungi admin.`);
+            throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Silakan Top Up.`);
         }
 
         const productRefs = cart.map(item => doc(db, "products", item.productId));
