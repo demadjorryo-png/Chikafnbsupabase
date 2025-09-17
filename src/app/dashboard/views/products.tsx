@@ -110,6 +110,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   // Admin state for store selection
   const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
   const isAdmin = userRole === 'admin';
+  // Use admin's selection if admin, otherwise use the prop for cashier
   const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
   const currentStore = stores.find(s => s.id === currentStoreId);
 
@@ -194,25 +195,22 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     });
   };
 
+  // The categories available in the dropdown should be based on the products of the currently selected store
   const availableCategories = React.useMemo(() => {
-    const productsForCurrentStore = isAdmin 
-      ? allProducts.filter(p => p.storeId === currentStoreId)
-      : allProducts;
+    const productsForCurrentStore = allProducts.filter(p => p.storeId === currentStoreId);
     const categories = new Set(productsForCurrentStore.map(p => p.category));
     return Array.from(categories).sort();
-  }, [allProducts, isAdmin, currentStoreId]);
+  }, [allProducts, currentStoreId]);
   
   const filteredProducts = React.useMemo(() => {
-    const productsForCurrentStore = isAdmin 
-      ? allProducts.filter(p => p.storeId === currentStoreId)
-      : allProducts;
+    const productsForCurrentStore = allProducts.filter(p => p.storeId === currentStoreId);
 
     return productsForCurrentStore.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
     });
-  }, [isAdmin, allProducts, currentStoreId, searchTerm, selectedCategories]);
+  }, [allProducts, currentStoreId, searchTerm, selectedCategories]);
 
 
   const getStockColorClass = (stock: number): string => {
@@ -228,7 +226,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     <div className={cn(isAdmin ? "grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-6" : "")}>
       {isAdmin && (
         <nav className="grid gap-2 text-sm text-muted-foreground">
-          <h3 className="font-semibold text-primary px-4">Pilih Toko</h3>
+          <h3 className="font-semibold text-primary px-4">Tombol tidak berfungsi</h3>
           {stores.map(store => (
             <Button
               key={store.id}
@@ -250,7 +248,9 @@ export default function Products({ products: allProducts, stores, userRole, onDa
               <CardTitle className="font-headline tracking-wider">
                 Products
               </CardTitle>
-              <CardDescription>Kelola inventaris produk di {currentStore?.name || 'toko'}.</CardDescription>
+              <CardDescription>
+                Kelola inventaris produk di {currentStore?.name || 'toko Anda'}.
+              </CardDescription>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <div className="relative w-full max-w-xs">
