@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -165,14 +166,18 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
                   </div>
                 ))}
               </div>
-               <Button onClick={handleSaveStock} disabled={isProcessing} className="w-full sm:w-auto">
-                {isProcessing ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Stock Changes
-              </Button>
             </div>
           </>
         )}
       </CardContent>
+      {selectedProduct && (
+        <CardFooter>
+            <Button onClick={handleSaveStock} disabled={isProcessing}>
+                {isProcessing ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Stock Changes
+            </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
