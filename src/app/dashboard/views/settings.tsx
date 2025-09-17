@@ -32,9 +32,8 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Database } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { seedDatabase } from '@/lib/seed';
 
 const PasswordFormSchema = z
   .object({
@@ -54,7 +53,6 @@ export default function Settings() {
   const userId = searchParams.get('userId');
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isSeeding, setIsSeeding] = React.useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
@@ -72,14 +70,6 @@ export default function Settings() {
   React.useEffect(() => {
     async function fetchUser() {
         if (userId) {
-          // This is a simplified fetch assuming 'id' is a field in the document.
-          // In a real scenario, you might query by a unique 'userId' field.
-          const userQuery = query(collection(db, "users"), where("id", "==", userId));
-          // This is not a correct way to query by document ID.
-          // Let's assume there's a unique field `userId` in the user documents.
-          // A better approach would be to get the document by its Firestore ID if known.
-          // For now, we'll stick to a query.
-
           const usersSnapshot = await getDocs(collection(db, "users"));
           const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
           const foundUser = firestoreUsers.find(u => u.id === userId);
@@ -140,30 +130,6 @@ export default function Settings() {
     }
   };
   
-  const handleSeedDatabase = async () => {
-    setIsSeeding(true);
-    toast({
-        title: "Memulai Proses Seed...",
-        description: "Mengunggah data produk ke Firestore. Ini mungkin memakan waktu beberapa saat."
-    });
-    try {
-        await seedDatabase();
-        toast({
-            title: "Database Seeding Berhasil!",
-            description: "Data produk sampel telah berhasil ditambahkan ke koleksi toko."
-        });
-    } catch (error) {
-        console.error("Database seeding failed:", error);
-        toast({
-            variant: "destructive",
-            title: "Gagal Melakukan Seeding",
-            description: "Terjadi kesalahan saat mengunggah data. Lihat konsol untuk detail."
-        });
-    } finally {
-        setIsSeeding(false);
-    }
-  }
-
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
       <Card className="lg:col-span-1">
@@ -299,29 +265,6 @@ export default function Settings() {
             </Form>
           </CardContent>
         </Card>
-
-        {currentUser?.role === 'admin' && (
-           <Card className="border-amber-500/50">
-            <CardHeader>
-                <CardTitle className="font-headline tracking-wider text-amber-500">
-                    Developer Actions
-                </CardTitle>
-                <CardDescription>
-                    Aksi ini untuk pengembangan dan tidak boleh digunakan di lingkungan produksi.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button variant="outline" onClick={handleSeedDatabase} disabled={isSeeding}>
-                    {isSeeding ? (
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Database className="mr-2 h-4 w-4" />
-                    )}
-                    Seed Product Database
-                </Button>
-            </CardContent>
-           </Card>
-        )}
       </div>
     </div>
   );
