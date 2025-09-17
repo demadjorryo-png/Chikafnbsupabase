@@ -219,7 +219,7 @@ export default function POS() {
   };
   
   const handleBarcodeScanned = (barcode: string) => {
-    const product = products.find(p => p.barcode === barcode);
+    const product = products.find(p => p.attributes.barcode === barcode);
     if (product) {
       addToCart(product);
       toast({

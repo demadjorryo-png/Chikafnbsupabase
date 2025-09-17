@@ -106,7 +106,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
         await addDoc(collection(db, "products"), {
             name: data.name,
             category: data.category,
-            barcode: data.barcode || '',
             price: data.price,
             costPrice: costPrice,
             stock: stockForFirestore,
@@ -115,6 +114,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             imageHint: placeholderImage.imageHint,
             attributes: { 
                 brand: data.brand,
+                barcode: data.barcode || '',
             }
         });
         

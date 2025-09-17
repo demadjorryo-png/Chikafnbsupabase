@@ -68,7 +68,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
                 <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">{product.name}</DialogTitle>
                     <DialogDescription>
-                        SKU: {product.barcode || 'N/A'}
+                        SKU: {product.attributes.barcode || 'N/A'}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 py-4 text-sm">

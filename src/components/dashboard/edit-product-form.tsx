@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,7 +58,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: product.name,
-      barcode: product.barcode,
+      barcode: product.attributes.barcode,
       price: product.price,
       costPrice: product.costPrice,
       brand: product.attributes.brand,
@@ -84,10 +83,10 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
         await updateDoc(productRef, {
             name: data.name,
             category: data.category,
-            barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
             'attributes.brand': data.brand,
+            'attributes.barcode': data.barcode || '',
         });
         
         toast({

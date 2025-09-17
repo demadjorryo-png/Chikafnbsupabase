@@ -42,7 +42,6 @@ export type User = {
 export type Product = {
   id: string;
   name: string;
-  barcode: string;
   category: ProductCategory;
   stock: Record<string, number>; // e.g., { storeId: quantity }
   price: number;
@@ -52,6 +51,7 @@ export type Product = {
   imageHint: string;
   attributes: {
     brand: string;
+    barcode?: string;
     flavorProfile?: string;
     nicotine?: string;
     size?: string;
