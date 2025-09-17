@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -264,6 +265,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                   Export
                 </span>
               </Button>
+              {userRole === 'admin' && (
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="h-10 gap-1">
@@ -290,6 +292,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                   />
                 </DialogContent>
               </Dialog>
+              )}
             </div>
           </div>
         </CardHeader>
