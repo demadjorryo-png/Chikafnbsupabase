@@ -25,6 +25,7 @@ import {
   ScanBarcode,
   Printer,
   Plus,
+  Gift,
 } from 'lucide-react';
 import {
   Table,
@@ -82,6 +83,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
+const POINT_TO_RP_CONVERSION_RATE = 25; // 1 point = Rp 25
 
 export default function POS() {
   const searchParams = useSearchParams();
@@ -99,6 +101,7 @@ export default function POS() {
   const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
+  const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
   const { toast } = useToast();
   
   const currentStaff = users.find(u => u.id === userId)!;
@@ -207,15 +210,32 @@ export default function POS() {
     0
   );
   
-  const discountAmount = React.useMemo(() => {
+  const manualDiscountAmount = React.useMemo(() => {
     if (discountType === 'percent') {
       return (subtotal * discountValue) / 100;
     }
     return discountValue;
   }, [subtotal, discountType, discountValue]);
+  
+  const pointsRedeemedValue = pointsToRedeem * POINT_TO_RP_CONVERSION_RATE;
+  const totalDiscount = manualDiscountAmount + pointsRedeemedValue;
 
-  const totalAmount = Math.max(0, subtotal - discountAmount);
+  const totalAmount = Math.max(0, subtotal - totalDiscount);
   const pointsEarned = Math.floor(totalAmount / 10000);
+  
+  const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = Number(e.target.value);
+    if (value < 0) value = 0;
+    if (selectedCustomer && value > selectedCustomer.loyaltyPoints) {
+      value = selectedCustomer.loyaltyPoints;
+      toast({
+        variant: 'destructive',
+        title: 'Poin Tidak Cukup',
+        description: `Pelanggan hanya memiliki ${selectedCustomer.loyaltyPoints} poin.`,
+      });
+    }
+    setPointsToRedeem(value);
+  }
 
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -239,7 +259,7 @@ export default function POS() {
         staffId: currentStaff.id,
         createdAt: new Date().toISOString(),
         subtotal: subtotal,
-        discountAmount: discountAmount,
+        discountAmount: totalDiscount,
         totalAmount: totalAmount,
         paymentMethod: paymentMethod,
         pointsEarned: pointsEarned,
@@ -259,6 +279,7 @@ export default function POS() {
     setLastTransaction(newTransaction);
     setCart([]);
     setDiscountValue(0);
+    setPointsToRedeem(0);
   }
 
   const handlePrint = () => {
@@ -354,6 +375,7 @@ export default function POS() {
                 value={selectedCustomer?.id}
                 onValueChange={(value) => {
                   setSelectedCustomer(customers.find((c) => c.id === value));
+                  setPointsToRedeem(0); // Reset points when customer changes
                 }}
                 placeholder="Search customer..."
                 searchPlaceholder="Search by name..."
@@ -467,7 +489,7 @@ export default function POS() {
                 <span>Rp {subtotal.toLocaleString('id-ID')}</span>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor='discount' className="flex items-center gap-1 text-muted-foreground"><Percent className="h-3 w-3" /> Discount</Label>
+                <Label htmlFor='discount' className="flex items-center gap-1 text-muted-foreground"><Percent className="h-3 w-3" /> Diskon Manual</Label>
                 <div className="flex items-center gap-2">
                     <Input 
                         id="discount"
@@ -493,12 +515,26 @@ export default function POS() {
                     </ToggleGroup>
                 </div>
               </div>
+
+               <div className="grid gap-2">
+                <Label htmlFor='redeem-points' className="flex items-center gap-1 text-muted-foreground"><Gift className="h-3 w-3" /> Tukar Poin</Label>
+                 <Input 
+                    id="redeem-points"
+                    type="number"
+                    value={pointsToRedeem}
+                    onChange={handlePointsRedeemChange}
+                    className="h-9"
+                    placeholder='0'
+                    disabled={!selectedCustomer || selectedCustomer.loyaltyPoints === 0}
+                />
+              </div>
+
               <div className="flex justify-between text-muted-foreground">
-                <span/>
-                <span className="text-destructive">- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                <span>Total Diskon</span>
+                <span className="text-destructive">- Rp {totalDiscount.toLocaleString('id-ID')}</span>
               </div>
                <div className="flex justify-between text-muted-foreground">
-                 <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Points Earned</span>
+                 <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Poin Didapat</span>
                 <span>+ {pointsEarned.toLocaleString('id-ID')} pts</span>
               </div>
               <Separator />
