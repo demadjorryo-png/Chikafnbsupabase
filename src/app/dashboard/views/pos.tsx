@@ -25,6 +25,7 @@ import {
   Percent,
   ScanBarcode,
   Printer,
+  Plus,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -40,6 +41,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
@@ -254,49 +263,51 @@ export default function POS() {
             </div>
           </CardHeader>
           <ScrollArea className="h-[calc(100vh-220px)]">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {filteredProducts.map((product) => {
-                  const stockInStore = product.stock[currentStoreId] || 0;
-                  return (
-                    <Card
-                      key={product.id}
-                      className="group cursor-pointer overflow-hidden"
-                      onClick={() => addToCart(product)}
-                    >
-                      <div className="relative">
-                        <Image
-                          alt={product.name}
-                          className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
-                          height={200}
-                          src={product.imageUrl}
-                          width={200}
-                          data-ai-hint={product.imageHint}
-                        />
-                         {stockInStore === 0 && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                              <Badge variant="destructive" className="text-base">OUT OF STOCK</Badge>
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/20" />
-                        <div className="absolute bottom-2 left-2">
-                          <Badge variant="secondary">
-                            Rp {product.price.toLocaleString('id-ID')}
-                          </Badge>
-                        </div>
-                      </div>
-                      <CardFooter className="flex-col items-start p-2">
-                        <p className="text-sm font-medium leading-tight">
-                          {product.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {product.attributes.brand}
-                        </p>
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
-              </div>
+            <CardContent className="p-0">
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-center w-[120px]">Stock</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => {
+                    const stockInStore = product.stock[currentStoreId] || 0;
+                    const isOutOfStock = stockInStore === 0;
+                    return (
+                      <TableRow key={product.id} className={cn(isOutOfStock && "text-muted-foreground")}>
+                        <TableCell>
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-xs text-muted-foreground">{product.attributes.brand}</div>
+                        </TableCell>
+                        <TableCell className="text-right">Rp {product.price.toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="text-center">
+                           {isOutOfStock ? (
+                            <Badge variant="destructive">Out of Stock</Badge>
+                           ) : (
+                            stockInStore
+                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => addToCart(product)}
+                            disabled={isOutOfStock}
+                            aria-label="Add to cart"
+                            className="h-8 w-8 p-0"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </CardContent>
           </ScrollArea>
         </Card>
