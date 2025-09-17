@@ -22,7 +22,7 @@ import { stores } from '@/lib/data';
 import type { User, RedemptionOption } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -67,7 +67,7 @@ function DashboardContent() {
                 const { users: mockUsers } = await import('@/lib/data');
                 setCurrentUser(mockUsers.find(u => u.id === 'admin001') || null);
             } else {
-                const userDoc = await getDocs(doc(db, 'users', userId));
+                const userDoc = await getDoc(doc(db, 'users', userId));
                 if (userDoc.exists()) {
                     setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
                 }
