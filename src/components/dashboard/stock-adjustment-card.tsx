@@ -77,26 +77,26 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
           throw new Error("Product not found in database.");
         }
 
-        const currentStock = productDoc.data().stock as Record<string, number>;
-        const newStock: Record<string, number> = {...currentStock};
+        const currentStockData = productDoc.data().stock as Record<string, number>;
+        const newStockData: Record<string, number> = { ...currentStockData };
 
-        for (const storeId in adjustments) {
-            const adjustmentValue = adjustments[storeId];
-            const adjustment = Number(adjustmentValue);
+        for (const store of stores) {
+          const storeId = store.id;
+          const adjustmentValue = adjustments[storeId];
+          const adjustmentNumber = Number(adjustmentValue);
 
-            if (adjustmentValue && !isNaN(adjustment) && adjustment !== 0) {
-              const current = newStock[storeId] || 0;
-              const finalStock = current + adjustment;
-              
-              if (finalStock < 0) {
-                  const storeName = stores.find(s => s.id === storeId)?.name || storeId;
-                  throw new Error(`Adjustment for ${storeName} results in negative stock.`);
-              }
-              newStock[storeId] = finalStock;
+          if (adjustmentValue && !isNaN(adjustmentNumber) && adjustmentNumber !== 0) {
+            const currentStockInStore = currentStockData[storeId] || 0;
+            const newStockInStore = currentStockInStore + adjustmentNumber;
+            
+            if (newStockInStore < 0) {
+              throw new Error(`Adjustment for ${store.name} results in negative stock (${newStockInStore}).`);
             }
+            newStockData[storeId] = newStockInStore;
+          }
         }
 
-        transaction.update(productRef, { stock: newStock });
+        transaction.update(productRef, { stock: newStockData });
       });
 
       toast({
