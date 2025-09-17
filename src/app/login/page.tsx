@@ -31,8 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -121,19 +119,6 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert className="mb-6">
-            <Info className="h-4 w-4" />
-            <AlertTitle className="font-bold">Contoh Login (Demo)</AlertTitle>
-            <AlertDescription>
-              <div className="text-xs">
-                <p className="mt-2">
-                  <span className="font-semibold">Penting:</span> Buat pengguna di Firebase Authentication.
-                  Gunakan format email `userID@bekupon.com`. Contoh: `kasir001@bekupon.com` dengan password `password123`.
-                </p>
-              </div>
-            </AlertDescription>
-          </Alert>
-
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
