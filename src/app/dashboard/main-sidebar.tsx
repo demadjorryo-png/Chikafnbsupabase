@@ -170,16 +170,22 @@ export function MainSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
-        <Logo storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
-        {isAdmin && activeStore && (
+        <Logo storeName={activeStore?.name} />
+        {activeStore && (
             <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
                 <Separator className="mb-2 bg-sidebar-border" />
                  <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
-                    <DialogTrigger asChild>
-                        <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
+                    {isAdmin ? (
+                        <DialogTrigger asChild>
+                            <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
+                                {tokenDisplay}
+                            </div>
+                        </DialogTrigger>
+                    ) : (
+                        <div className="p-1">
                             {tokenDisplay}
                         </div>
-                    </DialogTrigger>
+                    )}
                     <TopUpDialog 
                         storeName={activeStore.name} 
                         currentBalance={activeStore.coinBalance}
