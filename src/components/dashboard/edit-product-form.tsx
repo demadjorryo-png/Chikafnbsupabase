@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 
+// Schema now matches the Firestore structure for 'stock' (a map/record)
 const FormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   category: z.enum(productCategories),
@@ -39,11 +40,7 @@ const FormSchema = z.object({
   price: z.coerce.number().min(0, "Price is required"),
   costPrice: z.coerce.number().min(0).optional(),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
-  stock: z.array(z.object({
-    storeId: z.string(),
-    storeName: z.string(),
-    quantity: z.coerce.number().min(0, "Stock can't be negative."),
-  })),
+  stock: z.record(z.coerce.number().min(0, "Stock can't be negative.")),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -70,19 +67,13 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
       costPrice: product.costPrice,
       brand: product.attributes.brand,
       category: product.category,
-      stock: stores.map(store => ({
-        storeId: store.id,
-        storeName: store.name,
-        quantity: product.stock[store.id] || 0,
-      })),
+      // Directly use the stock object from the product
+      stock: stores.reduce((acc, store) => {
+        acc[store.id] = product.stock[store.id] || 0;
+        return acc;
+      }, {} as Record<string, number>),
     },
   });
-
-  const { fields } = useFieldArray({
-    control: form.control,
-    name: "stock",
-  });
-
 
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
@@ -95,14 +86,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
-
     const productRef = doc(db, 'products', product.id);
-
-    // Convert array of stock objects back to a map for Firestore
-    const stockAsMap = data.stock.reduce((acc, item) => {
-        acc[item.storeId] = item.quantity;
-        return acc;
-    }, {} as Record<string, number>);
 
     try {
         await updateDoc(productRef, {
@@ -111,7 +95,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
             barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
-            stock: stockAsMap,
+            stock: data.stock, // The data is already in the correct map format
             'attributes.brand': data.brand,
         });
         
@@ -244,21 +228,20 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
           <div className="space-y-2">
               <Label>Stock Levels</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
-                  {fields.map((field, index) => (
-                    <FormField
-                      key={field.id}
-                      control={form.control}
-                      name={`stock.${index}.quantity`}
-                      render={({ field: formField }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-normal">{field.storeName}</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="0" {...formField} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {stores.map((store) => (
+                    <FormItem key={store.id}>
+                        <FormLabel className="text-sm font-normal">{store.name}</FormLabel>
+                        <FormControl>
+                            <Input
+                                type="number"
+                                placeholder="0"
+                                {...form.register(`stock.${store.id}`)}
+                            />
+                        </FormControl>
+                        <FormMessage>
+                            {form.formState.errors.stock?.[store.id]?.message}
+                        </FormMessage>
+                    </FormItem>
                   ))}
               </div>
           </div>
