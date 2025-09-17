@@ -54,7 +54,6 @@ import { db } from '@/lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { StockAdjustmentCard } from '@/components/dashboard/stock-adjustment-card';
 
 type ProductsProps = {
     products: Product[];
@@ -181,14 +180,6 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   return (
     <>
     <div className="grid gap-6">
-        {userRole === 'admin' && (
-            <StockAdjustmentCard 
-                products={products}
-                stores={stores}
-                onStockUpdated={handleDataUpdate}
-                isLoading={isLoading}
-            />
-        )}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
