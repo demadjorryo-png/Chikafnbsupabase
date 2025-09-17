@@ -61,6 +61,7 @@ import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentReference, DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { updatePradanaTokenBalance } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
@@ -262,7 +263,6 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
       const newTransactionRef = doc(collection(db, 'transactions'));
       
       await runTransaction(db, async (transaction) => {
-        // --- READ PHASE ---
         const tokenRef = doc(db, 'appSettings', 'pradanaToken');
         const tokenDoc = await transaction.get(tokenRef);
         
@@ -275,50 +275,32 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
             throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Silakan Top Up.`);
         }
 
-        const productRefs = cart.map(item => doc(db, "products", item.productId));
-        const productDocs = await Promise.all(productRefs.map(ref => transaction.get(ref)));
-
-        let customerRef: DocumentReference<DocumentData> | null = null;
-        let customerDoc = null;
-        if (selectedCustomer) {
-            customerRef = doc(db, "customers", selectedCustomer.id);
-            customerDoc = await transaction.get(customerRef);
-            if (!customerDoc.exists()) {
-                throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
-            }
-        }
-        
-        // --- VALIDATION & PREPARATION ---
-        const stockUpdates: { ref: DocumentReference<DocumentData>, newStock: number }[] = [];
-        for (let i = 0; i < cart.length; i++) {
-            const item = cart[i];
-            const productDoc = productDocs[i];
-
+        for (const item of cart) {
+            const productRef = doc(db, "products", item.productId);
+            const productDoc = await transaction.get(productRef);
             if (!productDoc.exists()) {
                 throw new Error(`Produk ${item.productName} tidak ditemukan.`);
             }
-            
             const currentStock = productDoc.data().stock[urlStoreId] || 0;
             const newStock = currentStock - item.quantity;
             if (newStock < 0) {
-                throw new Error(`Stok tidak cukup untuk ${item.productName}.`);
+                throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
             }
-            stockUpdates.push({ ref: productDoc.ref, newStock: newStock });
+            transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
         }
-        const newGlobalTokenBalance = currentTokenBalance - tokenCost;
+        
+        await updatePradanaTokenBalance(-tokenCost);
 
-        // --- WRITE PHASE ---
-        for (const update of stockUpdates) {
-            transaction.update(update.ref, { [`stock.${urlStoreId}`]: update.newStock });
-        }
-
-        if (customerDoc && customerRef) {
+        if (selectedCustomer) {
+            const customerRef = doc(db, "customers", selectedCustomer.id);
+            const customerDoc = await transaction.get(customerRef);
+             if (!customerDoc.exists()) {
+                throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
+            }
             const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
             const newPoints = currentPoints + pointsEarned - pointsToRedeem;
             transaction.update(customerRef, { loyaltyPoints: newPoints });
         }
-        
-        transaction.update(tokenRef, { balance: newGlobalTokenBalance });
 
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,

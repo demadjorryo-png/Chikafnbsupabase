@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getTransactionFeeSettings, defaultFeeSettings, getPradanaTokenBalance } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -74,20 +74,6 @@ function DashboardContent() {
   const fetchAllData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-        // Fetch User
-        if (userId) {
-             const userDoc = await getDoc(doc(db, 'users', userId));
-            if (userDoc.exists()) {
-                setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-            } else {
-                 const { users: mockUsers } = await import('@/lib/data');
-                 const mockAdmin = mockUsers.find(u => u.id === userId);
-                 if (mockAdmin) {
-                     setCurrentUser(mockAdmin);
-                 }
-            }
-        }
-        
         // Batch fetch all collections and settings
         const [
             storesSnapshot,
@@ -104,20 +90,36 @@ function DashboardContent() {
             getDocs(query(collection(db, 'products'), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
-            getDocs(collection(db, 'users')),
+            getDocs(query(collection(db, 'users'), where("status", "==", "active"))),
             getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
         ]);
 
-        setStores(storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
+        const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+        setStores(allStores);
         setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
         
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        setUsers(firestoreUsers);
+        
+        // Handle mock superadmin separately
+        const { users: mockUsers } = await import('@/lib/data');
+        const mockAdmin = mockUsers.find(u => u.userId === 'Pradana01');
+        
+        const combinedUsers = [...firestoreUsers];
+        if (userId === 'admin001' && mockAdmin) { // Check if the logged-in user is the superadmin
+            const superAdminInFirestore = firestoreUsers.some(u => u.id === 'admin001');
+            if (!superAdminInFirestore) {
+                combinedUsers.push({ ...mockAdmin, id: userId });
+            }
+        }
+        setUsers(combinedUsers);
+        
+        const user = combinedUsers.find(u => u.id === userId);
+        setCurrentUser(user || null);
 
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
@@ -150,16 +152,15 @@ function DashboardContent() {
     const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
-    // Redirect if cashier tries to access admin-only views
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
+      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
     }
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
+          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -193,7 +194,7 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       default:
-        return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
+        return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
     }
   };
 

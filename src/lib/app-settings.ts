@@ -42,7 +42,9 @@ export async function getPradanaTokenBalance(): Promise<number> {
         if (docSnap.exists()) {
             return docSnap.data().balance || 0;
         } else {
-            console.warn("Pradana Token balance document not found, returning 0.");
+            // If doc doesn't exist, create it with initial balance 0
+            await setDoc(tokenDocRef, { balance: 0 });
+            console.warn("Pradana Token balance document not found, created a new one with 0 balance.");
             return 0;
         }
     } catch (error) {
@@ -60,9 +62,9 @@ export async function updatePradanaTokenBalance(amount: number) {
             balance: increment(amount)
         });
     } catch (error: any) {
-        // If the document doesn't exist, create it.
+        // If the document doesn't exist, create it with the new balance.
         if (error.code === 'not-found') {
-            await setDoc(tokenDocRef, { balance: amount });
+            await setDoc(tokenDocRef, { balance: amount > 0 ? amount : 0 });
         } else {
             // Re-throw other errors
             throw error;

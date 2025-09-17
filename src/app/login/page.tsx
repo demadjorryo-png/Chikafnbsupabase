@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
 import { stores } from '@/lib/data'; // Import mock user and store data
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,7 +31,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSuccessfulLogin = (userData: User) => {
+  const handleSuccessfulLogin = (userData: User, selectedStoreId: string) => {
     // After any successful login, redirect user to the dashboard
     
     // Check if the user is inactive
@@ -51,8 +51,7 @@ export default function LoginPage() {
     });
 
     // The store selected on the login page should always be the one the user is sent to.
-    const targetStoreId = storeId;
-    router.push(`/dashboard?view=overview&storeId=${targetStoreId}&userId=${userData.id}`);
+    router.push(`/dashboard?view=overview&storeId=${selectedStoreId}&userId=${userData.id}`);
   };
 
 
@@ -70,54 +69,44 @@ export default function LoginPage() {
         return;
     }
 
-    // Standard Firebase Auth login for all users including superadmin
     try {
+      // Special offline handling for superadmin
+      if (userId === 'Pradana01') {
+          const { users } = await import('@/lib/data');
+          const mockAdmin = users.find(u => u.userId === 'Pradana01');
+          if (mockAdmin && mockAdmin.password === password) {
+              handleSuccessfulLogin({ ...mockAdmin, id: 'admin001' }, storeId); // Use hardcoded ID for mock admin
+          } else {
+              throw new Error("Invalid superadmin credentials");
+          }
+          return; // Stop execution for superadmin
+      }
+      
+      // Standard Firebase Auth login for regular users
       const email = `${userId}@era5758.co.id`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       const firestoreId = userCredential.user.uid;
       
-      let userData: User | null = null;
+      const userDocRef = doc(db, "users", firestoreId);
+      const userDoc = await getDocs(query(collection(db, "users"), where("email", "==", email)));
       
-      // Special check if it's the mock superadmin ID
-      if (userId === 'Pradana01') {
-          const { users } = await import('@/lib/data');
-          const mockAdmin = users.find(u => u.userId === 'Pradana01');
-          if (mockAdmin) {
-            // We use the mock admin data but fetched by Auth UID
-             userData = { ...mockAdmin, id: firestoreId };
-          }
-      } else {
-          const usersRef = collection(db, "users");
-          const q = query(usersRef, where("email", "==", email));
-          const querySnapshot = await getDocs(q);
-
-          if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0];
-            userData = { id: userDoc.id, ...userDoc.data() } as User;
-          }
+      if (userDoc.empty) {
+        throw new Error("User data not found in Firestore.");
       }
 
-
-      if (!userData) {
-        if (auth.currentUser) await auth.signOut();
-        toast({
-            variant: "destructive",
-            title: "Login Gagal",
-            description: "Data karyawan tidak ditemukan di database.",
-        });
-        setIsLoading(false);
-        return;
-      }
+      const userData = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as User;
       
-      handleSuccessfulLogin(userData);
+      handleSuccessfulLogin(userData, storeId);
 
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message === 'Invalid superadmin credentials') {
         description = "Login Gagal: User ID atau Password yang Anda masukkan salah.";
       } else if (error.code === 'auth/operation-not-allowed') {
         description = "Metode login Email/Password belum diaktifkan di Firebase Console."
+      } else {
+        description = error.message;
       }
       console.error("Login Error:", error);
       toast({
