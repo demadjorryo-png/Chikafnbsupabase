@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Building } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User } from '@/lib/types';
 
 export function FloatingStoreIndicator() {
   const searchParams = useSearchParams();

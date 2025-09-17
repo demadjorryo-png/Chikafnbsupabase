@@ -20,7 +20,7 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { transactions as mockTransactions, products as mockProducts, stores as mockStores } from '@/lib/data';
+import { products as mockProducts, transactions as mockTransactions } from '@/lib/data';
 import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, ClipboardList, Trash2, Send } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday, formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';

@@ -36,7 +36,7 @@ import { auth } from '@/lib/firebase';
 
 type MainSidebarProps = {
   currentUser: User | null;
-  activeStore: Store | null;
+  activeStore: Store | undefined;
   pradanaTokenBalance: number;
 }
 
@@ -57,11 +57,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
   }, [userId, storeId, router]);
 
   const navigate = (view: string) => {
-    // Admin overview has a special route structure for now
-    if (currentUser?.role === 'admin' && view === 'overview') {
-        router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
-        return;
-    }
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
@@ -81,7 +76,7 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
-      roles: [], // Removed 'admin' and 'cashier' to hide it, will add back cashier
+      roles: ['cashier'],
     },
     {
       view: 'products',
@@ -132,12 +127,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
       roles: ['admin'],
     },
   ];
-  
-  // Re-add 'cashier' to POS roles
-  const posMenuItem = allMenuItems.find(item => item.view === 'pos');
-  if (posMenuItem) {
-    posMenuItem.roles = ['cashier'];
-  }
   
   const menuItems = currentUser 
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))

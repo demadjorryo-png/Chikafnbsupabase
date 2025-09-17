@@ -79,6 +79,12 @@ function DashboardContent() {
              const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
                 setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+            } else {
+                 const { users: mockUsers } = await import('@/lib/data');
+                 const mockAdmin = mockUsers.find(u => u.id === userId);
+                 if (mockAdmin) {
+                     setCurrentUser(mockAdmin);
+                 }
             }
         }
         
@@ -95,8 +101,8 @@ function DashboardContent() {
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(collection(db, 'products')),
-            getDocs(collection(db, 'customers')),
+            getDocs(query(collection(db, 'products'), orderBy('name'))),
+            getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
             getDocs(collection(db, 'users')),
             getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
@@ -143,22 +149,22 @@ function DashboardContent() {
   const renderView = () => {
     const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
-    const unauthorizedAdminViews = ['pos'];
     
-    if (isAdmin && unauthorizedAdminViews.includes(view)) {
-      return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
-    }
-
+    // Redirect if cashier tries to access admin-only views
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
       return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
     
-    if (view === 'overview' && isAdmin) {
+    // Redirect if admin tries to access cashier-only POS view via URL
+    if (isAdmin && view === 'pos') {
       return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
     }
 
-
     switch (view) {
+      case 'overview':
+        return isAdmin 
+          ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
+          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -191,7 +197,6 @@ function DashboardContent() {
                 />;
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
-      case 'overview':
       default:
         return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
@@ -199,18 +204,17 @@ function DashboardContent() {
 
   const getTitle = () => {
     const isAdmin = currentUser?.role === 'admin';
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
-    const unauthorizedAdminViews = ['pos'];
-
-    if ((isAdmin && unauthorizedAdminViews.includes(view)) || (!isAdmin && unauthorizedCashierViews.includes(view))) {
-        return isAdmin ? 'Admin Dashboard' : 'Dashboard Overview';
+    
+    if (isAdmin && view === 'pos') {
+      return 'Admin Dashboard';
     }
-
-    if (view === 'overview' && isAdmin) {
-        return 'Admin Dashboard';
+    if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
+      return 'Dashboard Overview';
     }
     
     switch (view) {
+      case 'overview':
+        return isAdmin ? 'Admin Dashboard' : 'Dashboard Overview';
       case 'pos':
         return 'Point of Sale';
       case 'products':
@@ -231,7 +235,6 @@ function DashboardContent() {
         return 'Promotions';
       case 'receipt-settings':
         return 'Receipt Settings';
-      case 'overview':
       default:
         return 'Dashboard Overview';
     }
