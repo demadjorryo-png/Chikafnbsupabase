@@ -29,9 +29,9 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import type { User, Store } from '@/lib/types';
-import { Separator } from '../ui/separator';
+import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
-import { Dialog, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { auth } from '@/lib/firebase';
 
 type MainSidebarProps = {
