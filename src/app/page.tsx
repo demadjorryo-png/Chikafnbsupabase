@@ -1,6 +1,9 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
+
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { stores, users } from '@/lib/data';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -27,28 +30,30 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 
 
 export default function WelcomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to the dashboard with default admin and store IDs.
+    // This bypasses the login page for testing purposes.
+    const defaultAdmin = users.find(u => u.role === 'admin');
+    const defaultStore = stores[0];
+    
+    if (defaultAdmin && defaultStore) {
+        router.replace(`/dashboard?view=overview&storeId=${defaultStore.id}&userId=${defaultAdmin.id}`);
+    } else {
+        // Fallback if no admin/store is found in static data
+        router.replace('/login');
+    }
+  }, [router]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-            <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <VapeIcon className="h-12 w-12" />
-            </div>
-          <CardTitle className="font-headline text-4xl tracking-wider">
-            BEKUPON BASECAMP
-          </CardTitle>
-          <CardDescription>
-            Aplikasi POS & CRM untuk "Bekupon Vape Store"
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/login" passHref>
-            <Button className="w-full font-headline text-lg tracking-wider" size="lg">
-              Masuk
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+       <div className="flex flex-col items-center gap-4">
+          <VapeIcon className="h-16 w-16 animate-pulse-slow text-primary/50" />
+          <p className="font-headline text-xl tracking-wider text-muted-foreground">
+              Redirecting to Dashboard...
+          </p>
+      </div>
     </div>
   );
 }
