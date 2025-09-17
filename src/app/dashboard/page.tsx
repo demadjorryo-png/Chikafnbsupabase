@@ -154,11 +154,6 @@ function DashboardContent() {
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
       return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
-    
-    // Redirect if admin tries to access cashier-only POS view via URL
-    if (isAdmin && view === 'pos') {
-      return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
-    }
 
     switch (view) {
       case 'overview':
@@ -205,9 +200,6 @@ function DashboardContent() {
   const getTitle = () => {
     const isAdmin = currentUser?.role === 'admin';
     
-    if (isAdmin && view === 'pos') {
-      return 'Admin Dashboard';
-    }
     if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
       return 'Dashboard Overview';
     }
