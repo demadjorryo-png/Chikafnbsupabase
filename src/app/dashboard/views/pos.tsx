@@ -229,8 +229,9 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
-  const tokenFeeInRp = Math.max(feeSettings.minFeeRp, totalAmount * feeSettings.feePercentage);
-  const tokenCost = tokenFeeInRp / feeSettings.tokenValueRp;
+  // const tokenFeeInRp = Math.max(feeSettings.minFeeRp, totalAmount * feeSettings.feePercentage);
+  // const tokenCost = tokenFeeInRp / feeSettings.tokenValueRp;
+  const tokenCost = 0; // Temporarily disable token cost
 
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -262,20 +263,21 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
       const newTransactionRef = doc(collection(db, 'transactions'));
       
       await runTransaction(db, async (transaction) => {
-        const tokenRef = doc(db, 'appSettings', 'pradanaToken');
-        const tokenDoc = await transaction.get(tokenRef);
+        // Temporarily disable token logic
+        // const tokenRef = doc(db, 'appSettings', 'pradanaToken');
+        // const tokenDoc = await transaction.get(tokenRef);
         
-        if (!tokenDoc.exists()) {
-            throw new Error("Saldo Pradana Token tidak ditemukan. Silakan lakukan top-up.");
-        }
-        const currentTokenBalance = tokenDoc.data().balance || 0;
+        // if (!tokenDoc.exists()) {
+        //     throw new Error("Saldo Pradana Token tidak ditemukan. Silakan lakukan top-up.");
+        // }
+        // const currentTokenBalance = tokenDoc.data().balance || 0;
 
-        if (currentTokenBalance < tokenCost) {
-            throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Silakan Top Up.`);
-        }
+        // if (currentTokenBalance < tokenCost) {
+        //     throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Silakan Top Up.`);
+        // }
 
         for (const item of cart) {
-            if (!item.productId.startsWith('manual-')) { // Do not process stock for manual items
+            if (!item.productId.startsWith('manual-')) {
               const productRef = doc(db, "products", item.productId);
               const productDoc = await transaction.get(productRef);
               if (!productDoc.exists()) {
@@ -290,8 +292,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
             }
         }
         
-        // Update token balance within the transaction
-        transaction.update(tokenRef, { balance: currentTokenBalance - tokenCost });
+        // transaction.update(tokenRef, { balance: currentTokenBalance - tokenCost });
 
         if (selectedCustomer) {
             const customerRef = doc(db, "customers", selectedCustomer.id);
@@ -614,10 +615,10 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
                 <span>Total</span>
                 <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
+              {/* <div className="flex justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Coins className="h-3 w-3" />Biaya Token</span>
                 <span>-{tokenCost.toFixed(2)} Token</span>
-              </div>
+              </div> */}
             </div>
             
             {selectedCustomer && cart.length > 0 && (
