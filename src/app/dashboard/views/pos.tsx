@@ -97,10 +97,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
 
 export default function POS({ products, customers, currentUser, stores, onDataChange, isLoading, feeSettings }: POSProps) {
   const searchParams = useSearchParams();
-  const urlStoreId = searchParams.get('storeId')!;
-  
-  // For cashiers, always use their assigned storeId. For admins, use the one from the URL.
-  const transactionStoreId = currentUser.role === 'admin' ? urlStoreId : currentUser.storeId;
+  const transactionStoreId = searchParams.get('storeId')!;
   
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
