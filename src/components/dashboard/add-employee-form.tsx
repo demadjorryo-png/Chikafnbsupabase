@@ -64,7 +64,7 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
       setIsLoading(true);
-      const email = `${data.userId}@bekupon.com`;
+      const email = `${data.userId}@era5758.co.id`;
 
       try {
         // Step 1: Create user in Firebase Authentication

@@ -94,7 +94,7 @@ export default function LoginPage() {
 
     // Standard Firebase Auth login for other users
     try {
-      const email = `${userId}@bekupon.com`;
+      const email = `${userId}@era5758.co.id`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       await handleSuccessfulLogin(userCredential.user);
     } catch (error: any) {
