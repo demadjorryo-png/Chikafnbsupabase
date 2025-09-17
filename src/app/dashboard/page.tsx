@@ -305,7 +305,7 @@ function DashboardContent() {
     <>
       <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
-        <Header title={getTitle()} storeName={activeStore?.name} />
+        <Header title={getTitle()} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {renderView()}
         </main>

@@ -6,10 +6,8 @@ import { ChevronRight } from 'lucide-react';
 
 export function Header({
   title,
-  storeName,
 }: {
   title: string;
-  storeName?: string;
 }) {
 
   return (
@@ -20,11 +18,6 @@ export function Header({
           <h1 className="font-headline text-2xl tracking-wide text-foreground sm:text-3xl">
             {title}
           </h1>
-          {storeName && (
-            <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">
-                ({storeName})
-            </span>
-          )}
         </div>
       </div>
     </header>
