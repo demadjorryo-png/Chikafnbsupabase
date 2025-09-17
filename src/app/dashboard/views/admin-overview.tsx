@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   LineChart,
@@ -16,14 +17,18 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Bar,
+  BarChart,
 } from 'recharts';
 import { stores, transactions, products } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle } from 'lucide-react';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { useToast } from '@/hooks/use-toast';
 
 const chartConfig = {
   revenue: {
@@ -32,9 +37,19 @@ const chartConfig = {
   },
 };
 
+type AppliedStrategy = {
+  id: string;
+  type: 'weekly' | 'monthly';
+  recommendation: string;
+  appliedDate: string;
+  status: 'active' | 'completed';
+};
+
 export default function AdminOverview() {
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
+  const { toast } = useToast();
 
   const { monthlyGrowthData, storeStats, topProducts, worstProducts } = React.useMemo(() => {
     // Monthly Growth Data
@@ -111,6 +126,28 @@ export default function AdminOverview() {
     }
   }
 
+  const handleApplyStrategy = (type: 'weekly' | 'monthly', recommendation: string) => {
+    const newStrategy: AppliedStrategy = {
+      id: `strat_${Date.now()}`,
+      type,
+      recommendation,
+      appliedDate: formatISO(new Date()),
+      status: 'active',
+    };
+    setAppliedStrategies(prev => [...prev, newStrategy]);
+    toast({
+        title: 'Strategi Diterapkan!',
+        description: `Strategi ${type} telah ditambahkan ke daftar lacak.`,
+    });
+  };
+
+  const handleCompleteStrategy = (id: string) => {
+    setAppliedStrategies(prev => prev.filter(s => s.id !== id));
+     toast({
+        title: 'Strategi Selesai!',
+        description: 'Strategi telah ditandai sebagai selesai.',
+    });
+  };
 
   return (
     <div className="grid gap-6">
@@ -171,8 +208,8 @@ export default function AdminOverview() {
 
        <Card>
         <CardHeader>
-          <CardTitle className="font-headline tracking-wider">Rekomendasi Bisnis</CardTitle>
-          <CardDescription>Dapatkan saran strategis mingguan dan bulanan dari Chika AI untuk mendorong pertumbuhan.</CardDescription>
+          <CardTitle className="font-headline tracking-wider">Rekomendasi Bisnis Chika AI</CardTitle>
+          <CardDescription>Dapatkan saran strategis mingguan dan bulanan untuk mendorong pertumbuhan.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
@@ -181,25 +218,74 @@ export default function AdminOverview() {
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            Buat Rekomendasi dengan Chika AI
+            Buat Rekomendasi Baru
           </Button>
 
           {recommendations && (
              <div className="grid gap-6 md:grid-cols-2">
-                <Alert className="border-accent bg-accent/10">
-                    <Sparkles className="h-4 w-4 !text-accent" />
-                    <AlertTitle className="font-semibold text-accent">Rekomendasi Mingguan</AlertTitle>
-                    <AlertDescription>{recommendations.weeklyRecommendation}</AlertDescription>
-                </Alert>
-                 <Alert className="border-primary bg-primary/10">
-                    <ShoppingBag className="h-4 w-4 !text-primary" />
-                    <AlertTitle className="font-semibold text-primary">Rekomendasi Bulanan</AlertTitle>
-                    <AlertDescription>{recommendations.monthlyRecommendation}</AlertDescription>
-                </Alert>
+                <Card>
+                    <CardHeader>
+                        <AlertTitle className="font-semibold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" />Rekomendasi Mingguan</AlertTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <AlertDescription>{recommendations.weeklyRecommendation}</AlertDescription>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('weekly', recommendations.weeklyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan Strategi</Button>
+                    </CardFooter>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <AlertTitle className="font-semibold text-primary flex items-center gap-2"><ShoppingBag className="h-4 w-4" />Rekomendasi Bulanan</AlertTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <AlertDescription>{recommendations.monthlyRecommendation}</AlertDescription>
+                    </CardContent>
+                     <CardFooter>
+                        <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('monthly', recommendations.monthlyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan Strategi</Button>
+                    </CardFooter>
+                </Card>
              </div>
           )}
         </CardContent>
       </Card>
+      
+       {appliedStrategies.length > 0 && (
+         <Card>
+            <CardHeader>
+              <CardTitle className="font-headline tracking-wider">Strategi yang Sedang Berjalan</CardTitle>
+              <CardDescription>Lacak efektivitas strategi yang sedang Anda terapkan.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {appliedStrategies.map(strategy => (
+                <Card key={strategy.id} className="border-l-4 border-primary">
+                  <CardHeader>
+                    <CardTitle className="text-base capitalize">{strategy.type} Strategy</CardTitle>
+                     <CardDescription>Diterapkan pada: {format(new Date(strategy.appliedDate), 'd MMMM yyyy')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{strategy.recommendation}</p>
+                     <div className="mt-4 rounded-lg border bg-secondary/30 p-4">
+                        <h4 className="font-semibold text-sm mb-2">Detail Pertumbuhan (Placeholder)</h4>
+                        <p className="text-xs text-muted-foreground mb-2">Grafik ini akan menunjukkan metrik relevan sejak strategi diterapkan.</p>
+                         <ChartContainer config={{}} className="h-[150px] w-full">
+                            <BarChart accessibilityLayer data={[{'name': 'Before', value: 100}, {'name': 'After', value: 120}]}>
+                                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false}/>
+                                <ChartTooltipContent />
+                                <Bar dataKey="value" fill="hsl(var(--primary))" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
+                    </div>
+                  </CardContent>
+                   <CardFooter className="flex justify-between">
+                     <Button size="sm" variant="ghost" disabled>Lihat Pertumbuhan</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleCompleteStrategy(strategy.id)}><CheckCircle className="mr-2 h-4 w-4" /> Tandai Selesai</Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+      )}
     </div>
   );
 }
