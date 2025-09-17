@@ -59,6 +59,7 @@ function DashboardContent() {
   const userId = searchParams.get('userId');
   
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [activeStore, setActiveStore] = React.useState<Store | undefined>(undefined);
   const [stores, setStores] = React.useState<Store[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -113,28 +114,29 @@ function DashboardContent() {
         
         const fetchedUser = firestoreUsers.find(u => u.id === userId) || null;
         setCurrentUser(fetchedUser);
+
+        if (fetchedUser && fetchedUser.role === 'cashier' && storeId) {
+            const foundStore = allStores.find(s => s.id === storeId);
+            setActiveStore(foundStore);
+        }
         
         const isAdmin = fetchedUser?.role === 'admin';
         
         let allProducts: Product[] = [];
         if (isAdmin) {
-            // Admin: fetch products from all stores
+            // Admin: fetch products from all stores, adding a 'storeId' to each product.
             const productPromises = allStores.map(store => {
                 const productCollectionName = `products_${store.id.replace('store_', '')}`;
-                return getDocs(query(collection(db, productCollectionName), orderBy('name')));
+                return getDocs(query(collection(db, productCollectionName), orderBy('name'))).then(snapshot => ({
+                    storeId: store.id,
+                    products: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+                }));
             });
-            const productSnapshots = await Promise.all(productPromises);
+            const productSnapshotsByStore = await Promise.all(productPromises);
             
-            productSnapshots.forEach((snapshot, index) => {
-                const storeIdForProducts = allStores[index].id;
-                const storeProducts = snapshot.docs.map(doc => ({ 
-                    id: doc.id, 
-                    ...doc.data(),
-                    // Manually add storeId to each product for admin view
-                    storeId: storeIdForProducts 
-                } as Product & { storeId: string }));
-                allProducts = allProducts.concat(storeProducts);
-            });
+            allProducts = productSnapshotsByStore.flatMap(({ storeId, products }) => 
+                products.map(product => ({ ...product, storeId }))
+            );
 
         } else if (storeId) {
             // Cashier: fetch products from their active store
@@ -157,6 +159,17 @@ function DashboardContent() {
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
         setPradanaTokenBalance(tokenBalanceData);
+        
+        // Final validation before stopping the loading
+        if (!fetchedUser || (!isAdmin && !allStores.find(s => s.id === storeId))) {
+             toast({
+                variant: 'destructive',
+                title: 'Data Sesi Tidak Lengkap',
+                description: 'Data pengguna atau toko tidak valid. Silakan login kembali.'
+             });
+             // Keep loading to prevent rendering a broken page
+             return;
+        }
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -175,13 +188,8 @@ function DashboardContent() {
   }, [fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
-  const activeStore = storeId ? stores.find(s => s.id === storeId) : undefined;
   
   if (isLoading) {
-    return <DashboardSkeleton />;
-  }
-  
-  if (!currentUser || (!isAdmin && !activeStore)) {
     return <DashboardSkeleton />;
   }
 
@@ -212,9 +220,8 @@ function DashboardContent() {
               onDataChange={fetchAllData} 
             />;
       case 'pos':
-        // For POS, we only pass products for the active store
-        return activeStore ? <POS 
-                    products={products.filter(p => !p.storeId || p.storeId === activeStore.id)} 
+        return activeStore && currentUser ? <POS 
+                    products={products} 
                     customers={customers} 
                     currentUser={currentUser}
                     activeStore={activeStore}
@@ -223,14 +230,14 @@ function DashboardContent() {
                     feeSettings={feeSettings} 
                 /> : <DashboardSkeleton />;
       case 'products':
-        return <Products 
-                  products={products} // Admin gets all products, cashier gets their store's products
+        return currentUser ? <Products 
+                  products={products}
                   stores={stores} 
                   userRole={currentUser.role} 
                   onDataChange={fetchAllData} 
                   isLoading={isLoading} 
-                  activeStoreId={storeId} // Pass cashier's active storeId
-                />;
+                  activeStoreId={storeId}
+                /> : <DashboardSkeleton />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
@@ -304,7 +311,7 @@ function DashboardContent() {
       <SidebarInset>
         <Header title={getTitle()} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {renderView()}
+          {currentUser ? renderView() : <DashboardSkeleton />}
         </main>
       </SidebarInset>
     </>
