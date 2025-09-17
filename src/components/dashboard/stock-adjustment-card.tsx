@@ -31,7 +31,7 @@ type StockAdjustmentCardProps = {
 
 export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoading: isDataLoading }: StockAdjustmentCardProps) {
   const [selectedProductId, setSelectedProductId] = React.useState<string | undefined>();
-  const [adjustments, setAdjustments] = React.useState<Record<string, number>>({});
+  const [adjustments, setAdjustments] = React.useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = React.useState(false);
   const { toast } = useToast();
 
@@ -44,10 +44,9 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
   }, [products]);
 
   const handleAdjustmentChange = (storeId: string, value: string) => {
-    const numValue = Number(value);
     setAdjustments(prev => ({
       ...prev,
-      [storeId]: isNaN(numValue) ? 0 : numValue,
+      [storeId]: value,
     }));
   };
 
@@ -62,7 +61,7 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
       return;
     }
 
-    const hasAdjustments = Object.values(adjustments).some(val => val !== 0 && !isNaN(val));
+    const hasAdjustments = Object.values(adjustments).some(val => val && Number(val) !== 0);
     if (!hasAdjustments) {
       toast({ title: 'No changes to save.' });
       return;
@@ -81,16 +80,19 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
         const currentStock = productDoc.data().stock as Record<string, number>;
         const newStock: Record<string, number> = {...currentStock};
 
-        for (const store of stores) {
-            const adjustment = adjustments[store.id] || 0;
-            if(adjustment !== 0) {
-              const current = newStock[store.id] || 0;
+        for (const storeId in adjustments) {
+            const adjustmentValue = adjustments[storeId];
+            const adjustment = Number(adjustmentValue);
+
+            if (adjustmentValue && !isNaN(adjustment) && adjustment !== 0) {
+              const current = newStock[storeId] || 0;
               const finalStock = current + adjustment;
               
               if (finalStock < 0) {
-                  throw new Error(`Adjustment for ${store.name} results in negative stock.`);
+                  const storeName = stores.find(s => s.id === storeId)?.name || storeId;
+                  throw new Error(`Adjustment for ${storeName} results in negative stock.`);
               }
-              newStock[store.id] = finalStock;
+              newStock[storeId] = finalStock;
             }
         }
 
