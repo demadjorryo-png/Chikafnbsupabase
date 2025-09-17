@@ -57,20 +57,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  
-  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>({});
-
-  React.useEffect(() => {
-    // Prepares the form when it opens.
-    // This creates a state to hold stock values for each store, starting them at 0.
-    // The user's input will then update this state.
-    const initialStock = stores.reduce((acc, store) => {
-      acc[store.id] = 0;
-      return acc;
-    }, {} as Record<string, number>);
-    setStockLevels(initialStock);
-  }, [stores]);
-
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -82,14 +68,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
       brand: '',
     },
   });
-
-  const handleStockChange = (storeId: string, value: string) => {
-    const numberValue = Number(value);
-    setStockLevels(prev => ({
-      ...prev,
-      [storeId]: isNaN(numberValue) || numberValue < 0 ? 0 : numberValue,
-    }));
-  };
 
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
@@ -105,6 +83,10 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
 
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
+    const initialStock = stores.reduce((acc, store) => {
+      acc[store.id] = 0;
+      return acc;
+    }, {} as Record<string, number>);
 
     try {
         await addDoc(collection(db, "products"), {
@@ -112,7 +94,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: stockLevels, // Use the state for stock levels here
+            stock: initialStock,
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
@@ -246,27 +228,6 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                 </FormItem>
             )}
         />
-
-        <Separator />
-        
-        <div className="space-y-2">
-            <Label>Initial Stock</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
-                {stores.map(store => (
-                    <div key={store.id} className="grid gap-2">
-                        <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
-                        <Input
-                            id={`stock-${store.id}`}
-                            type="number"
-                            placeholder="0"
-                            value={stockLevels[store.id] ?? 0}
-                            onChange={(e) => handleStockChange(store.id, e.target.value)}
-                            className="w-full"
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
