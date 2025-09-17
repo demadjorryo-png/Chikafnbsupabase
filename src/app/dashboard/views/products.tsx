@@ -41,9 +41,20 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddProductForm } from '@/components/dashboard/add-product-form';
+import { EditProductForm } from '@/components/dashboard/edit-product-form';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
@@ -85,6 +96,9 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
 export default function Products() {
   const lowStockThreshold = 10;
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
   
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -148,8 +162,42 @@ export default function Products() {
     setSelectedProduct(product);
   };
   
-  const handleProductAdded = () => {
-    fetchProductsAndStores(); // Re-fetch data when a product is added
+  const handleEditClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+        await deleteDoc(doc(db, "products", selectedProduct.id));
+        toast({
+            title: 'Produk Dihapus!',
+            description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
+        });
+        fetchProductsAndStores(); // Re-fetch products after deletion
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menghapus Produk',
+            description: 'Terjadi kesalahan saat menghapus produk dari database.'
+        });
+        console.error("Error deleting product:", error);
+    } finally {
+        setIsDeleteDialogOpen(false);
+        setSelectedProduct(null);
+    }
+  }
+
+
+  const handleDataUpdate = () => {
+    fetchProductsAndStores(); // Re-fetch data when a product is added or updated
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {
@@ -249,7 +297,7 @@ export default function Products() {
                   <AddProductForm 
                     setDialogOpen={setIsAddDialogOpen} 
                     userRole={userRole} 
-                    onProductAdded={handleProductAdded}
+                    onProductAdded={handleDataUpdate}
                     stores={stores}
                   />
                 </DialogContent>
@@ -309,8 +357,8 @@ export default function Products() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleViewDetails(product)}>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -323,15 +371,55 @@ export default function Products() {
           </Table>
         </CardContent>
       </Card>
+      
       {selectedProduct && (
         <ProductDetailsDialog
           product={selectedProduct}
-          open={!!selectedProduct}
+          open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
           stores={stores}
         />
        )}
+
+      {selectedProduct && isEditDialogOpen && (
+         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+             <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider">Edit Product</DialogTitle>
+                    <DialogDescription>Update details for {selectedProduct.name}.</DialogDescription>
+                  </DialogHeader>
+                  <EditProductForm 
+                    setDialogOpen={setIsEditDialogOpen} 
+                    userRole={userRole} 
+                    onProductUpdated={handleDataUpdate}
+                    stores={stores}
+                    product={selectedProduct}
+                  />
+                </DialogContent>
+         </Dialog>
+      )}
+
+       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the product: <br />
+              <span className="font-bold">"{selectedProduct?.name}"</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Yes, delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
