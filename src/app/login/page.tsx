@@ -21,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import * as React from 'react';
 
 export default function LoginPage() {
@@ -55,24 +55,46 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-        const email = `${userId}@bekupon.com`;
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("userId", "==", userId));
+        const querySnapshot = await getDocs(q);
 
-        toast({
-            title: 'Login Berhasil!',
-            description: `Selamat datang kembali!`,
+        if (querySnapshot.empty) {
+            toast({
+                variant: 'destructive',
+                title: 'Login Gagal',
+                description: 'User ID atau Password yang Anda masukkan salah.',
+            });
+            setIsLoading(false);
+            return;
+        }
+
+        let userDoc;
+        querySnapshot.forEach((doc) => {
+            userDoc = { id: doc.id, ...doc.data() };
         });
 
-        // Redirect to dashboard with the actual Firebase UID
-        router.push(`/dashboard?storeId=${storeId}&userId=${user.uid}`);
-
+        // This is an insecure password check as requested temporarily.
+        if (userDoc && userDoc.password === password) {
+             toast({
+                title: 'Login Berhasil!',
+                description: `Selamat datang kembali, ${userDoc.name}!`,
+            });
+            // Redirect to dashboard with the Firestore document ID (which should be the Auth UID in a real scenario)
+            router.push(`/dashboard?storeId=${storeId}&userId=${userDoc.id}`);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Login Gagal',
+                description: 'User ID atau Password yang Anda masukkan salah.',
+            });
+        }
     } catch (error) {
-        console.error("Firebase Login Error:", error);
+        console.error("Firestore Login Error:", error);
         toast({
             variant: 'destructive',
             title: 'Login Gagal',
-            description: 'User ID atau Password yang Anda masukkan salah.',
+            description: 'Terjadi kesalahan saat mencoba login.',
         });
     } finally {
         setIsLoading(false);

@@ -29,7 +29,8 @@ export type User = {
   name: string;
   role: UserRole;
   storeId: string; // The primary store for a user
-  // Password is no longer stored here, it's managed by Firebase Auth
+  userId?: string; // The login ID
+  password?: string; // NOTE: Storing plain text password is not secure. For temporary use only.
 };
 
 export type Product = {
