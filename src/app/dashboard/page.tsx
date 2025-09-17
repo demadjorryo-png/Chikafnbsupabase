@@ -53,7 +53,6 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
   const storeId = searchParams.get('storeId') || stores[0].id;
-  const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = React.useState(true);
@@ -65,7 +64,15 @@ function DashboardContent() {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
+        } else {
+          // If user exists in Auth but not in Firestore, there's a data inconsistency.
+          // For a robust app, you might want to handle this, e.g., by logging out.
+          console.warn("User document not found in Firestore for UID:", user.uid);
+          setCurrentUser(null);
         }
+      } else {
+        // No user is signed in.
+        setCurrentUser(null);
       }
       setIsLoadingUser(false);
     });

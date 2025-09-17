@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/dashboard/logo';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -19,10 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { signInAnonymously } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import * as React from 'react';
-import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,8 +31,10 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [storeId, setStoreId] = React.useState(searchParams.get('storeId') || '');
+  const [userId, setUserId] = React.useState('');
+  const [password, setPassword] = React.useState('');
 
-  async function handleAnonymousLogin() {
+  async function handleLogin() {
     if (!storeId) {
         toast({
             variant: 'destructive',
@@ -40,29 +43,40 @@ export default function LoginPage() {
         });
         return;
     }
+     if (!userId || !password) {
+        toast({
+            variant: 'destructive',
+            title: 'Data Tidak Lengkap',
+            description: 'Silakan masukkan User ID dan Password.',
+        });
+        return;
+    }
     
     setIsLoading(true);
     try {
-      const userCredential = await signInAnonymously(auth);
+      // Behind the scenes, we construct an email from the User ID to use Firebase Auth.
+      // The end-user never sees this.
+      const email = `${userId}@bekupon.com`;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       toast({
         title: 'Login Berhasil!',
-        description: 'Sesi anonim telah dibuat. Selamat datang.',
+        description: `Selamat datang kembali!`,
       });
       
-      // For a real anonymous flow, you might redirect to a user/profile selection page.
-      // For now, we'll simulate picking the first admin for demo purposes.
-      // A more robust solution is needed for multi-user anonymous access.
-      const defaultUserIdForDemo = 'admin001_uid'; // This needs to be a real UID from your Firestore 'users' collection
       router.push(`/dashboard?storeId=${storeId}&userId=${user.uid}`);
 
     } catch (error: any) {
-      console.error("Anonymous login failed:", error);
+      console.error("Login failed:", error);
+      let description = 'Terjadi kesalahan. Silakan coba lagi.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = 'User ID atau Password yang Anda masukkan salah.';
+      }
       toast({
         variant: 'destructive',
         title: 'Login Gagal',
-        description: 'Tidak dapat membuat sesi anonim. Silakan coba lagi.',
+        description: description,
       });
     } finally {
       setIsLoading(false);
@@ -80,11 +94,11 @@ export default function LoginPage() {
             Employee Login
           </CardTitle>
           <CardDescription>
-            Pilih toko Anda untuk memulai sesi kerja.
+            Pilih toko dan masukkan kredensial Anda.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="space-y-2">
+        <CardContent className="space-y-4">
+             <div className="space-y-2">
               <Label>Toko</Label>
               <Select
                 value={storeId}
@@ -102,7 +116,27 @@ export default function LoginPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleAnonymousLogin} className="w-full" disabled={isLoading}>
+            <div className="space-y-2">
+                <Label htmlFor="userId">User ID</Label>
+                <Input 
+                    id="userId"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    placeholder="e.g., chika_kasir"
+                    required 
+                />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                    id="password" 
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required 
+                />
+            </div>
+            <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Masuk'}
             </Button>
         </CardContent>
