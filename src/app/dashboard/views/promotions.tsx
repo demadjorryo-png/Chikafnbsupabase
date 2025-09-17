@@ -48,7 +48,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, getDocs, addDoc } from 'firebase/firestore';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 
 
 type PromotionsProps = {
@@ -63,6 +72,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
   const { toast } = useToast();
   
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
   React.useEffect(() => {
     const fetchTransactions = async () => {
@@ -203,6 +213,11 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
     });
   }
 
+  const handlePromotionAdded = (newPromotion: RedemptionOption) => {
+    setRedemptionOptions(prev => [...prev, newPromotion]);
+  };
+
+
   return (
     <>
     <div className="grid gap-6">
@@ -284,12 +299,25 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
               </CardDescription>
             </div>
             {isAdmin && (
-              <Button size="sm" className="gap-1">
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Tambah Promo
-                </span>
-              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1">
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                      Tambah Promo
+                    </span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider">Tambah Promo Baru</DialogTitle>
+                    <DialogDescription>
+                      Buat opsi penukaran poin loyalitas baru untuk pelanggan.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <AddPromotionForm setDialogOpen={setIsAddDialogOpen} onPromotionAdded={handlePromotionAdded} />
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </CardHeader>
