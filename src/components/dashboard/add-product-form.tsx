@@ -57,6 +57,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  
+  // SOLUSI BARU: Gunakan state terpisah untuk mengelola stok
   const [stockLevels, setStockLevels] = React.useState<Record<string, number>>({});
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -69,9 +71,9 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
       brand: '',
     },
   });
-  
+
+  // Inisialisasi state stok saat komponen dimuat
   React.useEffect(() => {
-    // Initialize stock levels for all stores to 0
     const initialStock = stores.reduce((acc, store) => {
       acc[store.id] = 0;
       return acc;
@@ -79,6 +81,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
     setStockLevels(initialStock);
   }, [stores]);
 
+
+  // Handler untuk mengubah state stok
   const handleStockChange = (storeId: string, value: string) => {
     const numberValue = Number(value);
     setStockLevels(prev => ({
@@ -108,7 +112,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: stockLevels, // Use the state for stock levels
+            stock: stockLevels, // Ambil data stok dari state, bukan dari form
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
@@ -255,7 +259,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                             id={`stock-${store.id}`}
                             type="number"
                             placeholder="0"
-                            value={stockLevels[store.id] || ''}
+                            value={stockLevels[store.id] ?? ''}
                             onChange={(e) => handleStockChange(store.id, e.target.value)}
                             className="w-full"
                         />
