@@ -15,12 +15,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Banknote, Info, Loader, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings, updatePradanaTokenBalance } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
 type TopUpDialogProps = {
-  storeName: string;
   currentBalance: number;
   setDialogOpen: (open: boolean) => void;
 };
@@ -33,7 +32,7 @@ const BANK_INFO = {
     holder: 'RIO YULI PRADANA'
 };
 
-export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpDialogProps) {
+export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps) {
   const [selectedAmount, setSelectedAmount] = React.useState<number | string>(topUpPackages[1]);
   const [manualAmount, setManualAmount] = React.useState('');
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
@@ -64,7 +63,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
   const finalAmount = typeof selectedAmount === 'number' ? selectedAmount : Number(manualAmount);
   const totalRp = finalAmount * feeSettings.tokenValueRp;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (finalAmount <= 0) {
         toast({
             variant: 'destructive',
@@ -84,10 +83,9 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
 
     setIsProcessing(true);
 
-    const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
+    const message = `Halo, saya ingin melakukan konfirmasi top-up Pradana Token.
 
 Detail:
-- Top-up untuk: Saldo Global Aplikasi
 - Jumlah Token: ${finalAmount} Token
 - Total Transfer: Rp ${totalRp.toLocaleString('id-ID')}
 
@@ -95,6 +93,8 @@ Mohon segera diproses. Terima kasih.`;
 
     const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
     
+    // This is now just a fire-and-forget for the user. 
+    // The admin will manually update the balance in Firestore.
     window.open(whatsappUrl, '_blank');
 
     toast({

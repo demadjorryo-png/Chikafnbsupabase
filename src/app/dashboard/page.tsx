@@ -76,14 +76,9 @@ function DashboardContent() {
     try {
         // Fetch User
         if (userId) {
-             if (userId === 'admin001') {
-                const { users: mockUsers } = await import('@/lib/data');
-                setCurrentUser(mockUsers.find(u => u.id === 'admin001') || null);
-            } else {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-                }
+             const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+                setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
             }
         }
         
@@ -116,8 +111,7 @@ function DashboardContent() {
         setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
         
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const { users: mockUsers } = await import('@/lib/data');
-        setUsers([...firestoreUsers, ...mockUsers.filter(u => u.role === 'admin')]);
+        setUsers(firestoreUsers);
 
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
@@ -147,16 +141,22 @@ function DashboardContent() {
   }
 
   const renderView = () => {
-    if (view === 'overview' && currentUser?.role === 'admin') {
+    const isAdmin = currentUser?.role === 'admin';
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
+    const unauthorizedAdminViews = ['pos'];
+    
+    if (isAdmin && unauthorizedAdminViews.includes(view)) {
       return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
     }
 
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
-    const isUnauthorized = unauthorizedCashierViews.includes(view) && currentUser?.role !== 'admin';
-    
-    if (isUnauthorized) {
+    if (!isAdmin && unauthorizedCashierViews.includes(view)) {
       return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} />;
     }
+    
+    if (view === 'overview' && isAdmin) {
+      return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
+    }
+
 
     switch (view) {
       case 'pos':
@@ -190,14 +190,16 @@ function DashboardContent() {
   };
 
   const getTitle = () => {
-    if (view === 'overview' && currentUser?.role === 'admin') {
-        return 'Admin Dashboard';
-    }
-    
+    const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
-    const isUnauthorized = unauthorizedCashierViews.includes(view) && currentUser?.role !== 'admin';
-    if (isUnauthorized) {
-      return 'Dashboard Overview';
+    const unauthorizedAdminViews = ['pos'];
+
+    if ((isAdmin && unauthorizedAdminViews.includes(view)) || (!isAdmin && unauthorizedCashierViews.includes(view))) {
+        return isAdmin ? 'Admin Dashboard' : 'Dashboard Overview';
+    }
+
+    if (view === 'overview' && isAdmin) {
+        return 'Admin Dashboard';
     }
     
     switch (view) {
@@ -229,7 +231,7 @@ function DashboardContent() {
 
   return (
     <>
-      <MainSidebar currentUser={currentUser} activeStore={activeStore} pradanaTokenBalance={pradanaTokenBalance} />
+      <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
         <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">

@@ -36,11 +36,10 @@ import { auth } from '@/lib/firebase';
 
 type MainSidebarProps = {
   currentUser: User | null;
-  activeStore: Store | null;
   pradanaTokenBalance: number;
 }
 
-export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: MainSidebarProps) {
+export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
@@ -57,11 +56,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
   }, [userId, storeId, router]);
 
   const navigate = (view: string) => {
-    // Admin overview has a special route structure for now
-    if (currentUser?.role === 'admin' && view === 'overview') {
-        router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
-        return;
-    }
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
@@ -81,7 +75,7 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
-      roles: ['admin', 'cashier'],
+      roles: ['cashier'],
     },
     {
       view: 'products',
@@ -165,7 +159,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
                     </div>
                 )}
                 <TopUpDialog 
-                    storeName={activeStore?.name || 'Bekupon Vape Store'} 
                     currentBalance={pradanaTokenBalance}
                     setDialogOpen={setIsTopUpOpen} 
                 />
