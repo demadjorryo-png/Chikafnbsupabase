@@ -103,7 +103,7 @@ function DashboardContent() {
         const storeSpecificQueries = [
           getDocs(query(collection(db, 'products'), orderBy('name'))),
           getDocs(query(collection(db, 'customers'), orderBy('name'))),
-          getDocs(query(collection(db, 'transactions'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'transactions'), where('storeId', '==', storeId))),
           getDocs(query(collection(db, 'pendingOrders'), where('storeId', '==', storeId))),
         ];
         const adminQueries = [
@@ -139,7 +139,10 @@ function DashboardContent() {
         setStores(allStores);
         setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
-        setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        
+        const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+        const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTransactions(sortedTransactions);
         
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         const combinedUsers = [...firestoreUsers];
