@@ -20,7 +20,7 @@ import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { File, ListFilter, MoreHorizontal, PlusCircle, Search } from 'lucide-react';
+import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Minus, Plus, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -51,9 +51,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 
 type ProductsProps = {
     products: Product[];
@@ -95,6 +97,82 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function StockAdjustmentPopover({ product, stores, onStockChange }: { product: Product; stores: Store[]; onStockChange: () => void }) {
+    const [stockLevels, setStockLevels] = React.useState<Record<string, number>>(product.stock);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const { toast } = useToast();
+
+    const handleStockChange = (storeId: string, value: string) => {
+        const newStock = Number(value);
+        setStockLevels(prev => ({ ...prev, [storeId]: isNaN(newStock) ? 0 : newStock }));
+    };
+    
+    const handleAdjust = (storeId: string, amount: number) => {
+        setStockLevels(prev => ({
+            ...prev,
+            [storeId]: (prev[storeId] || 0) + amount,
+        }));
+    }
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const productRef = doc(db, "products", product.id);
+        try {
+            await updateDoc(productRef, { stock: stockLevels });
+            toast({
+                title: "Stok Diperbarui",
+                description: `Stok untuk ${product.name} telah berhasil disimpan.`,
+            });
+            onStockChange();
+        } catch (error) {
+            console.error("Error updating stock:", error);
+            toast({
+                variant: 'destructive',
+                title: "Gagal Menyimpan Stok",
+                description: "Terjadi kesalahan saat memperbarui stok."
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    React.useEffect(() => {
+        setStockLevels(product.stock);
+    }, [product.stock]);
+
+    return (
+        <PopoverContent className="w-80">
+            <div className="grid gap-4">
+                <div className="space-y-2">
+                    <h4 className="font-medium leading-none">Adjust Stock</h4>
+                    <p className="text-sm text-muted-foreground">
+                        Update stock levels for {product.name}.
+                    </p>
+                </div>
+                <div className="grid gap-4">
+                    {stores.map(store => (
+                        <div key={store.id} className="grid grid-cols-4 items-center gap-2">
+                            <Label htmlFor={`stock-${store.id}`} className="col-span-4 text-xs">{store.name}</Label>
+                             <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => handleAdjust(store.id, -1)}><Minus className="h-4 w-4"/></Button>
+                            <Input
+                                id={`stock-${store.id}`}
+                                type="number"
+                                value={stockLevels[store.id] || 0}
+                                onChange={(e) => handleStockChange(store.id, e.target.value)}
+                                className="col-span-2 h-8 text-center"
+                            />
+                            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => handleAdjust(store.id, 1)}><Plus className="h-4 w-4"/></Button>
+                        </div>
+                    ))}
+                </div>
+                <Button onClick={handleSave} disabled={isSaving} size="sm">
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+            </div>
+        </PopoverContent>
     );
 }
 
@@ -291,11 +369,21 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      {totalStock <= lowStockThreshold ? (
-                        <Badge variant="destructive">Low ({totalStock})</Badge>
-                      ) : (
-                        totalStock
-                      )}
+                        <div className="flex items-center justify-center gap-2">
+                          {totalStock <= lowStockThreshold ? (
+                            <Badge variant="destructive">Low ({totalStock})</Badge>
+                          ) : (
+                            <span className="font-mono">{totalStock}</span>
+                          )}
+                          {userRole === 'admin' && (
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs">Adjust</Button>
+                                </PopoverTrigger>
+                                <StockAdjustmentPopover product={product} stores={stores} onStockChange={handleDataUpdate} />
+                            </Popover>
+                          )}
+                        </div>
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
