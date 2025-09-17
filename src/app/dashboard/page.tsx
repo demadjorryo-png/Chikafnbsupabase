@@ -55,7 +55,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId') || 'store_tpg';
+  const storeId = searchParams.get('storeId'); // Can be null for admin
   const userId = searchParams.get('userId');
   
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
@@ -75,30 +75,30 @@ function DashboardContent() {
   const fetchAllData = React.useCallback(async () => {
     setIsLoading(true);
     if (!userId) {
+      toast({
+          variant: 'destructive',
+          title: 'Sesi Tidak Ditemukan',
+          description: 'User ID tidak ada. Silakan login kembali.'
+      });
       setIsLoading(false);
+      // Optional: redirect to login
+      // window.location.href = '/login';
       return;
     }
     
-    const productCollectionName = `products_${storeId.replace('store_', '')}`;
-    
     try {
+        // Fetch data that is not store-dependent first
         const [
             storesSnapshot,
-            productsSnapshot,
             customersSnapshot,
-            transactionsSnapshot,
             usersSnapshot,
-            pendingOrdersSnapshot,
             redemptionOptionsSnapshot,
             feeSettingsData,
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
-            getDocs(collection(db, 'transactions')),
             getDocs(query(collection(db, 'users'))),
-            getDocs(collection(db, 'pendingOrders')),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
@@ -110,27 +110,53 @@ function DashboardContent() {
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         const { users: mockUsersData } = await import('@/lib/data');
         
-        // Ensure mock admin is only added if not present in Firestore
         const adminUser = mockUsersData.find(u => u.userId === 'Pradana01');
         let combinedUsers = [...firestoreUsers];
         if (adminUser && !firestoreUsers.some(fu => fu.userId === adminUser.userId)) {
             combinedUsers.push(adminUser);
         }
-
         setUsers(combinedUsers);
         
         const fetchedUser = combinedUsers.find(u => u.id === userId) || null;
         setCurrentUser(fetchedUser);
+        
+        const isAdmin = fetchedUser?.role === 'admin';
+        
+        // Now fetch store-dependent data
+        let productsPromise;
+        if (isAdmin) {
+            // For admin, we might not need to load any specific product list on the overview
+            // Or we could load from a default store, e.g., Tumpang
+            const productCollectionName = `products_tpg`;
+            productsPromise = getDocs(query(collection(db, productCollectionName), orderBy('name')));
+        } else if (storeId) {
+            const productCollectionName = `products_${storeId.replace('store_', '')}`;
+            productsPromise = getDocs(query(collection(db, productCollectionName), orderBy('name')));
+        } else {
+            // Handle cashier without storeId (should not happen with new login flow)
+            productsPromise = Promise.resolve(null);
+        }
 
-        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+        const [
+            productsSnapshot,
+            transactionsSnapshot,
+            pendingOrdersSnapshot,
+        ] = await Promise.all([
+            productsPromise,
+            getDocs(collection(db, 'transactions')),
+            getDocs(collection(db, 'pendingOrders')),
+        ]);
+
+        if (productsSnapshot) {
+            setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+        }
+
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
-        // Client-side sorting for transactions
         const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setTransactions(sortedTransactions);
         
-        // Client-side sorting for pending orders
         const unsortedPendingOrders = pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
         const sortedPendingOrders = unsortedPendingOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPendingOrders(sortedPendingOrders);
@@ -155,23 +181,23 @@ function DashboardContent() {
     fetchAllData();
   }, [fetchAllData]);
 
-  const activeStore = stores.find(s => s.id === storeId);
+  const activeStore = storeId ? stores.find(s => s.id === storeId) : undefined;
+  const isAdmin = currentUser?.role === 'admin';
 
   if (isLoading) {
     return <DashboardSkeleton />;
   }
   
-  if (!currentUser || !activeStore) {
-    // This can happen briefly on logout or if data is missing.
+  // A cashier must have an active store, but an admin does not.
+  if (!currentUser || (!isAdmin && !activeStore)) {
     return <DashboardSkeleton />;
   }
 
   const renderView = () => {
-    const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
-    // Redirect cashier to their overview if they try to access an admin-only view
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
+      if (storeId) {
         return <Overview 
           storeId={storeId} 
           transactions={transactions} 
@@ -180,22 +206,24 @@ function DashboardContent() {
           pendingOrders={pendingOrders} 
           onDataChange={fetchAllData} 
         />;
+      }
+      return <DashboardSkeleton />; // Or some other fallback
     }
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview 
+          : storeId ? <Overview 
               storeId={storeId} 
               transactions={transactions} 
               users={users} 
               customers={customers} 
               pendingOrders={pendingOrders} 
               onDataChange={fetchAllData} 
-            />;
+            /> : <DashboardSkeleton />;
       case 'pos':
-        return <POS 
+        return activeStore ? <POS 
                     products={products} 
                     customers={customers} 
                     currentUser={currentUser}
@@ -203,9 +231,9 @@ function DashboardContent() {
                     onDataChange={fetchAllData} 
                     isLoading={isLoading} 
                     feeSettings={feeSettings} 
-                />;
+                /> : <DashboardSkeleton />;
       case 'products':
-        return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} activeStore={activeStore} />;
+        return activeStore ? <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} activeStore={activeStore} /> : <DashboardSkeleton />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
@@ -227,20 +255,20 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       default:
-        return <Overview 
-                  storeId={storeId} 
-                  transactions={transactions} 
-                  users={users} 
-                  customers={customers} 
-                  pendingOrders={pendingOrders} 
-                  onDataChange={fetchAllData} 
-                />;
+        return isAdmin 
+          ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
+          : storeId ? <Overview 
+              storeId={storeId} 
+              transactions={transactions} 
+              users={users} 
+              customers={customers} 
+              pendingOrders={pendingOrders} 
+              onDataChange={fetchAllData} 
+            /> : <DashboardSkeleton />;
     }
   };
 
   const getTitle = () => {
-    const isAdmin = currentUser?.role === 'admin';
-    
     if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
       return 'Dashboard Overview';
     }
@@ -277,7 +305,7 @@ function DashboardContent() {
     <>
       <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
-        <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
+        <Header title={getTitle()} storeName={activeStore?.name} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {renderView()}
         </main>
@@ -306,5 +334,3 @@ function DashboardSkeleton() {
         </div>
     )
 }
-
-    

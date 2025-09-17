@@ -28,7 +28,7 @@ import {
   UserCircle,
 } from 'lucide-react';
 import * as React from 'react';
-import type { User, Store } from '@/lib/types';
+import type { User } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
@@ -49,7 +49,13 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
   const navigate = (view: string) => {
-    router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
+    const newParams = new URLSearchParams();
+    newParams.set('view', view);
+    if (userId) newParams.set('userId', userId);
+    // Only include storeId if it exists (for cashiers)
+    if (storeId) newParams.set('storeId', storeId);
+    
+    router.push(`/dashboard?${newParams.toString()}`);
   };
 
   const handleLogout = async () => {
@@ -161,18 +167,23 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.view}>
-              <SidebarMenuButton
-                onClick={() => navigate(item.view)}
-                isActive={currentView === item.view}
-                tooltip={item.label}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {menuItems.map((item) => {
+            // Admins should not be able to go to cashier-specific views that require a storeId
+            const isDisabledForAdmin = isAdmin && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
+            return (
+                <SidebarMenuItem key={item.view}>
+                <SidebarMenuButton
+                    onClick={() => navigate(item.view)}
+                    isActive={currentView === item.view}
+                    tooltip={item.label}
+                    disabled={isDisabledForAdmin}
+                >
+                    {item.icon}
+                    <span>{item.label}</span>
+                </SidebarMenuButton>
+                </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>

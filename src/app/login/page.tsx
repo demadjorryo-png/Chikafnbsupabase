@@ -17,13 +17,14 @@ import { Logo } from '@/components/dashboard/logo';
 import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
-import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import { stores } from '@/lib/data'; // Import mock user and store data
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { stores } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { User } from '@/lib/types';
-
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 export default function LoginPage() {
+  const [role, setRole] = React.useState<'admin' | 'cashier'>('cashier');
   const [userId, setUserId] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [storeId, setStoreId] = React.useState<string>(stores[0]?.id || '');
@@ -31,64 +32,75 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSuccessfulLogin = (userData: User, selectedStoreId: string) => {
-    // After any successful login, redirect user to the dashboard
-    
-    // Check if the user is inactive
-    if (userData.status === 'inactive') {
-        toast({
-            variant: 'destructive',
-            title: "Akun Tidak Aktif",
-            description: "Akun Anda saat ini nonaktif. Silakan hubungi admin.",
-        });
-        if (auth.currentUser) auth.signOut();
-        return;
+  React.useEffect(() => {
+    // Reset inputs when role changes
+    setUserId('');
+    setPassword('');
+    // Pre-select 'Pradana01' if admin is chosen
+    if (role === 'admin') {
+      setUserId('Pradana01');
     }
-    
+  }, [role]);
+
+  const handleSuccessfulLogin = (userData: User, selectedStoreId?: string) => {
+    if (userData.status === 'inactive') {
+      toast({
+        variant: 'destructive',
+        title: "Akun Tidak Aktif",
+        description: "Akun Anda saat ini nonaktif. Silakan hubungi admin.",
+      });
+      if (auth.currentUser) auth.signOut();
+      return;
+    }
+
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali, ${userData.name}.`,
     });
 
-    // The store selected on the login page should always be the one the user is sent to.
-    router.push(`/dashboard?view=overview&storeId=${selectedStoreId}&userId=${userData.id}`);
+    // If admin, redirect without storeId for a global view.
+    // If cashier, redirect with the selected storeId.
+    const redirectUrl = userData.role === 'admin'
+      ? `/dashboard?view=overview&userId=${userData.id}`
+      : `/dashboard?view=overview&storeId=${selectedStoreId}&userId=${userData.id}`;
+      
+    router.push(redirectUrl);
   };
-
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!storeId) {
-        toast({
-            variant: "destructive",
-            title: "Toko Belum Dipilih",
-            description: "Silakan pilih toko terlebih dahulu.",
-        });
-        setIsLoading(false);
-        return;
+    if (role === 'cashier' && !storeId) {
+      toast({
+        variant: "destructive",
+        title: "Toko Belum Dipilih",
+        description: "Silakan pilih toko terlebih dahulu.",
+      });
+      setIsLoading(false);
+      return;
     }
 
     try {
-      // Special offline handling for superadmin
-      if (userId === 'Pradana01') {
-          const { users } = await import('@/lib/data');
-          const mockAdmin = users.find(u => u.userId === 'Pradana01');
-          if (mockAdmin && mockAdmin.password === password) {
-              handleSuccessfulLogin({ ...mockAdmin, id: 'admin001' }, storeId); // Use hardcoded ID for mock admin
-          } else {
-              throw new Error("Invalid superadmin credentials");
-          }
-          return; // Stop execution for superadmin
+      if (role === 'admin') {
+        if (userId !== 'Pradana01') {
+            throw new Error("Invalid admin user ID.");
+        }
+        const { users } = await import('@/lib/data');
+        const mockAdmin = users.find(u => u.userId === 'Pradana01');
+        if (mockAdmin && mockAdmin.password === password) {
+          // For admin, we don't pass a storeId to signify global access.
+          handleSuccessfulLogin({ ...mockAdmin, id: 'admin001' });
+        } else {
+          throw new Error("Invalid superadmin credentials");
+        }
+        return;
       }
       
-      // Standard Firebase Auth login for regular users
+      // Standard Firebase Auth login for cashiers
       const email = `${userId}@era5758.co.id`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      const firestoreId = userCredential.user.uid;
-      
-      const userDocRef = doc(db, "users", firestoreId);
       const userDoc = await getDocs(query(collection(db, "users"), where("email", "==", email)));
       
       if (userDoc.empty) {
@@ -101,7 +113,7 @@ export default function LoginPage() {
 
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message === 'Invalid superadmin credentials') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes("Invalid")) {
         description = "Login Gagal: User ID atau Password yang Anda masukkan salah.";
       } else if (error.code === 'auth/operation-not-allowed') {
         description = "Metode login Email/Password belum diaktifkan di Firebase Console."
@@ -123,39 +135,56 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-            <Logo />
+          <Logo />
         </div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
-              Pilih STORE, lalu masukkan User ID dan password Anda.
+              Silakan pilih peran Anda untuk melanjutkan.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="store">Pilih Toko</Label>
-                <Select value={storeId} onValueChange={setStoreId}>
+               <div className="grid gap-2">
+                <Label>Login Sebagai</Label>
+                 <ToggleGroup 
+                    type="single" 
+                    value={role} 
+                    onValueChange={(value: 'admin' | 'cashier') => value && setRole(value)}
+                    className="grid grid-cols-2"
+                 >
+                    <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
+                    <ToggleGroupItem value="cashier">Kasir</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
+              {role === 'cashier' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="store">Pilih Toko</Label>
+                  <Select value={storeId} onValueChange={setStoreId}>
                     <SelectTrigger id="store">
-                        <SelectValue placeholder="Pilih toko..." />
+                      <SelectValue placeholder="Pilih toko..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {stores.map(store => (
-                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                        ))}
+                      {stores.map(store => (
+                        <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                      ))}
                     </SelectContent>
-                </Select>
-              </div>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid gap-2">
                 <Label htmlFor="userId">User ID</Label>
                 <Input
                   id="userId"
                   type="text"
-                  placeholder="e.g., Bekupon...."
+                  placeholder={role === 'admin' ? 'Pradana01' : 'e.g., Bekupon...'}
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
+                  disabled={role === 'admin'}
                 />
               </div>
               <div className="grid gap-2">

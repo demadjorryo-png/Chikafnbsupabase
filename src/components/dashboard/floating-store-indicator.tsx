@@ -12,6 +12,11 @@ export function FloatingStoreIndicator() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId');
   
+  // This component should only render if a storeId is present in the URL (i.e., for cashiers)
+  if (!storeId) {
+    return null;
+  }
+
   const activeStore = stores.find(s => s.id === storeId);
 
   if (!activeStore) {
