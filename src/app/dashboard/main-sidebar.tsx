@@ -36,11 +36,10 @@ import { auth } from '@/lib/firebase';
 
 type MainSidebarProps = {
   currentUser: User | null;
-  activeStore: Store | undefined;
   pradanaTokenBalance: number;
 }
 
-export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: MainSidebarProps) {
+export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
@@ -48,13 +47,6 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
   const userId = searchParams.get('userId'); 
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    // Redirect if essential data is missing
-    if (!userId || !storeId) {
-        router.push('/login');
-    }
-  }, [userId, storeId, router]);
 
   const navigate = (view: string) => {
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);

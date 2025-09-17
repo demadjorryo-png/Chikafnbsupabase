@@ -85,34 +85,23 @@ function DashboardContent() {
         let fetchedUser: User | null = null;
         if (userDocSnap.exists()) {
           fetchedUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-        } else if (userId === 'admin001') {
-           const { users: mockUsers } = await import('@/lib/data');
-           const mockAdmin = mockUsers.find(u => u.userId === 'Pradana01');
-           if(mockAdmin) {
-               fetchedUser = { ...mockAdmin, id: userId };
-           }
         }
         
         if (!fetchedUser) {
-            throw new Error('User not found');
+            // Fallback for mock admin user
+            const { users: mockUsers } = await import('@/lib/data');
+            const mockAdmin = mockUsers.find(u => u.id === userId);
+            if(mockAdmin) {
+               fetchedUser = mockAdmin;
+            } else {
+               throw new Error('User not found');
+            }
         }
         setCurrentUser(fetchedUser);
 
         // Define fetches based on user role
         const isAdmin = fetchedUser.role === 'admin';
-        const storeSpecificQueries = [
-          getDocs(query(collection(db, 'products'), orderBy('name'))),
-          getDocs(query(collection(db, 'customers'), orderBy('name'))),
-          getDocs(query(collection(db, 'transactions'), where('storeId', '==', storeId))),
-          getDocs(query(collection(db, 'pendingOrders'), where('storeId', '==', storeId))),
-        ];
-        const adminQueries = [
-          getDocs(collection(db, 'products')),
-          getDocs(collection(db, 'customers')),
-          getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
-        ];
-
+       
         const [
             storesSnapshot,
             productsSnapshot,
@@ -125,11 +114,11 @@ function DashboardContent() {
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            ...(isAdmin ? adminQueries : storeSpecificQueries.slice(0,1)), // Products
-            ...(isAdmin ? adminQueries.slice(1,2) : storeSpecificQueries.slice(1,2)), // Customers
-            ...(isAdmin ? adminQueries.slice(2,3) : storeSpecificQueries.slice(2,3)), // Transactions
+            getDocs(query(collection(db, 'products'), orderBy('name'))),
+            getDocs(query(collection(db, 'customers'), orderBy('name'))),
+            getDocs(query(collection(db, 'transactions'))),
             getDocs(query(collection(db, 'users'), where("status", "==", "active"))),
-            ...(isAdmin ? adminQueries.slice(3,4) : storeSpecificQueries.slice(3,4)), // Pending Orders
+            getDocs(query(collection(db, 'pendingOrders'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
@@ -145,10 +134,8 @@ function DashboardContent() {
         setTransactions(sortedTransactions);
         
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const combinedUsers = [...firestoreUsers];
-        if (fetchedUser.role === 'admin' && !firestoreUsers.some(u => u.id === fetchedUser.id)) {
-            combinedUsers.push(fetchedUser);
-        }
+        const { users: mockUsersData } = await import('@/lib/data');
+        const combinedUsers = [...firestoreUsers, ...mockUsersData.filter(mu => !firestoreUsers.some(fu => fu.id === mu.id))];
         setUsers(combinedUsers);
 
         // Sort pending orders client-side
@@ -170,7 +157,7 @@ function DashboardContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [userId, storeId, toast]);
+  }, [userId, toast]);
   
   React.useEffect(() => {
     fetchAllData();
@@ -178,7 +165,13 @@ function DashboardContent() {
 
   const activeStore = stores.find(s => s.id === storeId);
 
-  if (!currentUser || isLoading) {
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+  
+  if (!currentUser) {
+    // This can happen if fetching fails or if userId is invalid.
+    // The redirect should be handled by the login page if not authenticated.
     return <DashboardSkeleton />;
   }
 
@@ -186,15 +179,20 @@ function DashboardContent() {
     const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
+    // For non-admin, filter data based on their storeId
+    const userTransactions = isAdmin ? transactions : transactions.filter(t => t.storeId === currentUser.storeId);
+    const userPendingOrders = isAdmin ? pendingOrders : pendingOrders.filter(po => po.storeId === currentUser.storeId);
+
+
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
+      return <Overview storeId={currentUser.storeId} transactions={userTransactions} users={users} customers={customers} pendingOrders={userPendingOrders} onDataChange={fetchAllData} />;
     }
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
+          : <Overview storeId={currentUser.storeId} transactions={userTransactions} users={users} customers={customers} pendingOrders={userPendingOrders} onDataChange={fetchAllData} />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -273,7 +271,7 @@ function DashboardContent() {
 
   return (
     <>
-      <MainSidebar currentUser={currentUser} activeStore={activeStore} pradanaTokenBalance={pradanaTokenBalance} />
+      <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
         <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">

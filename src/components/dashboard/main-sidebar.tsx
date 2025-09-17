@@ -28,10 +28,10 @@ import {
   UserCircle,
 } from 'lucide-react';
 import * as React from 'react';
-import type { User, Store } from '@/lib/types';
-import { Separator } from '../ui/separator';
+import type { User } from '@/lib/types';
+import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
-import { Dialog, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { auth } from '@/lib/firebase';
 
 type MainSidebarProps = {
@@ -47,13 +47,6 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
   const userId = searchParams.get('userId'); 
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    // Redirect if essential data is missing
-    if (!userId || !storeId) {
-        router.push('/login');
-    }
-  }, [userId, storeId, router]);
 
   const navigate = (view: string) => {
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
