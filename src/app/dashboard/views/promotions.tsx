@@ -37,6 +37,16 @@ import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { pointEarningSettings, updatePointEarningSettings } from '@/lib/point-earning-settings';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 
 export default function Promotions() {
@@ -51,6 +61,29 @@ export default function Promotions() {
   const isAdmin = currentUser?.role === 'admin';
 
   const [rpPerPoint, setRpPerPoint] = React.useState(pointEarningSettings.rpPerPoint);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [promotionToDelete, setPromotionToDelete] = React.useState<RedemptionOption | null>(null);
+
+  const handleDeleteClick = (option: RedemptionOption) => {
+    setPromotionToDelete(option);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!promotionToDelete) return;
+    
+    setRedemptionOptions(prev => prev.filter(p => p.id !== promotionToDelete.id));
+
+    toast({
+      title: 'Promosi Dihapus!',
+      description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
+    });
+
+    setIsDeleteDialogOpen(false);
+    setPromotionToDelete(null);
+  };
+
 
   const handleSavePointEarning = () => {
     updatePointEarningSettings({ rpPerPoint });
@@ -129,6 +162,7 @@ export default function Promotions() {
   }
 
   return (
+    <>
     <div className="grid gap-6">
        {isAdmin && (
          <Card>
@@ -263,7 +297,7 @@ export default function Promotions() {
                             <span>{option.isActive ? 'Deactivate' : 'Activate'}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(option)}>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -277,5 +311,26 @@ export default function Promotions() {
         </CardContent>
       </Card>
     </div>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the promotion: <br />
+              <span className="font-bold">"{promotionToDelete?.description}"</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Yes, delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
