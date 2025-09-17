@@ -22,9 +22,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { stores } from '@/lib/data';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+// import { auth, db } from '@/lib/firebase';
+// import { createUserWithEmailAndPassword } from 'firebase/auth';
+// import { doc, setDoc } from 'firebase/firestore';
 
 const FormSchema = z.object({
     userId: z.string().min(4, {
@@ -57,53 +57,16 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
     },
   });
 
-  // NOTE: This is a client-side implementation for demonstration.
-  // In a production app, this should be a secure server-side action.
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
-    try {
-        // This is a simplified example. In a real-world scenario, you'd use a backend
-        // function (like a Firebase Cloud Function) to create users to avoid
-        // exposing sensitive logic on the client.
-        const email = `${data.userId}@bekupon.com`;
-        
-        // Temporarily sign out to create a new user, then sign back in.
-        // This is a workaround for demo purposes. A backend function is the correct approach.
-        const currentUser = auth.currentUser;
+  // NOTE: This is a temporary, client-side only submission for demonstration.
+  // It does not save the employee to any database.
+  function onSubmit(data: z.infer<typeof FormSchema>) {
+      console.log("New Employee Data (Temporary):", data);
 
-        const userCredential = await createUserWithEmailAndPassword(auth, email, data.password);
-        const newUser = userCredential.user;
-
-        // Add employee data to Firestore
-        await setDoc(doc(db, "users", newUser.uid), {
-            name: data.name,
-            role: data.role,
-            storeId: data.storeId
-        });
-        
-        // After creating the user, sign out the new user and log the admin back in.
-        if (currentUser) {
-            await auth.updateCurrentUser(currentUser);
-        } else {
-             await auth.signOut();
-        }
-
-
-        toast({
-            title: 'Employee Added!',
-            description: `${data.name} has been added with User ID ${data.userId}.`,
-        });
-        setDialogOpen(false);
-        // This is a simple way to refresh data on the page.
-        window.location.reload();
-
-    } catch (error: any) {
-        console.error("Error creating employee:", error);
-        toast({
-            variant: "destructive",
-            title: 'Registration Failed',
-            description: error.message || 'Could not create employee. The User ID might already be in use.',
-        });
-    }
+      toast({
+          title: 'Registration Submitted (Temporary)',
+          description: `Data for ${data.name} was logged to the console.`,
+      });
+      setDialogOpen(false);
   }
 
   return (

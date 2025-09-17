@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/dashboard/logo';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { stores } from '@/lib/data';
+import { stores, users } from '@/lib/data';
 import {
   Select,
   SelectContent,
@@ -21,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+// import { signInWithEmailAndPassword } from 'firebase/auth';
+// import { auth } from '@/lib/firebase';
 import * as React from 'react';
 
 export default function LoginPage() {
@@ -53,34 +53,33 @@ export default function LoginPage() {
     }
     
     setIsLoading(true);
-    try {
-      // Behind the scenes, we construct an email from the User ID to use Firebase Auth.
-      // The end-user never sees this.
-      const email = `${userId}@bekupon.com`;
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
 
-      toast({
-        title: 'Login Berhasil!',
-        description: `Selamat datang kembali!`,
-      });
-      
-      router.push(`/dashboard?storeId=${storeId}&userId=${user.uid}`);
+    // --- TEMPORARY STATIC LOGIN ---
+    // This is a temporary login method that checks against static data.
+    // It should be replaced with a secure authentication method like Firebase Auth.
+    setTimeout(() => {
+        const foundUser = users.find(u => u.id === userId); // In this temporary state, user ID is used for lookup
 
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      let description = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        description = 'User ID atau Password yang Anda masukkan salah.';
-      }
-      toast({
-        variant: 'destructive',
-        title: 'Login Gagal',
-        description: description,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+        // NOTE: In a real app, you would NEVER check passwords like this.
+        // This is a placeholder for the user's temporary request.
+        if (foundUser) {
+             toast({
+                title: 'Login Berhasil!',
+                description: `Selamat datang kembali, ${foundUser.name}!`,
+            });
+            // NOTE: Using static user ID for navigation. When re-enabling Firebase Auth, use the UID from the auth object.
+            router.push(`/dashboard?storeId=${storeId}&userId=${foundUser.id}`);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Login Gagal',
+                description: 'User ID atau Password yang Anda masukkan salah.',
+            });
+        }
+        setIsLoading(false);
+    }, 1000);
+    // --- END OF TEMPORARY LOGIN ---
+
   }
 
   return (
