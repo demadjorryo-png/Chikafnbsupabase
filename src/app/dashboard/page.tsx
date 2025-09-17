@@ -18,6 +18,7 @@ import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { stores, users } from '@/lib/data';
 import type { User } from '@/lib/types';
+import AdminOverview from '@/app/dashboard/views/admin-overview';
 
 
 function DashboardContent() {
@@ -29,6 +30,11 @@ function DashboardContent() {
   const currentUser = users.find(u => u.id === userId);
 
   const renderView = () => {
+    // If admin is on overview, show the special admin overview
+    if (view === 'overview' && currentUser?.role === 'admin') {
+      return <AdminOverview />;
+    }
+
     // If a cashier tries to access a view they shouldn't, redirect to overview
     const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
     if (isUnauthorized) {
@@ -59,6 +65,11 @@ function DashboardContent() {
   };
 
   const getTitle = () => {
+    // Adjust title for admin overview
+    if (view === 'overview' && currentUser?.role === 'admin') {
+        return 'Admin Dashboard';
+    }
+
     // Adjust title if cashier tries to access a restricted view
     const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
     if (isUnauthorized) {
@@ -92,7 +103,7 @@ function DashboardContent() {
     <>
       <MainSidebar />
       <SidebarInset>
-        <Header title={getTitle()} storeName={activeStore?.name} />
+        <Header title={getTitle()} storeName={currentUser?.role !== 'admin' ? activeStore?.name : undefined} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {renderView()}
         </main>

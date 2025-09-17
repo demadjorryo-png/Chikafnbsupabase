@@ -45,6 +45,11 @@ export function MainSidebar() {
 
 
   const navigate = (view: string) => {
+    // For admin, overview should point to the admin overview.
+    if (currentUser?.role === 'admin' && view === 'overview') {
+        router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
+        return;
+    }
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
