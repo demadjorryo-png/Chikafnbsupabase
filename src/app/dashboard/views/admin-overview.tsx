@@ -21,14 +21,20 @@ import {
   BarChart,
 } from 'recharts';
 import { stores, transactions, products } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
+import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon } from 'lucide-react';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const chartConfig = {
   revenue: {
@@ -49,6 +55,11 @@ export default function AdminOverview() {
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
+  const [exportDate, setExportDate] = React.useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+  const [exportStore, setExportStore] = React.useState<string>('all');
   const { toast } = useToast();
 
   const { monthlyGrowthData, storeStats, topProducts, worstProducts } = React.useMemo(() => {
@@ -148,6 +159,13 @@ export default function AdminOverview() {
         description: 'Strategi telah ditandai sebagai selesai.',
     });
   };
+
+  const handleExport = () => {
+    toast({
+        title: "Exporting Data (Simulation)",
+        description: `Preparing to export data for ${stores.find(s => s.id === exportStore)?.name || 'All Stores'} from ${format(exportDate?.from!, 'PPP')} to ${format(exportDate?.to!, 'PPP')}.`,
+    })
+  }
 
   return (
     <div className="grid gap-6">
@@ -286,6 +304,74 @@ export default function AdminOverview() {
             </CardContent>
           </Card>
       )}
+
+      <Card>
+        <CardHeader>
+            <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
+            <CardDescription>Unduh data transaksi dalam format CSV untuk analisis lebih lanjut.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="grid gap-2 w-full sm:w-auto">
+                <Label>Pilih Toko</Label>
+                <Select value={exportStore} onValueChange={setExportStore}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Pilih Toko" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Toko</SelectItem>
+                        {stores.map(store => (
+                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid gap-2 w-full sm:w-auto">
+                <Label>Pilih Periode</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full sm:w-[300px] justify-start text-left font-normal",
+                        !exportDate && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {exportDate?.from ? (
+                        exportDate.to ? (
+                            <>
+                            {format(exportDate.from, "LLL dd, y")} -{" "}
+                            {format(exportDate.to, "LLL dd, y")}
+                            </>
+                        ) : (
+                            format(exportDate.from, "LLL dd, y")
+                        )
+                        ) : (
+                        <span>Pick a date</span>
+                        )}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={exportDate?.from}
+                        selected={exportDate}
+                        onSelect={setExportDate}
+                        numberOfMonths={2}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <div className="w-full sm:w-auto self-end">
+                 <Button onClick={handleExport} className="w-full">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export Data
+                </Button>
+            </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
