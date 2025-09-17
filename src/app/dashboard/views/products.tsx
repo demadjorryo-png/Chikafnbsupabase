@@ -264,7 +264,8 @@ export default function Products({ products, stores, userRole, onDataChange, isL
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-center">Total Stock</TableHead>
+                <TableHead className="text-center">Stok Tumpang</TableHead>
+                <TableHead className="text-center">Stok Sawojajar</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                  <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
@@ -276,13 +277,15 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : (
                 filteredProducts.map((product) => {
-                  const totalStock = Object.values(product.stock).reduce((acc, val) => acc + val, 0);
+                  const stockTumpang = product.stock['store_tpg'] || 0;
+                  const stockSawojajar = product.stock['store_swj'] || 0;
                   return (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
@@ -290,10 +293,17 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      {totalStock <= lowStockThreshold ? (
-                        <Badge variant="destructive">Low ({totalStock})</Badge>
+                      {stockTumpang <= lowStockThreshold ? (
+                        <Badge variant="destructive">Low ({stockTumpang})</Badge>
                       ) : (
-                        totalStock
+                        stockTumpang
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {stockSawojajar <= lowStockThreshold ? (
+                        <Badge variant="destructive">Low ({stockSawojajar})</Badge>
+                      ) : (
+                        stockSawojajar
                       )}
                     </TableCell>
                     <TableCell className="text-right">
