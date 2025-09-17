@@ -22,15 +22,15 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { productCategories } from '@/lib/types';
-import type { UserRole } from '@/lib/types';
+import type { UserRole, Store } from '@/lib/types';
 import * as React from 'react';
 import { Loader, ScanBarcode } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
-import { stores } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Separator } from '../ui/separator';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -43,18 +43,21 @@ const FormSchema = z.object({
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
+  // We'll handle stock inputs separately and merge them on submit
 });
 
 type AddProductFormProps = {
   setDialogOpen: (open: boolean) => void;
   userRole: UserRole;
   onProductAdded: () => void;
+  stores: Store[];
 };
 
-export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddProductFormProps) {
+export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores }: AddProductFormProps) {
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [stockLevels, setStockLevels] = React.useState<Record<string, number>>({});
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -66,6 +69,14 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddP
       brand: '',
     },
   });
+
+  const handleStockChange = (storeId: string, value: string) => {
+    const numberValue = Number(value);
+    setStockLevels(prev => ({
+      ...prev,
+      [storeId]: isNaN(numberValue) ? 0 : numberValue,
+    }));
+  };
 
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
@@ -79,16 +90,14 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddP
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
 
-    // If the user is a cashier, set the cost price to be the same as the selling price.
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
 
-    // Create a default stock object with 0 stock for all stores
-    const stock = stores.reduce((acc, store) => {
-        acc[store.id] = 0;
+    // Create the stock object for Firestore, ensuring all stores are included
+    const stockForFirestore = stores.reduce((acc, store) => {
+        acc[store.id] = stockLevels[store.id] || 0;
         return acc;
     }, {} as Record<string, number>);
 
-    // Find a random placeholder image
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
 
 
@@ -99,12 +108,11 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddP
             barcode: data.barcode || '',
             price: data.price,
             costPrice: costPrice,
-            brand: data.brand,
-            stock: stock,
-            supplierId: '', // Default to empty string
+            stock: stockForFirestore,
+            supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
-            attributes: { // Add default attributes based on category or keep them generic
+            attributes: { 
                 brand: data.brand,
             }
         });
@@ -114,7 +122,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddP
             description: `${data.name} telah ditambahkan ke inventaris Anda.`,
         });
 
-        onProductAdded(); // Callback to refresh the product list
+        onProductAdded();
         setDialogOpen(false);
 
     } catch (error) {
@@ -232,6 +240,28 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded }: AddP
                 </FormItem>
             )}
         />
+
+        <Separator />
+        
+        <div className="space-y-2">
+            <FormLabel>Initial Stock</FormLabel>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
+                {stores.map(store => (
+                    <div key={store.id} className="grid gap-2">
+                        <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
+                        <Input
+                            id={`stock-${store.id}`}
+                            type="number"
+                            placeholder="0"
+                            onChange={(e) => handleStockChange(store.id, e.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+                ))}
+            </div>
+        </div>
+
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Add Product

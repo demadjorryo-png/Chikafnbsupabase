@@ -237,7 +237,7 @@ export default function Products() {
                     </span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">
                       Add New Product
@@ -246,7 +246,12 @@ export default function Products() {
                       Add a new product to your inventory.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddProductForm setDialogOpen={setIsAddDialogOpen} userRole={userRole} onProductAdded={handleProductAdded} />
+                  <AddProductForm 
+                    setDialogOpen={setIsAddDialogOpen} 
+                    userRole={userRole} 
+                    onProductAdded={handleProductAdded}
+                    stores={stores}
+                  />
                 </DialogContent>
               </Dialog>
             </div>
