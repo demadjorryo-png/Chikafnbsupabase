@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction, User } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction, User, Store } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -23,6 +23,7 @@ import {
   Printer,
   Plus,
   Gift,
+  Coins,
 } from 'lucide-react';
 import {
   Table,
@@ -60,10 +61,15 @@ import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const TOKEN_FEE_PERCENTAGE = 0.005; // 0.5%
+const MINIMUM_TOKEN_FEE_RP = 500;
+const TOKEN_VALUE_RP = 1000;
+
 type POSProps = {
     products: Product[];
     customers: Customer[];
     users: User[];
+    stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
 };
@@ -91,7 +97,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, users, onDataChange, isLoading }: POSProps) {
+export default function POS({ products, customers, users, stores, onDataChange, isLoading }: POSProps) {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId')!;
   const userId = searchParams.get('userId')!;
@@ -110,6 +116,7 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
   const { toast } = useToast();
   
   const currentStaff = users.find(u => u.id === userId);
+  const currentStore = stores.find(s => s.id === storeId);
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -226,6 +233,9 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  const tokenFeeInRp = Math.max(MINIMUM_TOKEN_FEE_RP, totalAmount * TOKEN_FEE_PERCENTAGE);
+  const tokenCost = tokenFeeInRp / TOKEN_VALUE_RP;
+
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -245,8 +255,8 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
   );
   
   const handleCheckout = async () => {
-    if (cart.length === 0 || !currentStaff) {
-      toast({ variant: 'destructive', title: 'Cart kosong', description: 'Tambahkan produk ke keranjang.' });
+    if (cart.length === 0 || !currentStaff || !currentStore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong atau data staff/toko tidak ditemukan.' });
       return;
     }
     
@@ -257,11 +267,18 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
       
       await runTransaction(db, async (transaction) => {
         // --- READ PHASE ---
-        // 1. Get all product documents from the cart
+        const storeRef = doc(db, 'stores', storeId);
+        const storeDoc = await transaction.get(storeRef);
+        if (!storeDoc.exists()) throw new Error("Store not found.");
+        const currentTokenBalance = storeDoc.data().coinBalance || 0;
+
+        if (currentTokenBalance < tokenCost) {
+            throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Hubungi admin.`);
+        }
+
         const productRefs = cart.map(item => doc(db, "products", item.productId));
         const productDocs = await Promise.all(productRefs.map(ref => transaction.get(ref)));
 
-        // 2. Get customer document if a customer is selected
         let customerRef: DocumentReference<DocumentData> | null = null;
         let customerDoc = null;
         if (selectedCustomer) {
@@ -289,21 +306,21 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
             }
             stockUpdates.push({ ref: productDoc.ref, newStock: newStock });
         }
+        const newStoreTokenBalance = currentTokenBalance - tokenCost;
 
         // --- WRITE PHASE ---
-        // 1. Update product stocks
         for (const update of stockUpdates) {
             transaction.update(update.ref, { [`stock.${storeId}`]: update.newStock });
         }
 
-        // 2. Update customer points
         if (customerDoc && customerRef) {
             const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
             const newPoints = currentPoints + pointsEarned - pointsToRedeem;
             transaction.update(customerRef, { loyaltyPoints: newPoints });
         }
         
-        // 3. Create the new transaction document
+        transaction.update(storeRef, { coinBalance: newStoreTokenBalance });
+
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: storeId,
@@ -321,7 +338,6 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        // Set state outside transaction
         setLastTransaction(finalTransactionData);
       });
 
@@ -614,6 +630,10 @@ export default function POS({ products, customers, users, onDataChange, isLoadin
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Coins className="h-3 w-3" />Biaya Token</span>
+                <span>-{tokenCost.toFixed(2)} Token (Rp {tokenFeeInRp.toLocaleString('id-ID')})</span>
               </div>
             </div>
             

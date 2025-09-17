@@ -107,11 +107,11 @@ Mohon segera diproses. Terima kasih.`;
             <Wallet className="h-5 w-5 text-muted-foreground" />
             <p className="text-sm">Saldo Anda Saat Ini</p>
           </div>
-          <p className="font-mono text-lg font-bold">{currentBalance.toLocaleString()}</p>
+          <p className="font-mono text-lg font-bold">{currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
         </div>
 
         <div className="space-y-2">
-          <Label>Pilih Paket (1 Token = Rp 1.000)</Label>
+          <Label>Pilih Paket (1 Token = Rp {TOKEN_VALUE_RP.toLocaleString('id-ID')})</Label>
           <ToggleGroup
             type="single"
             variant="outline"
