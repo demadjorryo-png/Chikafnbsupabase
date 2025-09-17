@@ -18,7 +18,7 @@ import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import { users as mockUsers, stores } from '@/lib/data'; // Import mock user and store data
+import { stores } from '@/lib/data'; // Import mock user and store data
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { User } from '@/lib/types';
 
@@ -69,34 +69,45 @@ export default function LoginPage() {
         return;
     }
 
-    // Superadmin check against mock data
-    const superAdmin = mockUsers.find(u => u.userId === userId && u.role === 'admin');
-    if (superAdmin && superAdmin.password === password) {
-        handleSuccessfulLogin(superAdmin);
-        setIsLoading(false);
-        return;
-    }
-
-    // Standard Firebase Auth login for other users
+    // Standard Firebase Auth login for all users including superadmin
     try {
       const email = `${userId}@era5758.co.id`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", email));
-      const querySnapshot = await getDocs(q);
+      const firestoreId = userCredential.user.uid;
+      
+      let userData: User | null = null;
+      
+      // Special check if it's the mock superadmin ID
+      if (userId === 'Pradana01') {
+          const { users } = await import('@/lib/data');
+          const mockAdmin = users.find(u => u.userId === 'Pradana01');
+          if (mockAdmin) {
+            // We use the mock admin data but fetched by Auth UID
+             userData = { ...mockAdmin, id: firestoreId };
+          }
+      } else {
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("email", "==", email));
+          const querySnapshot = await getDocs(q);
 
-      if (querySnapshot.empty) {
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            userData = { id: userDoc.id, ...userDoc.data() } as User;
+          }
+      }
+
+
+      if (!userData) {
         if (auth.currentUser) await auth.signOut();
         toast({
             variant: "destructive",
             title: "Login Gagal",
             description: "Data karyawan tidak ditemukan di database.",
         });
+        setIsLoading(false);
         return;
       }
-      const userDoc = querySnapshot.docs[0];
-      const userData = { id: userDoc.id, ...userDoc.data() } as User;
       
       handleSuccessfulLogin(userData);
 

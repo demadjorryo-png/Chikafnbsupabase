@@ -20,15 +20,7 @@ export const transactions: Transaction[] = [];
 export const pendingOrders: PendingOrder[] = [];
 
 
-export const salesData = [
-  { date: 'Mon', revenue: 2350000 },
-  { date: 'Tue', revenue: 1980000 },
-  { date: 'Wed', revenue: 2120000 },
-  { date: 'Thu', revenue: 2870000 },
-  { date: 'Fri', revenue: 3450000 },
-  { date: 'Sat', revenue: 4580000 },
-  { date: 'Sun', revenue: 4100000 },
-];
+export const salesData: { date: string, revenue: number }[] = [];
 
 export const redemptionOptions: RedemptionOption[] = [
   { id: 'redeem001', description: 'Potongan Rp 25.000', pointsRequired: 100, value: 25000, isActive: true },

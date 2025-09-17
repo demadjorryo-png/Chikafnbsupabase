@@ -27,7 +27,7 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { salesData, products, customers, pendingOrders as allPendingOrders, stores, users, transactions } from '@/lib/data';
+import { stores, users as mockUsers } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon } from 'lucide-react';
@@ -44,10 +44,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer, Transaction, User } from '@/lib/types';
+import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 const chartConfig = {
@@ -148,10 +151,49 @@ export default function Overview({ storeId }: { storeId: string }) {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [users, setUsers] = React.useState<User[]>([]);
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
+
+  const fetchData = React.useCallback(async () => {
+    try {
+        const transQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+        const transSnapshot = await getDocs(transQuery);
+        setTransactions(transSnapshot.docs.map(doc => doc.data() as Transaction));
+        
+        const usersQuery = query(collection(db, 'users'));
+        const usersSnapshot = await getDocs(usersQuery);
+        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        // Manually add mock superadmin to the list for display purposes (leaderboard)
+        setUsers([...firestoreUsers, ...mockUsers.filter(u => u.role === 'admin')]);
+
+        const customersQuery = query(collection(db, 'customers'));
+        const customersSnapshot = await getDocs(customersQuery);
+        const customerList = customersSnapshot.docs.map(doc => doc.data() as Customer);
+        const currentMonth = new Date().getMonth();
+        setBirthdayCustomers(customerList.filter(c => new Date(c.birthDate).getMonth() === currentMonth));
+        
+        const pendingQuery = query(collection(db, 'pendingOrders'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'), limit(5));
+        const pendingSnapshot = await getDocs(pendingQuery);
+        setPendingOrders(pendingSnapshot.docs.map(doc => doc.data() as PendingOrder));
+
+    } catch (e) {
+        console.error("Error fetching overview data: ", e);
+        toast({ variant: 'destructive', title: 'Gagal memuat data dashboard' });
+    }
+  }, [storeId, toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
     if (!userId) return { monthlyRevenue: 0, todaysRevenue: 0 };
@@ -177,17 +219,18 @@ export default function Overview({ storeId }: { storeId: string }) {
     const todaysRevenue = todaysTx.reduce((sum, t) => sum + t.totalAmount, 0);
 
     return { monthlyRevenue, todaysRevenue };
-  }, [userId, storeId]);
-
-  const pendingOrders = allPendingOrders.filter(p => p.storeId === storeId);
+  }, [userId, storeId, transactions]);
   
-  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const [birthdayCustomers, setBirthdayCustomers] = React.useState<Customer[]>([]);
-
   const employeeSales = React.useMemo(() => {
     const sales: Record<string, { user: User; totalOmset: number }> = {};
+    const startOfThisMonth = startOfMonth(new Date());
+    const endOfThisMonth = endOfMonth(new Date());
 
-    transactions.forEach(t => {
+    const thisMonthTransactions = transactions.filter(t => 
+        isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth })
+    );
+
+    thisMonthTransactions.forEach(t => {
       const user = users.find(u => u.id === t.staffId);
       if (user) {
         if (!sales[user.id]) {
@@ -198,7 +241,7 @@ export default function Overview({ storeId }: { storeId: string }) {
     });
 
     return Object.values(sales).sort((a, b) => b.totalOmset - a.totalOmset);
-  }, []);
+  }, [transactions, users]);
 
   const weeklySalesData = React.useMemo(() => {
     const today = new Date();
@@ -221,17 +264,8 @@ export default function Overview({ storeId }: { storeId: string }) {
     });
 
     return dailyRevenue;
-  }, [storeId]);
+  }, [storeId, transactions]);
 
-
-  React.useEffect(() => {
-    const currentMonth = new Date().getMonth(); 
-    const filteredCustomers = customers.filter(customer => {
-        const [year, month] = customer.birthDate.split('-').map(Number);
-        return month -1 === currentMonth;
-    });
-    setBirthdayCustomers(filteredCustomers);
-  }, []);
 
   return (
     <div className="grid gap-6">
@@ -276,7 +310,7 @@ export default function Overview({ storeId }: { storeId: string }) {
           <CardContent>
             <div className="text-2xl font-bold">Sabtu</div>
             <p className="text-xs text-muted-foreground">
-              Rata-rata penjualan & traffic tertinggi
+              Berdasarkan data historis
             </p>
           </CardContent>
         </Card>
@@ -286,7 +320,7 @@ export default function Overview({ storeId }: { storeId: string }) {
          <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Papan Peringkat Karyawan
+              Papan Peringkat Karyawan (Bulan Ini)
             </CardTitle>
             <CardDescription>
               Karyawan dengan performa terbaik berdasarkan total penjualan.
