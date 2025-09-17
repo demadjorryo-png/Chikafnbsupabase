@@ -229,9 +229,10 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  // Temporarily disable token cost
   // const tokenFeeInRp = Math.max(feeSettings.minFeeRp, totalAmount * feeSettings.feePercentage);
   // const tokenCost = tokenFeeInRp / feeSettings.tokenValueRp;
-  const tokenCost = 0; // Temporarily disable token cost
+  const tokenCost = 0;
 
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -263,19 +264,14 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
       const newTransactionRef = doc(collection(db, 'transactions'));
       
       await runTransaction(db, async (transaction) => {
-        // Temporarily disable token logic
+        // --- Token Logic Disabled ---
         // const tokenRef = doc(db, 'appSettings', 'pradanaToken');
         // const tokenDoc = await transaction.get(tokenRef);
-        
-        // if (!tokenDoc.exists()) {
-        //     throw new Error("Saldo Pradana Token tidak ditemukan. Silakan lakukan top-up.");
-        // }
-        // const currentTokenBalance = tokenDoc.data().balance || 0;
-
+        // const currentTokenBalance = (tokenDoc.data()?.balance || 0);
         // if (currentTokenBalance < tokenCost) {
-        //     throw new Error(`Pradana Token tidak cukup. Sisa token: ${currentTokenBalance.toFixed(2)}. Dibutuhkan: ${tokenCost.toFixed(2)}. Silakan Top Up.`);
+        //     throw new Error(`Pradana Token tidak cukup. Dibutuhkan: ${tokenCost.toFixed(2)}. Top Up sekarang.`);
         // }
-
+        
         for (const item of cart) {
             if (!item.productId.startsWith('manual-')) {
               const productRef = doc(db, "products", item.productId);
@@ -288,10 +284,12 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
               if (newStock < 0) {
                   throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
               }
+              // Correct way to update a nested field with a dynamic key
               transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
             }
         }
         
+        // --- Token Logic Disabled ---
         // transaction.update(tokenRef, { balance: currentTokenBalance - tokenCost });
 
         if (selectedCustomer) {
