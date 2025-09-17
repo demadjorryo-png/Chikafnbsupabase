@@ -27,11 +27,14 @@ import {
   Receipt,
 } from 'lucide-react';
 import * as React from 'react';
-import { stores, users } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
 import { TopUpDialog } from './top-up-dialog';
 import { Dialog, DialogTrigger } from '../ui/dialog';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export function MainSidebar() {
   const router = useRouter();
@@ -46,14 +49,26 @@ export function MainSidebar() {
 
 
   React.useEffect(() => {
-    // TEMPORARY: Set a default user to bypass auth checks
-    if (userId) {
-        const user = users.find(u => u.id === userId);
-        setCurrentUser(user || null);
-    } else {
-        // Fallback to a default admin if no userId is in URL
-        router.push('/login');
+    const fetchUser = async () => {
+        if (userId) {
+            // Special case for mock superadmin
+            if (userId === 'admin001') {
+                const { users } = await import('@/lib/data');
+                setCurrentUser(users.find(u => u.id === 'admin001') || null);
+            } else {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                } else {
+                    router.push('/login');
+                }
+            }
+        } else {
+            router.push('/login');
+        }
     }
+
+    fetchUser();
 
     if (storeId) {
         const store = stores.find(s => s.id === storeId);
@@ -63,7 +78,6 @@ export function MainSidebar() {
 
 
   const navigate = (view: string) => {
-    // For admin, overview should point to the admin overview.
     if (currentUser?.role === 'admin' && view === 'overview') {
         router.push(`/dashboard?view=overview&storeId=${storeId}&userId=${userId}`);
         return;
@@ -72,7 +86,7 @@ export function MainSidebar() {
   };
 
   const handleLogout = async () => {
-    // Since login is disabled, this will just simulate a logout
+    await auth.signOut();
     router.push('/login');
   };
 

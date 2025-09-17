@@ -5,15 +5,12 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { products, customers } from '@/lib/data';
 import type { Product, Customer, CartItem } from '@/lib/types';
-import Image from 'next/image';
 import {
   Search,
   PlusCircle,
@@ -32,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,27 +43,56 @@ import {
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function PendingOrders() {
   const [pendingList, setPendingList] = React.useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = React.useState<
-    Customer | undefined
-  >(customers[0]);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [manualItemName, setManualItemName] = React.useState('');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const { toast } = useToast();
   
-  // For now, let's assume we are checking stock for the first store
-  const currentStoreId = 'store_tpg';
+  const searchParams = useSearchParams();
+  const currentStoreId = searchParams.get('storeId') || '';
+
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const productsSnapshot = await getDocs(collection(db, 'products'));
+        const customersSnapshot = await getDocs(collection(db, 'customers'));
+        
+        const productList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const customerList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+
+        setProducts(productList);
+        setCustomers(customerList);
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({ variant: 'destructive', title: 'Gagal memuat data' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
     label: c.name,
   }));
   
-  // Filter for products that are out of stock in the current store
   const outOfStockProducts = products.filter((product) => {
     const stockInStore = product.stock[currentStoreId] || 0;
     return stockInStore === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -91,7 +116,7 @@ export default function PendingOrders() {
           productId: product.id,
           productName: product.name,
           quantity: 1,
-          price: product.price, // Price might not be relevant but good to have
+          price: product.price,
         },
       ];
     });
@@ -111,10 +136,10 @@ export default function PendingOrders() {
       productId: manualProductId,
       productName: manualItemName.trim(),
       quantity: 1,
-      price: 0, // Price is 0 for items not in inventory
+      price: 0,
     };
     setPendingList((prevList) => [...prevList, newItem]);
-    setManualItemName(''); // Clear input after adding
+    setManualItemName('');
     toast({
       title: 'Item Manual Ditambahkan',
       description: `${newItem.productName} telah ditambahkan ke daftar tunggu.`,
@@ -140,32 +165,46 @@ export default function PendingOrders() {
     );
   };
 
-  const handleCreatePendingOrder = () => {
+  const handleCreatePendingOrder = async () => {
     if (pendingList.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'List is Empty',
-        description: 'Add products to the list before creating a pending order.',
-      });
+      toast({ variant: 'destructive', title: 'List Kosong', description: 'Tambahkan produk ke daftar tunggu.' });
       return;
     }
     if (!selectedCustomer) {
-      toast({
-        variant: 'destructive',
-        title: 'No Customer Selected',
-        description: 'Please select a customer to create a pending order.',
-      });
+      toast({ variant: 'destructive', title: 'Pelanggan Belum Dipilih', description: 'Pilih pelanggan untuk membuat pesanan tertunda.' });
       return;
     }
-    
-    // In a real app, you would save this to a database.
-    // For now, we just show a toast and clear the list.
-    toast({
-      title: 'Pending Order Created!',
-      description: `A pending order for ${pendingList.length} item(s) has been created for ${selectedCustomer.name}.`,
-    });
-    setPendingList([]);
+
+    try {
+        const batchPromises = pendingList.map(item => {
+            return addDoc(collection(db, 'pendingOrders'), {
+                storeId: currentStoreId,
+                customerId: selectedCustomer.id,
+                customerName: selectedCustomer.name,
+                customerAvatarUrl: selectedCustomer.avatarUrl,
+                productId: item.productId,
+                productName: item.productName,
+                createdAt: new Date().toISOString(),
+            });
+        });
+        
+        await Promise.all(batchPromises);
+
+        toast({
+        title: 'Pesanan Tertunda Dibuat!',
+        description: `Pesanan untuk ${pendingList.length} item telah dibuat untuk ${selectedCustomer.name}.`,
+        });
+        setPendingList([]);
+
+    } catch (error) {
+        console.error("Error creating pending order:", error);
+        toast({ variant: 'destructive', title: 'Gagal Membuat Pesanan', description: 'Terjadi kesalahan saat menyimpan data.' });
+    }
   };
+
+  const handleCustomerAdded = () => {
+      fetchData();
+  }
 
   return (
     <div className="grid flex-1 items-start gap-4 lg:grid-cols-3 xl:grid-cols-5">
@@ -207,7 +246,14 @@ export default function PendingOrders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                {outOfStockProducts.map((product) => (
+                {isLoading ? (
+                    Array.from({length: 10}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : outOfStockProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>
                       <div className="font-medium">{product.name}</div>
@@ -262,7 +308,7 @@ export default function PendingOrders() {
                     <DialogTitle className="font-headline tracking-wider">Register New Member</DialogTitle>
                     <DialogDescription>Add a new customer to the Bekupon community.</DialogDescription>
                   </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} />
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
                 </DialogContent>
               </Dialog>
             </div>

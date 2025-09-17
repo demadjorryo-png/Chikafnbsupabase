@@ -57,7 +57,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, writeBatch, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, runTransaction, DocumentReference, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -92,6 +92,7 @@ export default function POS() {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
 
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -249,7 +250,7 @@ export default function POS() {
   
   const totalAmount = Math.max(0, subtotal - discountAmount);
   
-  const pointsEarned = Math.floor(totalAmount / pointEarningSettings.rpPerPoint);
+  const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -271,94 +272,15 @@ export default function POS() {
   
   const handleCheckout = async () => {
     if (cart.length === 0 || !currentStaff) {
-      toast({ variant: 'destructive', title: 'Cart is Empty', description: 'Add products to cart.' });
+      toast({ variant: 'destructive', title: 'Cart kosong', description: 'Tambahkan produk ke keranjang.' });
       return;
     }
     
-    setIsLoading(true);
+    setIsProcessingCheckout(true);
     
     try {
-      await runTransaction(db, async (transaction) => {
-        const batch = writeBatch(db);
-
-        // 1. Create new transaction document
         const newTransactionRef = doc(collection(db, 'transactions'));
-        const newTransactionData: Omit<Transaction, 'id'> = {
-            storeId: storeId,
-            customerId: selectedCustomer?.id || 'N/A',
-            customerName: selectedCustomer?.name || 'Guest',
-            staffId: currentStaff.id,
-            createdAt: new Date().toISOString(),
-            subtotal: subtotal,
-            discountAmount: discountAmount,
-            totalAmount: totalAmount,
-            paymentMethod: paymentMethod,
-            pointsEarned: pointsEarned,
-            pointsRedeemed: pointsToRedeem,
-            items: cart,
-        };
-        batch.set(newTransactionRef, newTransactionData);
 
-        // 2. Update product stock
-        for (const item of cart) {
-            const productRef = doc(db, "products", item.productId);
-            const productDoc = await transaction.get(productRef);
-            if (!productDoc.exists()) {
-                throw `Produk ${item.productName} tidak ditemukan.`;
-            }
-            const currentStock = productDoc.data().stock[storeId] || 0;
-            const newStock = currentStock - item.quantity;
-            if (newStock < 0) {
-                throw `Stok tidak cukup untuk ${item.productName}.`;
-            }
-            transaction.update(productRef, { [`stock.${storeId}`]: newStock });
-        }
-
-        // 3. Update customer points if a customer is selected
-        if (selectedCustomer) {
-            const customerRef = doc(db, "customers", selectedCustomer.id);
-            const customerDoc = await transaction.get(customerRef);
-             if (!customerDoc.exists()) {
-                throw `Pelanggan ${selectedCustomer.name} tidak ditemukan.`;
-            }
-            const currentPoints = customerDoc.data().loyaltyPoints;
-            const newPoints = currentPoints + pointsEarned - pointsToRedeem;
-            transaction.update(customerRef, { loyaltyPoints: newPoints });
-        }
-        
-        // This is a Firestore transaction, not a write batch. We don't commit it manually.
-        // Let's re-write with transaction.set, transaction.update
-      });
-      
-      // Re-run the transaction logic using the `transaction` object
-       await runTransaction(db, async (fbTransaction) => {
-           // 2. Update product stock
-           for (const item of cart) {
-               const productRef = doc(db, "products", item.productId);
-               const productDoc = await fbTransaction.get(productRef);
-               if (!productDoc.exists()) throw `Produk ${item.productName} tidak ditemukan.`;
-               
-               const currentStock = productDoc.data().stock[storeId] || 0;
-               const newStock = currentStock - item.quantity;
-               if (newStock < 0) throw `Stok tidak cukup untuk ${item.productName}.`;
-
-               fbTransaction.update(productRef, { [`stock.${storeId}`]: newStock });
-           }
-
-           // 3. Update customer points
-           if (selectedCustomer) {
-               const customerRef = doc(db, "customers", selectedCustomer.id);
-               const customerDoc = await fbTransaction.get(customerRef);
-               if (!customerDoc.exists()) throw `Pelanggan ${selectedCustomer.name} tidak ditemukan.`;
-               
-               const currentPoints = customerDoc.data().loyaltyPoints;
-               const newPoints = currentPoints + pointsEarned - pointsToRedeem;
-               fbTransaction.update(customerRef, { loyaltyPoints: newPoints });
-           }
-       });
-
-        // 1. Create new transaction document (outside the stock/points transaction)
-        const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: storeId,
@@ -374,21 +296,49 @@ export default function POS() {
             pointsRedeemed: pointsToRedeem,
             items: cart,
         };
-        await setDoc(newTransactionRef, finalTransactionData);
 
+      await runTransaction(db, async (transaction) => {
+        // 1. Update product stock
+        for (const item of cart) {
+            const productRef = doc(db, "products", item.productId);
+            const productDoc = await transaction.get(productRef);
+            if (!productDoc.exists()) throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+            
+            const currentStock = productDoc.data().stock[storeId] || 0;
+            const newStock = currentStock - item.quantity;
+            if (newStock < 0) throw new Error(`Stok tidak cukup untuk ${item.productName}.`);
 
-        toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
-        setLastTransaction(finalTransactionData);
-        setCart([]);
-        setDiscountValue(0);
-        setPointsToRedeem(0);
-        fetchInitialData(); // Refresh data
+            transaction.update(productRef, { [`stock.${storeId}`]: newStock });
+        }
+
+        // 2. Update customer points
+        if (selectedCustomer) {
+            const customerRef = doc(db, "customers", selectedCustomer.id);
+            const customerDoc = await transaction.get(customerRef);
+            if (!customerDoc.exists()) throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
+            
+            const currentPoints = customerDoc.data().loyaltyPoints;
+            const newPoints = currentPoints + pointsEarned - pointsToRedeem;
+            transaction.update(customerRef, { loyaltyPoints: newPoints });
+        }
+
+        // 3. Create the new transaction document
+        transaction.set(newTransactionRef, finalTransactionData);
+      });
+
+      toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      setLastTransaction(finalTransactionData);
+      setCart([]);
+      setDiscountValue(0);
+      setPointsToRedeem(0);
+      setSelectedCustomer(undefined);
+      fetchInitialData(); 
 
     } catch (error) {
-        console.error("Checkout failed:", error);
-        toast({ variant: 'destructive', title: 'Checkout Gagal', description: String(error) });
+      console.error("Checkout failed:", error);
+      toast({ variant: 'destructive', title: 'Checkout Gagal', description: String(error) });
     } finally {
-        setIsLoading(false);
+      setIsProcessingCheckout(false);
     }
   }
 
@@ -439,7 +389,16 @@ export default function POS() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.map((product) => {
+                  {isLoading ? (
+                    Array.from({length: 10}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                        </TableRow>
+                    ))
+                  ) : filteredProducts.map((product) => {
                     const stockInStore = product.stock[storeId] || 0;
                     const isOutOfStock = stockInStore === 0;
                     return (
@@ -673,7 +632,7 @@ export default function POS() {
                 <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Card</Button>
                 <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
-             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isLoading}>Checkout</Button>
+             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
           </CardContent>
         </Card>
       </div>

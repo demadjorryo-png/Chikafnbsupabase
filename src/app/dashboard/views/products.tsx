@@ -16,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { users } from '@/lib/data';
 import type { Product, User, Store } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -43,7 +42,7 @@ import {
 import { AddProductForm } from '@/components/dashboard/add-product-form';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
@@ -90,12 +89,28 @@ export default function Products() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [stores, setStores] = React.useState<Store[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [userRole, setUserRole] = React.useState<User['role']>('cashier');
   const { toast } = useToast();
 
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
-  const currentUser = users.find(u => u.id === userId); // This will need to be updated with Firestore user
-  const userRole = currentUser?.role || 'cashier';
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+        if(userId) {
+             if (userId === 'admin001') { // Superadmin case
+                setUserRole('admin');
+            } else {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    setUserRole(userDoc.data().role);
+                }
+            }
+        }
+    };
+    fetchUserData();
+  }, [userId]);
+
 
   const fetchProductsAndStores = React.useCallback(async () => {
     setIsLoading(true);
