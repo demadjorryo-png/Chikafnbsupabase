@@ -117,13 +117,11 @@ function DashboardContent() {
         
         // Now fetch store-dependent data
         let productsPromise;
-        if (isAdmin) {
-            // For admin, we might not need to load any specific product list on the overview
-            // Or we could load from a default store, e.g., Tumpang
-            const productCollectionName = `products_tpg`;
-            productsPromise = getDocs(query(collection(db, productCollectionName), orderBy('name')));
-        } else if (storeId) {
-            const productCollectionName = `products_${storeId.replace('store_', '')}`;
+        
+        const targetStoreId = storeId || (isAdmin ? 'store_tpg' : null);
+
+        if (targetStoreId) {
+            const productCollectionName = `products_${targetStoreId.replace('store_', '')}`;
             productsPromise = getDocs(query(collection(db, productCollectionName), orderBy('name')));
         } else {
             // Handle cashier without storeId (should not happen with new login flow)
@@ -174,9 +172,9 @@ function DashboardContent() {
     fetchAllData();
   }, [fetchAllData]);
 
-  const activeStore = storeId ? stores.find(s => s.id === storeId) : undefined;
   const isAdmin = currentUser?.role === 'admin';
-
+  const activeStore = storeId ? stores.find(s => s.id === storeId) : (isAdmin ? stores[0] : undefined);
+  
   if (isLoading) {
     return <DashboardSkeleton />;
   }
