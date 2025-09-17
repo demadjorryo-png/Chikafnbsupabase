@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, User, Store } from '@/lib/types';
+import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,9 @@ export default function Products() {
   const [userRole, setUserRole] = React.useState<User['role']>('cashier');
   const { toast } = useToast();
 
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
+
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
 
@@ -147,6 +151,29 @@ export default function Products() {
   const handleProductAdded = () => {
     fetchProductsAndStores(); // Re-fetch data when a product is added
   }
+  
+  const handleCategoryFilterChange = (category: ProductCategory) => {
+    setSelectedCategories(prev => {
+        const newCategories = new Set(prev);
+        if (newCategories.has(category)) {
+            newCategories.delete(category);
+        } else {
+            newCategories.add(category);
+        }
+        return newCategories;
+    });
+  };
+
+  const availableCategories = React.useMemo(() => {
+    const categories = new Set(products.map(p => p.category));
+    return Array.from(categories).sort();
+  }, [products]);
+  
+  const filteredProducts = products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
+      return matchesSearch && matchesCategory;
+  });
 
 
   return (
@@ -167,11 +194,13 @@ export default function Products() {
                   type="search"
                   placeholder="Search products..."
                   className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <Button variant="outline" size="sm" className="h-10 gap-1">
                     <ListFilter className="h-3.5 w-3.5" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                       Filter
@@ -181,13 +210,19 @@ export default function Products() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Filter by category</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem checked>Liquid</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Device</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Atomizer</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Accessories</DropdownMenuCheckboxItem>
+                  {availableCategories.map(category => (
+                    <DropdownMenuCheckboxItem 
+                        key={category}
+                        checked={selectedCategories.has(category)}
+                        onSelect={(e) => e.preventDefault()} // prevent menu from closing
+                        onClick={() => handleCategoryFilterChange(category)}
+                    >
+                        {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button size="sm" variant="outline" className="h-8 gap-1">
+              <Button size="sm" variant="outline" className="h-10 gap-1">
                 <File className="h-3.5 w-3.5" />
                 <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                   Export
@@ -195,7 +230,7 @@ export default function Products() {
               </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-8 gap-1">
+                  <Button size="sm" className="h-10 gap-1">
                     <PlusCircle className="h-3.5 w-3.5" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                       Add Product
@@ -240,7 +275,7 @@ export default function Products() {
                   </TableRow>
                 ))
               ) : (
-                products.map((product) => {
+                filteredProducts.map((product) => {
                   const totalStock = Object.values(product.stock).reduce((acc, val) => acc + val, 0);
                   return (
                   <TableRow key={product.id}>
