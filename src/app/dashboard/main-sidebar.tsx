@@ -68,7 +68,7 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
-      roles: ['admin', 'cashier'],
+      roles: ['cashier'],
     },
     {
       view: 'products',
