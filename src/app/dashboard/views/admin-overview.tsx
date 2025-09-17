@@ -133,10 +133,10 @@ export default function AdminOverview() {
     const sortedProductsThisMonth = calculateProductSales(thisMonthTransactions);
     const sortedProductsLastMonth = calculateProductSales(lastMonthTransactions);
 
-    const topThisMonth = sortedProductsThisMonth.slice(0, 3).map(([name]) => name);
-    const worstThisMonth = sortedProductsThisMonth.slice(-3).map(([name]) => name);
-    const topLastMonth = sortedProductsLastMonth.slice(0, 3).map(([name]) => name);
-    const worstLastMonth = sortedProductsLastMonth.slice(-3).map(([name]) => name);
+    const topThisMonth = sortedProductsThisMonth.slice(0, 3);
+    const worstThisMonth = sortedProductsThisMonth.slice(-3).reverse();
+    const topLastMonth = sortedProductsLastMonth.slice(0, 3);
+    const worstLastMonth = sortedProductsLastMonth.slice(-3).reverse();
 
     return {
       monthlyGrowthData: monthlyData,
@@ -155,8 +155,8 @@ export default function AdminOverview() {
         const result = await getAdminRecommendations({
             totalRevenueLastWeek: 5000000, // Dummy data for now
             totalRevenueLastMonth: 20000000, // Dummy data for now
-            topSellingProducts: topProductsThisMonth,
-            worstSellingProducts: worstProductsThisMonth,
+            topSellingProducts: topProductsThisMonth.map(([name]) => name),
+            worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
         });
         setRecommendations(result);
     } catch (error) {
@@ -259,11 +259,14 @@ export default function AdminOverview() {
                 <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
             </CardHeader>
             <CardContent>
-                <ol className="list-decimal list-inside space-y-2">
-                    {topProductsThisMonth.map((product, index) => (
-                        <li key={index} className="text-sm font-medium">{product}</li>
+                <ul className="space-y-2">
+                    {topProductsThisMonth.map(([name, quantity], index) => (
+                        <li key={index} className="flex justify-between text-sm font-medium">
+                            <span>{index + 1}. {name}</span>
+                            <span className="font-mono">{quantity}x</span>
+                        </li>
                     ))}
-                </ol>
+                </ul>
             </CardContent>
         </Card>
          <Card>
@@ -272,11 +275,14 @@ export default function AdminOverview() {
                 <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
             </CardHeader>
             <CardContent>
-                <ol className="list-decimal list-inside space-y-2">
-                    {worstProductsThisMonth.map((product, index) => (
-                        <li key={index} className="text-sm font-medium">{product}</li>
+                <ul className="space-y-2">
+                    {worstProductsThisMonth.map(([name, quantity], index) => (
+                        <li key={index} className="flex justify-between text-sm font-medium">
+                            <span>{index + 1}. {name}</span>
+                            <span className="font-mono">{quantity}x</span>
+                        </li>
                     ))}
-                </ol>
+                </ul>
             </CardContent>
         </Card>
          <Card>
@@ -285,11 +291,14 @@ export default function AdminOverview() {
                 <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
             </CardHeader>
             <CardContent>
-                <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                    {topProductsLastMonth.map((product, index) => (
-                        <li key={index} className="text-sm font-medium">{product}</li>
+                <ul className="space-y-2 text-muted-foreground">
+                    {topProductsLastMonth.map(([name, quantity], index) => (
+                        <li key={index} className="flex justify-between text-sm font-medium">
+                           <span>{index + 1}. {name}</span>
+                           <span className="font-mono">{quantity}x</span>
+                        </li>
                     ))}
-                </ol>
+                </ul>
             </CardContent>
         </Card>
          <Card>
@@ -298,11 +307,14 @@ export default function AdminOverview() {
                 <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
             </CardHeader>
             <CardContent>
-                <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                    {worstProductsLastMonth.map((product, index) => (
-                        <li key={index} className="text-sm font-medium">{product}</li>
+                <ul className="space-y-2 text-muted-foreground">
+                    {worstProductsLastMonth.map(([name, quantity], index) => (
+                        <li key={index} className="flex justify-between text-sm font-medium">
+                            <span>{index + 1}. {name}</span>
+                            <span className="font-mono">{quantity}x</span>
+                        </li>
                     ))}
-                </ol>
+                </ul>
             </CardContent>
         </Card>
       </div>
