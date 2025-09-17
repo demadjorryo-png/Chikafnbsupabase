@@ -247,9 +247,13 @@ export default function POS({ products, customers, currentUser, activeStore, onD
   );
   
   const handleCheckout = async () => {
-    if (cart.length === 0 || !currentUser || !activeStore) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong atau data staff/toko tidak ditemukan.' });
+    if (cart.length === 0) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong.' });
       return;
+    }
+    if (!currentUser || !activeStore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Data staff atau toko tidak ditemukan.' });
+        return;
     }
     
     setIsProcessingCheckout(true);
@@ -262,6 +266,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
         // --- Token Logic Disabled ---
         
         for (const item of cart) {
+            // Skip stock check for manual items
             if (item.productId.startsWith('manual-')) {
                 continue;
             }

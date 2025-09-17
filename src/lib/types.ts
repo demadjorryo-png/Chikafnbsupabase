@@ -1,3 +1,5 @@
+'use client';
+
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
 // Pastikan untuk mengapitnya dengan tanda kutip tunggal (') dan menambahkan koma di akhir.
 // Contoh: 'Liquid Freebase', 'Liquid Saltnic', 'Kategori Baru',
