@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,8 +30,6 @@ import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Separator } from '../ui/separator';
-import { Label } from '../ui/label';
 
 const FormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -39,7 +38,6 @@ const FormSchema = z.object({
   price: z.coerce.number().min(0, "Price is required"),
   costPrice: z.coerce.number().min(0).optional(),
   brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
-  stock: z.record(z.coerce.number().min(0, "Stock can't be negative.")),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -66,10 +64,6 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
       costPrice: product.costPrice,
       brand: product.attributes.brand,
       category: product.category,
-      stock: stores.reduce((acc, store) => {
-        acc[store.id] = product.stock[store.id] || 0;
-        return acc;
-      }, {} as Record<string, number>),
     },
   });
 
@@ -93,7 +87,6 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
             barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
-            stock: data.stock,
             'attributes.brand': data.brand,
         });
         
@@ -222,32 +215,6 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
               )}
           />
           
-          <Separator />
-          <div className="space-y-2">
-              <Label>Stock Levels</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
-                  {stores.map((store) => (
-                    <FormField
-                        key={store.id}
-                        control={form.control}
-                        name={`stock.${store.id}`}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-sm font-normal">{store.name}</FormLabel>
-                                <FormControl>
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                  ))}
-              </div>
-          </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes

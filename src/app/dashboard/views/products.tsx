@@ -57,6 +57,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { StockAdjustmentCard } from '@/components/dashboard/stock-adjustment-card';
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; stores: Store[] }) {
     if (!product) return null;
@@ -81,7 +82,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
                      <ul className="list-disc pl-5 mt-1 space-y-1">
                        {Object.entries(product.stock).map(([storeId, qty]) => {
                          const store = stores.find(s => s.id === storeId);
-                         return <li key={storeId}>{store ? store.name : storeId}: {qty}</li>
+                         return <li key={storeId}>{(store ? store.name : storeId)}: {qty}</li>
                        })}
                      </ul>
                    </div>
@@ -227,6 +228,15 @@ export default function Products() {
 
   return (
     <>
+    <div className="grid gap-6">
+
+      <StockAdjustmentCard 
+        products={products}
+        stores={stores}
+        onStockUpdated={handleDataUpdate}
+        isLoading={isLoading}
+      />
+      
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
@@ -372,6 +382,7 @@ export default function Products() {
           </Table>
         </CardContent>
       </Card>
+      </div>
       
       {selectedProduct && (
         <ProductDetailsDialog
