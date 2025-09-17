@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { productCategories } from '@/lib/types';
+import { productCategories, UserRole } from '@/lib/types';
 import * as React from 'react';
 import { ScanBarcode } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
@@ -35,7 +35,7 @@ const FormSchema = z.object({
   barcode: z.string().optional(),
   stock: z.coerce.number().int().min(0),
   price: z.coerce.number().min(0),
-  costPrice: z.coerce.number().min(0),
+  costPrice: z.coerce.number().min(0).optional(),
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
@@ -43,9 +43,10 @@ const FormSchema = z.object({
 
 type AddProductFormProps = {
   setDialogOpen: (open: boolean) => void;
+  userRole: UserRole;
 };
 
-export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
+export function AddProductForm({ setDialogOpen, userRole }: AddProductFormProps) {
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
 
@@ -71,10 +72,16 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
   };
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log(data);
+    const finalData = { ...data };
+    // If the user is a cashier, set the cost price to be the same as the selling price.
+    if (userRole === 'cashier') {
+      finalData.costPrice = finalData.price;
+    }
+    
+    console.log(finalData);
     toast({
       title: 'Product Added!',
-      description: `${data.name} has been added to your inventory.`,
+      description: `${finalData.name} has been added to your inventory.`,
     });
     setDialogOpen(false);
   }
@@ -166,19 +173,21 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
               </FormItem>
             )}
           />
-           <FormField
-            control={form.control}
-            name="costPrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cost Price (Rp)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+           {userRole === 'admin' && (
+            <FormField
+              control={form.control}
+              name="costPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cost Price (Rp)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           </div>
           <FormField
             control={form.control}

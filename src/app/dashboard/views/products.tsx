@@ -16,8 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { products, stores } from '@/lib/data';
-import type { Product } from '@/lib/types';
+import { products, stores, users } from '@/lib/data';
+import type { Product, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -41,8 +41,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddProductForm } from '@/components/dashboard/add-product-form';
+import { useSearchParams } from 'next/navigation';
 
-function ProductDetailsDialog({ product, open, onOpenChange }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role'] }) {
     if (!product) return null;
 
     return (
@@ -68,7 +69,7 @@ function ProductDetailsDialog({ product, open, onOpenChange }: { product: Produc
                        ))}
                      </ul>
                    </div>
-                   <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>
+                   {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
                    <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                 </div>
             </DialogContent>
@@ -81,6 +82,11 @@ export default function Products() {
   const lowStockThreshold = 10;
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
+  
+  const searchParams = useSearchParams();
+  const userId = searchParams.get('userId');
+  const currentUser = users.find(u => u.id === userId);
+  const userRole = currentUser?.role || 'cashier';
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
@@ -149,7 +155,7 @@ export default function Products() {
                       Add a new product to your inventory.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddProductForm setDialogOpen={setIsAddDialogOpen} />
+                  <AddProductForm setDialogOpen={setIsAddDialogOpen} userRole={userRole} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -214,6 +220,7 @@ export default function Products() {
           product={selectedProduct}
           open={!!selectedProduct}
           onOpenChange={() => setSelectedProduct(null)}
+          userRole={userRole}
         />
        )}
     </>
