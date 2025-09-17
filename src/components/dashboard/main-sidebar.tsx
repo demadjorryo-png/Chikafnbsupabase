@@ -150,30 +150,28 @@ export function MainSidebar({ currentUser, activeStore, pradanaTokenBalance }: M
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
         <Logo />
-        {activeStore && (
-            <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
-                <Separator className="mb-2 bg-sidebar-border" />
-                 <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
-                    {isAdmin ? (
-                        <DialogTrigger asChild>
-                            <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
-                                {tokenDisplay}
-                            </div>
-                        </DialogTrigger>
-                    ) : (
-                        <div className="p-1">
+        <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
+            <Separator className="mb-2 bg-sidebar-border" />
+              <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
+                {isAdmin ? (
+                    <DialogTrigger asChild>
+                        <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
                             {tokenDisplay}
                         </div>
-                    )}
-                    <TopUpDialog 
-                        storeName={activeStore.name} 
-                        currentBalance={pradanaTokenBalance}
-                        setDialogOpen={setIsTopUpOpen} 
-                    />
-                 </Dialog>
-                 <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
-            </div>
-        )}
+                    </DialogTrigger>
+                ) : (
+                    <div className="p-1">
+                        {tokenDisplay}
+                    </div>
+                )}
+                <TopUpDialog 
+                    storeName={activeStore?.name || 'Bekupon Vape Store'} 
+                    currentBalance={pradanaTokenBalance}
+                    setDialogOpen={setIsTopUpOpen} 
+                />
+              </Dialog>
+              <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
