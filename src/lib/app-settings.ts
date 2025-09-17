@@ -50,3 +50,22 @@ export async function getPradanaTokenBalance(): Promise<number> {
         return 0;
     }
 }
+
+export async function updatePradanaTokenBalance(amount: number) {
+    const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
+    try {
+        // Use increment to handle concurrent updates safely.
+        // `amount` should be negative for deductions.
+        await updateDoc(tokenDocRef, {
+            balance: increment(amount)
+        });
+    } catch (error: any) {
+        // If the document doesn't exist, create it.
+        if (error.code === 'not-found') {
+            await setDoc(tokenDocRef, { balance: amount });
+        } else {
+            // Re-throw other errors
+            throw error;
+        }
+    }
+}
