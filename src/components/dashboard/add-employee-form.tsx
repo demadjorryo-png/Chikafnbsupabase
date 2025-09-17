@@ -26,7 +26,7 @@ import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import * as React from 'react';
-import { Loader } from 'lucide-react';
+import { Eye, EyeOff, Loader } from 'lucide-react';
 
 const FormSchema = z.object({
     userId: z.string().min(4, {
@@ -51,6 +51,8 @@ type AddEmployeeFormProps = {
 export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -184,9 +186,20 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input placeholder="••••••••" type="password" {...field} />
-              </FormControl>
+              <div className="relative">
+                <FormControl>
+                  <Input placeholder="••••••••" type={showPassword ? 'text' : 'password'} {...field} />
+                </FormControl>
+                <Button 
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
