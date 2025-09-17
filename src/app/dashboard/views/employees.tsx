@@ -53,16 +53,11 @@ export default function Employees() {
     const fetchUsers = async () => {
       setIsLoading(true);
       const usersRef = collection(db, 'users');
-      // Exclude the superadmin from the Firestore query to avoid duplicates
-      const q = query(usersRef, where("userId", "!=", "Pradana01"));
+      const q = query(usersRef);
       const querySnapshot = await getDocs(q);
       const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       
-      // Combine mock superadmin with firestore users
-      const superAdmin = mockUsers.find(u => u.userId === 'Pradana01');
-      const allUsers = superAdmin ? [superAdmin, ...firestoreUsers] : firestoreUsers;
-
-      setUsers(allUsers);
+      setUsers(firestoreUsers);
       setIsLoading(false);
     };
 
