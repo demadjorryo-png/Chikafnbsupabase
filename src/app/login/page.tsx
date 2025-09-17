@@ -18,6 +18,7 @@ import { Loader } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
+import { users } from '@/lib/data'; // Import mock user data
 
 export default function LoginPage() {
   const [userId, setUserId] = React.useState('');
@@ -26,27 +27,45 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSuccessfulLogin = async (authUser: FirebaseAuthUser) => {
-    // After any successful Firebase Auth login, find the user doc in Firestore
+  const handleSuccessfulLogin = async (authUser: FirebaseAuthUser | (Omit<FirebaseAuthUser, 'uid'> & {uid: string, name?: string, storeId?: string})) => {
+    // After any successful login, find the user doc in Firestore or mock
+    const userEmail = authUser.email;
+    if (!userEmail) {
+        toast({
+            variant: "destructive",
+            title: "Login Gagal",
+            description: "Email pengguna tidak ditemukan.",
+        });
+        return;
+    }
+    
+    // Find in mock data first for superadmin
+    const mockUser = users.find(u => u.email === userEmail);
+    if(mockUser) {
+         toast({
+          title: 'Login Berhasil!',
+          description: `Selamat datang kembali, ${mockUser.name}.`,
+        });
+        router.push(`/dashboard?view=overview&storeId=${mockUser.storeId}&userId=${mockUser.id}`);
+        return;
+    }
+    
+    // Then check firestore for other users
     const usersRef = collection(db, "users");
-    // In our system, the user's email in Auth is derived from their unique userId
-    const q = query(usersRef, where("email", "==", authUser.email));
+    const q = query(usersRef, where("email", "==", userEmail));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-      // This case should be rare if user creation is handled correctly,
-      // but it's good practice to handle it.
-      await auth.signOut(); // Sign them out from Firebase Auth
+      if (auth.currentUser) await auth.signOut();
       toast({
         variant: "destructive",
         title: "Login Gagal",
-        description: "Data karyawan tidak ditemukan. Hubungi admin.",
+        description: "Data karyawan tidak ditemukan di database.",
       });
       return;
     }
 
     const userDoc = querySnapshot.docs[0];
-    // We use the Firestore document ID as the canonical userId in the app
     const userData = { id: userDoc.id, ...userDoc.data() };
     
     toast({
@@ -60,6 +79,20 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    // Superadmin check against mock data
+    const superAdmin = users.find(u => u.userId === userId && u.role === 'admin');
+    if (superAdmin && superAdmin.password === password) {
+        await handleSuccessfulLogin({
+            uid: superAdmin.id,
+            email: superAdmin.email!,
+            name: superAdmin.name,
+            storeId: superAdmin.storeId
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    // Standard Firebase Auth login for other users
     try {
       const email = `${userId}@bekupon.com`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -68,6 +101,8 @@ export default function LoginPage() {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
         description = "Login Gagal: User ID atau Password yang Anda masukkan salah.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        description = "Metode login Email/Password belum diaktifkan di Firebase Console."
       }
       console.error("Login Error:", error);
       toast({
