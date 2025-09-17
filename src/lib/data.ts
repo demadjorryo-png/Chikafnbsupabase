@@ -8,15 +8,9 @@ export const stores: Store[] = [
     { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang', coinBalance: 75 },
 ];
 
-// This is now just for reference. Actual users are managed by Firebase Auth.
+// Superadmin data is kept for login purposes. Other users are managed in Firebase.
 export const users: User[] = [
     { id: 'admin001', name: 'Rio Pradana', role: 'admin', storeId: 'store_tpg', userId: 'Pradana01', password: 'Mangankabel1$', email: 'rioyulipradana@gmail.com' },
-    { id: 'admin002', name: 'Admin Cabang', role: 'admin', storeId: 'store_swj' },
-    { id: 'kasir001', name: 'Chika Kasir', role: 'cashier', storeId: 'store_tpg', userId: 'kasir001', password: 'password' },
-    { id: 'kasir002', name: 'Bambang Kasir', role: 'cashier', storeId: 'store_tpg' },
-    { id: 'kasir003', name: 'Siti Kasir', role: 'cashier', storeId: 'store_swj' },
-    { id: 'kasir004', name: 'Asep Kasir', role: 'cashier', storeId: 'store_swj' },
-    { id: 'kasir005', name: 'Joko Kasir', role: 'cashier', storeId: 'store_swj' },
 ];
 
 
