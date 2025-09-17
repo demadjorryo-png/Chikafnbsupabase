@@ -205,10 +205,10 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   });
 
   const getStockColorClass = (stock: number): string => {
-    if (stock < 3) return 'text-destructive'; // red
-    if (stock < 10) return 'text-yellow-500'; // yellow
-    if (stock < 20) return ''; // white (default)
-    return 'text-green-600'; // green
+    if (stock < 3) return 'text-destructive';
+    if (stock < 10) return 'text-yellow-500';
+    if (stock < 20) return '';
+    return 'text-green-600';
   };
 
 
@@ -329,54 +329,66 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                           <Button 
-                             size="icon" 
-                             variant="ghost" 
-                             className="h-6 w-6" 
-                             onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, -1)}
-                             disabled={updatingStock === `${product.id}_store_tpg`}
-                           >
-                            <Minus className="h-4 w-4" />
-                           </Button>
-                           <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
-                             {updatingStock === `${product.id}_store_tpg` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockTumpang}
-                           </span>
-                           <Button 
-                             size="icon" 
-                             variant="ghost" 
-                             className="h-6 w-6"
-                             onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, 1)}
-                             disabled={updatingStock === `${product.id}_store_tpg`}
-                           >
-                            <Plus className="h-4 w-4" />
-                           </Button>
-                        </div>
+                        {userRole === 'admin' ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6" 
+                              onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, -1)}
+                              disabled={updatingStock === `${product.id}_store_tpg`}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
+                              {updatingStock === `${product.id}_store_tpg` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockTumpang}
+                            </span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => handleStockChange(product.id, 'store_tpg', stockTumpang, 1)}
+                              disabled={updatingStock === `${product.id}_store_tpg`}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className={`w-8 font-mono ${getStockColorClass(stockTumpang)}`}>
+                            {stockTumpang}
+                          </span>
+                        )}
                     </TableCell>
                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                           <Button 
-                             size="icon" 
-                             variant="ghost" 
-                             className="h-6 w-6"
-                             onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, -1)}
-                             disabled={updatingStock === `${product.id}_store_swj`}
-                           >
-                            <Minus className="h-4 w-4" />
-                           </Button>
+                        {userRole === 'admin' ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, -1)}
+                              disabled={updatingStock === `${product.id}_store_swj`}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className={`w-8 font-mono ${getStockColorClass(stockSawojajar)}`}>
+                              {updatingStock === `${product.id}_store_swj` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockSawojajar}
+                            </span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, 1)}
+                              disabled={updatingStock === `${product.id}_store_swj`}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
                            <span className={`w-8 font-mono ${getStockColorClass(stockSawojajar)}`}>
-                             {updatingStock === `${product.id}_store_swj` ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : stockSawojajar}
+                             {stockSawojajar}
                            </span>
-                           <Button 
-                             size="icon" 
-                             variant="ghost" 
-                             className="h-6 w-6"
-                             onClick={() => handleStockChange(product.id, 'store_swj', stockSawojajar, 1)}
-                             disabled={updatingStock === `${product.id}_store_swj`}
-                           >
-                            <Plus className="h-4 w-4" />
-                           </Button>
-                        </div>
+                        )}
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
