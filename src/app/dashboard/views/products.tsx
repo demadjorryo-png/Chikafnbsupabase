@@ -111,14 +111,14 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   // Admin state for store selection
   const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>('');
   const isAdmin = userRole === 'admin';
+  
   // Use admin's selection if admin, otherwise use the prop for cashier
   const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
   
   const currentStore = React.useMemo(() => {
-    // If we're admin and no store is selected yet, but stores are loaded, default to the first one.
+    // If admin and no store selected, default to the first one.
     if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
-        setAdminSelectedStoreId(stores[0].id);
-        return stores[0];
+      return stores[0];
     }
     return stores.find(s => s.id === currentStoreId);
   }, [stores, currentStoreId, isAdmin, adminSelectedStoreId]);
@@ -216,7 +216,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
     // If admin, filter allProducts by the selected storeId.
     // If cashier, allProducts is already pre-filtered, so just use it.
     const productsForCurrentStore = isAdmin
-      ? allProducts.filter(p => p.storeId === currentStoreId)
+      ? allProducts.filter(p => 'storeId' in p && p.storeId === currentStoreId)
       : allProducts;
 
     // Apply search and category filters to the determined list of products
@@ -429,14 +429,15 @@ export default function Products({ products: allProducts, stores, userRole, onDa
         </Card>
         </main>
       </div>
+      
       {selectedProduct && currentStore && (
-          <ProductDetailsDialog
-              product={selectedProduct}
-              open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
-              onOpenChange={() => setSelectedProduct(null)}
-              userRole={userRole}
-              storeName={currentStore.name}
-          />
+        <ProductDetailsDialog
+          product={selectedProduct}
+          open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
+          onOpenChange={() => setSelectedProduct(null)}
+          userRole={userRole}
+          storeName={currentStore.name}
+        />
       )}
   
       {selectedProduct && isEditDialogOpen && currentStore && (
