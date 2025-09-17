@@ -22,7 +22,7 @@ import {
 } from 'recharts';
 import { stores, transactions, products } from '@/lib/data';
 import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays } from 'date-fns';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
@@ -62,9 +62,22 @@ export default function AdminOverview() {
   const [exportStore, setExportStore] = React.useState<string>('all');
   const { toast } = useToast();
 
-  const { monthlyGrowthData, storeStats, topProducts, worstProducts } = React.useMemo(() => {
-    // Monthly Growth Data
+  const {
+    monthlyGrowthData,
+    storeStats,
+    topProductsThisMonth,
+    worstProductsThisMonth,
+    topProductsLastMonth,
+    worstProductsLastMonth,
+  } = React.useMemo(() => {
     const now = new Date();
+    const startOfThisMonth = startOfMonth(now);
+    const endOfThisMonth = endOfMonth(now);
+    const lastMonth = subMonths(now, 1);
+    const startOfLastMonth = startOfMonth(lastMonth);
+    const endOfLastMonth = endOfMonth(lastMonth);
+    
+    // Monthly Growth Data
     const monthlyData: { month: string; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const targetMonth = subMonths(now, i);
@@ -79,7 +92,7 @@ export default function AdminOverview() {
       monthlyData.push({ month: monthName, revenue: monthlyRevenue });
     }
 
-    // Store Stats
+    // Store Stats (Overall)
     const stats = stores.map(store => {
       const storeTransactions = transactions.filter(t => t.storeId === store.id);
       const totalRevenue = storeTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
@@ -101,22 +114,38 @@ export default function AdminOverview() {
     });
 
     // Top and Worst Products
-    const productSales: Record<string, number> = {};
-    transactions.forEach(t => {
-        t.items.forEach(item => {
-            if (!productSales[item.productName]) {
-                productSales[item.productName] = 0;
-            }
-            productSales[item.productName] += item.quantity;
-        });
-    });
+    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
+    const lastMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
 
-    const sortedProducts = Object.entries(productSales).sort(([, a], [, b]) => b - a);
-    const top = sortedProducts.slice(0, 3).map(([name]) => name);
-    const worst = sortedProducts.slice(-3).map(([name]) => name);
+    const calculateProductSales = (txs: typeof transactions) => {
+      const sales: Record<string, number> = {};
+      txs.forEach(t => {
+          t.items.forEach(item => {
+              if (!sales[item.productName]) {
+                  sales[item.productName] = 0;
+              }
+              sales[item.productName] += item.quantity;
+          });
+      });
+      return Object.entries(sales).sort(([, a], [, b]) => b - a);
+    };
 
+    const sortedProductsThisMonth = calculateProductSales(thisMonthTransactions);
+    const sortedProductsLastMonth = calculateProductSales(lastMonthTransactions);
 
-    return { monthlyGrowthData: monthlyData, storeStats: stats, topProducts: top, worstProducts: worst };
+    const topThisMonth = sortedProductsThisMonth.slice(0, 3).map(([name]) => name);
+    const worstThisMonth = sortedProductsThisMonth.slice(-3).map(([name]) => name);
+    const topLastMonth = sortedProductsLastMonth.slice(0, 3).map(([name]) => name);
+    const worstLastMonth = sortedProductsLastMonth.slice(-3).map(([name]) => name);
+
+    return {
+      monthlyGrowthData: monthlyData,
+      storeStats: stats,
+      topProductsThisMonth: topThisMonth,
+      worstProductsThisMonth: worstThisMonth,
+      topProductsLastMonth: topLastMonth,
+      worstProductsLastMonth: worstLastMonth
+    };
   }, []);
 
   const handleGenerateRecommendations = async () => {
@@ -126,8 +155,8 @@ export default function AdminOverview() {
         const result = await getAdminRecommendations({
             totalRevenueLastWeek: 5000000, // Dummy data for now
             totalRevenueLastMonth: 20000000, // Dummy data for now
-            topSellingProducts: topProducts,
-            worstSellingProducts: worstProducts,
+            topSellingProducts: topProductsThisMonth,
+            worstSellingProducts: worstProductsThisMonth,
         });
         setRecommendations(result);
     } catch (error) {
@@ -222,6 +251,8 @@ export default function AdminOverview() {
                 </CardContent>
             </Card>
         ))}
+      </div>
+       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingUp className="text-primary"/>Produk Terlaris</CardTitle>
@@ -229,7 +260,7 @@ export default function AdminOverview() {
             </CardHeader>
             <CardContent>
                 <ol className="list-decimal list-inside space-y-2">
-                    {topProducts.map((product, index) => (
+                    {topProductsThisMonth.map((product, index) => (
                         <li key={index} className="text-sm font-medium">{product}</li>
                     ))}
                 </ol>
@@ -242,7 +273,33 @@ export default function AdminOverview() {
             </CardHeader>
             <CardContent>
                 <ol className="list-decimal list-inside space-y-2">
-                    {worstProducts.map((product, index) => (
+                    {worstProductsThisMonth.map((product, index) => (
+                        <li key={index} className="text-sm font-medium">{product}</li>
+                    ))}
+                </ol>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline tracking-wider text-muted-foreground"><TrendingUp className="text-primary/50"/>Produk Terlaris (Bulan Lalu)</CardTitle>
+                <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                    {topProductsLastMonth.map((product, index) => (
+                        <li key={index} className="text-sm font-medium">{product}</li>
+                    ))}
+                </ol>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline tracking-wider text-muted-foreground"><TrendingDown className="text-destructive/50"/>Produk Kurang Laris (Bulan Lalu)</CardTitle>
+                <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                    {worstProductsLastMonth.map((product, index) => (
                         <li key={index} className="text-sm font-medium">{product}</li>
                     ))}
                 </ol>
