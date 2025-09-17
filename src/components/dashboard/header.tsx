@@ -21,12 +21,9 @@ export function Header({
             {title}
           </h1>
           {storeName && (
-            <>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              <span className="text-xl font-semibold text-muted-foreground">
-                {storeName}
-              </span>
-            </>
+            <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">
+                ({storeName})
+            </span>
           )}
         </div>
       </div>
