@@ -77,11 +77,12 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
                    {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
                    {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
                    {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                   <div><strong>Stock:</strong> 
-                     <ul className="list-disc pl-4">
-                       {Object.entries(product.stock).map(([storeId, qty]) => (
-                         <li key={storeId}>{stores.find(s => s.id === storeId)?.name}: {qty}</li>
-                       ))}
+                   <div><strong>Stock:</strong>
+                     <ul className="list-disc pl-5 mt-1 space-y-1">
+                       {Object.entries(product.stock).map(([storeId, qty]) => {
+                         const store = stores.find(s => s.id === storeId);
+                         return <li key={storeId}>{store ? store.name : storeId}: {qty}</li>
+                       })}
                      </ul>
                    </div>
                    {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
