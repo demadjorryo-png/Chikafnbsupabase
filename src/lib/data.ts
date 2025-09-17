@@ -35,7 +35,7 @@ export const products: Product[] = [
     price: 185000,
     costPrice: 120000,
     supplierId: 'sup01',
-    imageUrl: 'https://picsum.photos/seed/vape1/400/400',
+    imageUrl: 'https://picsum.photos/seed/liquid-pog/400/400',
     imageHint: 'vape liquid',
     attributes: {
       brand: 'Naked 100',
@@ -54,8 +54,8 @@ export const products: Product[] = [
     price: 265000,
     costPrice: 210000,
     supplierId: 'sup02',
-    imageUrl: 'https://picsum.photos/seed/vape2/400/400',
-    imageHint: 'vape device',
+    imageUrl: 'https://picsum.photos/seed/pod-caliburn/400/400',
+    imageHint: 'vape pod',
     attributes: {
       brand: 'Uwell',
       type: 'Pod System',
@@ -71,7 +71,7 @@ export const products: Product[] = [
     price: 120000,
     costPrice: 85000,
     supplierId: 'sup03',
-    imageUrl: 'https://picsum.photos/seed/vape4/400/400',
+    imageUrl: 'https://picsum.photos/seed/liquid-grape/400/400',
     imageHint: 'vape liquid',
     attributes: {
       brand: 'Emkay',
@@ -90,7 +90,7 @@ export const products: Product[] = [
     price: 85000,
     costPrice: 50000,
     supplierId: 'sup04',
-    imageUrl: 'https://picsum.photos/seed/vape3/400/400',
+    imageUrl: 'https://picsum.photos/seed/vape-cotton/400/400',
     imageHint: 'vape cotton',
     attributes: {
       brand: 'Wick ‘n’ Vape',
@@ -105,8 +105,8 @@ export const products: Product[] = [
     price: 650000,
     costPrice: 525000,
     supplierId: 'sup02',
-    imageUrl: 'https://picsum.photos/seed/vape6/400/400',
-    imageHint: 'vape device',
+    imageUrl: 'https://picsum.photos/seed/vape-mod/400/400',
+    imageHint: 'vape mod',
     attributes: {
       brand: 'Lost Vape',
       type: 'Box Mod',
@@ -122,7 +122,7 @@ export const products: Product[] = [
     price: 320000,
     costPrice: 250000,
     supplierId: 'sup05',
-    imageUrl: 'https://picsum.photos/seed/vape7/400/400',
+    imageUrl: 'https://picsum.photos/seed/atomizer-rda/400/400',
     imageHint: 'vape atomizer',
     attributes: {
       brand: 'Hellvape',
