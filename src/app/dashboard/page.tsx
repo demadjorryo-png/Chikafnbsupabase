@@ -23,6 +23,9 @@ import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
+
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -31,7 +34,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
       xmlns="http://www.w3.org/2000/svg"
       width="24"
       height="24"
-      viewBox="0 0 24 24"
+      viewBox="0 0 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -62,6 +65,7 @@ function DashboardContent() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
+  const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
   
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
@@ -82,7 +86,7 @@ function DashboardContent() {
             }
         }
         
-        // Batch fetch all collections
+        // Batch fetch all collections and settings
         const [
             storesSnapshot,
             productsSnapshot,
@@ -91,6 +95,7 @@ function DashboardContent() {
             usersSnapshot,
             pendingOrdersSnapshot,
             redemptionOptionsSnapshot,
+            feeSettingsData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             getDocs(collection(db, 'products')),
@@ -99,6 +104,7 @@ function DashboardContent() {
             getDocs(collection(db, 'users')),
             getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
             getDocs(collection(db, 'redemptionOptions')),
+            getTransactionFeeSettings(),
         ]);
 
         setStores(storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
@@ -112,6 +118,7 @@ function DashboardContent() {
 
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
+        setFeeSettings(feeSettingsData);
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -149,7 +156,7 @@ function DashboardContent() {
 
     switch (view) {
       case 'pos':
-        return <POS products={products} customers={customers} users={users} onDataChange={fetchAllData} isLoading={isLoading} />;
+        return <POS products={products} customers={customers} users={users} stores={stores} onDataChange={fetchAllData} isLoading={isLoading} feeSettings={feeSettings} />;
       case 'products':
         return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'customers':

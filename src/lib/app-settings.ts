@@ -1,0 +1,35 @@
+'use client';
+
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+
+export type TransactionFeeSettings = {
+  tokenValueRp: number;
+  feePercentage: number;
+  minFeeRp: number;
+};
+
+// Default settings in case the document doesn't exist in Firestore
+export const defaultFeeSettings: TransactionFeeSettings = {
+  tokenValueRp: 1000,
+  feePercentage: 0.005, // 0.5%
+  minFeeRp: 500,
+};
+
+export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {
+  try {
+    const settingsDocRef = doc(db, 'appSettings', 'transactionFees');
+    const docSnap = await getDoc(settingsDocRef);
+
+    if (docSnap.exists()) {
+      // Merge with defaults to ensure all properties are present
+      return { ...defaultFeeSettings, ...docSnap.data() };
+    } else {
+      console.warn("Transaction fee settings not found in Firestore, using default values.");
+      return defaultFeeSettings;
+    }
+  } catch (error) {
+    console.error("Error fetching transaction fee settings:", error);
+    return defaultFeeSettings;
+  }
+}

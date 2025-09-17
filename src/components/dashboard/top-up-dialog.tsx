@@ -16,6 +16,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Banknote, Info, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
+
 
 type TopUpDialogProps = {
   storeName: string;
@@ -24,7 +27,6 @@ type TopUpDialogProps = {
 };
 
 const topUpPackages = [50, 100, 200, 500, 1000];
-const TOKEN_VALUE_RP = 1000;
 const ADMIN_PHONE = '6282140442252'; // Format internasional tanpa '+'
 const BANK_INFO = {
     name: 'BCA',
@@ -35,7 +37,16 @@ const BANK_INFO = {
 export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpDialogProps) {
   const [selectedAmount, setSelectedAmount] = React.useState<number | string>(topUpPackages[1]);
   const [manualAmount, setManualAmount] = React.useState('');
+  const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    async function fetchSettings() {
+        const settings = await getTransactionFeeSettings();
+        setFeeSettings(settings);
+    }
+    fetchSettings();
+  }, []);
 
   const handlePackageSelect = (value: string) => {
     if (value) {
@@ -51,7 +62,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
   };
   
   const finalAmount = typeof selectedAmount === 'number' ? selectedAmount : Number(manualAmount);
-  const totalRp = finalAmount * TOKEN_VALUE_RP;
+  const totalRp = finalAmount * feeSettings.tokenValueRp;
 
   const handleConfirm = () => {
     if (finalAmount <= 0) {
@@ -111,7 +122,7 @@ Mohon segera diproses. Terima kasih.`;
         </div>
 
         <div className="space-y-2">
-          <Label>Pilih Paket (1 Token = Rp {TOKEN_VALUE_RP.toLocaleString('id-ID')})</Label>
+          <Label>Pilih Paket (1 Token = Rp {feeSettings.tokenValueRp.toLocaleString('id-ID')})</Label>
           <ToggleGroup
             type="single"
             variant="outline"

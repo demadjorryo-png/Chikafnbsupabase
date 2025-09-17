@@ -60,10 +60,7 @@ import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const TOKEN_FEE_PERCENTAGE = 0.005; // 0.5%
-const MINIMUM_TOKEN_FEE_RP = 500;
-const TOKEN_VALUE_RP = 1000;
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
@@ -72,6 +69,7 @@ type POSProps = {
     stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
+    feeSettings: TransactionFeeSettings;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -97,7 +95,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, users, stores, onDataChange, isLoading }: POSProps) {
+export default function POS({ products, customers, users, stores, onDataChange, isLoading, feeSettings }: POSProps) {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId')!;
   const userId = searchParams.get('userId')!;
@@ -233,8 +231,8 @@ export default function POS({ products, customers, users, stores, onDataChange, 
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
-  const tokenFeeInRp = Math.max(MINIMUM_TOKEN_FEE_RP, totalAmount * TOKEN_FEE_PERCENTAGE);
-  const tokenCost = tokenFeeInRp / TOKEN_VALUE_RP;
+  const tokenFeeInRp = Math.max(feeSettings.minFeeRp, totalAmount * feeSettings.feePercentage);
+  const tokenCost = tokenFeeInRp / feeSettings.tokenValueRp;
 
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
