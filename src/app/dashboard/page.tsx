@@ -160,7 +160,15 @@ function DashboardContent() {
 
     switch (view) {
       case 'pos':
-        return <POS products={products} customers={customers} users={users} stores={stores} onDataChange={fetchAllData} isLoading={isLoading} feeSettings={feeSettings} />;
+        return <POS 
+                    products={products} 
+                    customers={customers} 
+                    currentUser={currentUser}
+                    stores={stores} 
+                    onDataChange={fetchAllData} 
+                    isLoading={isLoading} 
+                    feeSettings={feeSettings} 
+                />;
       case 'products':
         return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'customers':

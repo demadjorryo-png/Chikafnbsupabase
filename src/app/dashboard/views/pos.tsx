@@ -65,7 +65,7 @@ import type { TransactionFeeSettings } from '@/lib/app-settings';
 type POSProps = {
     products: Product[];
     customers: Customer[];
-    users: User[];
+    currentUser: User;
     stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
@@ -95,10 +95,9 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, users, stores, onDataChange, isLoading, feeSettings }: POSProps) {
+export default function POS({ products, customers, currentUser, stores, onDataChange, isLoading, feeSettings }: POSProps) {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId')!;
-  const userId = searchParams.get('userId')!;
   
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -113,7 +112,6 @@ export default function POS({ products, customers, users, stores, onDataChange, 
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
   const { toast } = useToast();
   
-  const currentStaff = users.find(u => u.id === userId);
   const currentStore = stores.find(s => s.id === storeId);
 
   const customerOptions = customers.map((c) => ({
@@ -253,7 +251,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
   );
   
   const handleCheckout = async () => {
-    if (cart.length === 0 || !currentStaff || !currentStore) {
+    if (cart.length === 0 || !currentUser || !currentStore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong atau data staff/toko tidak ditemukan.' });
       return;
     }
@@ -269,7 +267,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
         const tokenDoc = await transaction.get(tokenRef);
         
         if (!tokenDoc.exists()) {
-            throw new Error("Saldo Pradana Token belum ada. Silakan lakukan Top Up terlebih dahulu.");
+            throw new Error("Saldo Pradana Token tidak cukup atau belum diinisialisasi. Silakan lakukan top-up.");
         }
         const currentTokenBalance = tokenDoc.data().balance || 0;
 
@@ -327,7 +325,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
             storeId: storeId,
             customerId: selectedCustomer?.id || 'N/A',
             customerName: selectedCustomer?.name || 'Guest',
-            staffId: currentStaff.id,
+            staffId: currentUser.id,
             createdAt: new Date().toISOString(),
             subtotal: subtotal,
             discountAmount: discountAmount,
@@ -482,7 +480,7 @@ export default function POS({ products, customers, users, stores, onDataChange, 
                       Add a new customer to the Bekupon community. Age will be verified.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentStaff?.role} />
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser?.role} />
                 </DialogContent>
               </Dialog>
             </div>
