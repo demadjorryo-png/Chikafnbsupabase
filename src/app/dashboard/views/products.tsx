@@ -305,7 +305,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                 <TableHead className="text-center">Stok Tumpang</TableHead>
                 <TableHead className="text-center">Stok Sawojajar</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                 <TableHead className="w-[100px] text-right">Actions</TableHead>
+                 {userRole === 'admin' && <TableHead className="w-[100px] text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -317,7 +317,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    {userRole === 'admin' && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : (
@@ -395,21 +395,23 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          {userRole === 'admin' && <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>}
-                          {userRole === 'admin' && <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    {userRole === 'admin' && (
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    )}
                   </TableRow>
                 )})
               )}
