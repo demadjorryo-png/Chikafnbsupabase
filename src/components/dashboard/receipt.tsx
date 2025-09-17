@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { Transaction } from '@/lib/types';
 import { stores, users } from '@/lib/data';
+import { receiptSettings } from '@/lib/receipt-settings';
 
 type ReceiptProps = {
     transaction: Transaction;
@@ -35,19 +36,19 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 export function Receipt({ transaction }: ReceiptProps) {
   if (!transaction) return null;
 
-  const store = stores.find(s => s.id === transaction.storeId);
   const staff = users.find(u => u.id === transaction.staffId);
+  const { headerText, footerText, promoText } = receiptSettings;
 
   return (
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">
-      <div className="text-center space-y-2 mb-4">
+      <div className="text-center space-y-1 mb-4">
         <div className="flex justify-center items-center gap-2">
             <VapeIcon className="h-8 w-8" />
             <p className="font-headline text-2xl tracking-wider">BEKUPON</p>
         </div>
-        <p>{store?.name || 'Bekupon Vape Store'}</p>
-        <p>{store?.location || 'Jl. Vape Master No. 42, Jakarta'}</p>
-        <p>Telp: 0812-3456-7890</p>
+        {headerText.split('\n').map((line, index) => (
+          <p key={index}>{line}</p>
+        ))}
       </div>
       <div className="border-t border-dashed border-black" />
       <div className="my-2 space-y-1">
@@ -105,8 +106,11 @@ export function Receipt({ transaction }: ReceiptProps) {
          </div>
        </div>
        <div className="border-t border-dashed border-black" />
-       <div className="text-center mt-4 space-y-1">
-          <p>Terima kasih atas kunjungan Anda!</p>
+       <div className="text-center mt-4 space-y-2">
+            {promoText && <p className="font-semibold">{promoText}</p>}
+            {footerText.split('\n').map((line, index) => (
+                <p key={index}>{line}</p>
+            ))}
           <p className="font-semibold">Poin didapat: +{transaction.pointsEarned}</p>
        </div>
     </div>

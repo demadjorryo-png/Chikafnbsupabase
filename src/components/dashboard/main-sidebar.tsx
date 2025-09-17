@@ -24,6 +24,7 @@ import {
   Trophy,
   TicketPercent,
   CircleDollarSign,
+  Receipt,
 } from 'lucide-react';
 import * as React from 'react';
 import { users, stores } from '@/lib/data';
@@ -122,6 +123,12 @@ export function MainSidebar() {
       view: 'challenges',
       label: 'Tantangan',
       icon: <Trophy />,
+      roles: ['admin'],
+    },
+    {
+      view: 'receipt-settings',
+      label: 'Receipt Settings',
+      icon: <Receipt />,
       roles: ['admin'],
     },
   ];

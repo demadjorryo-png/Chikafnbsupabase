@@ -14,6 +14,7 @@ import Employees from '@/app/dashboard/views/employees';
 import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
+import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -60,7 +61,9 @@ function DashboardContent() {
     }
 
     // If a cashier tries to access a view they shouldn't, redirect to overview
-    const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
+    const isUnauthorized = unauthorizedCashierViews.includes(view) && currentUser?.role !== 'admin';
+    
     if (isUnauthorized) {
       return <Overview storeId={storeId} />;
     }
@@ -84,6 +87,8 @@ function DashboardContent() {
         return <Challenges />;
       case 'promotions':
         return <Promotions />;
+      case 'receipt-settings':
+        return <ReceiptSettings />;
       case 'overview':
       default:
         return <Overview storeId={storeId} />;
@@ -95,9 +100,9 @@ function DashboardContent() {
     if (view === 'overview' && currentUser?.role === 'admin') {
         return 'Admin Dashboard';
     }
-
-    // Adjust title if cashier tries to access a restricted view
-    const isUnauthorized = (view === 'employees' || view === 'challenges') && currentUser?.role !== 'admin';
+    
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
+    const isUnauthorized = unauthorizedCashierViews.includes(view) && currentUser?.role !== 'admin';
     if (isUnauthorized) {
       return 'Dashboard Overview';
     }
@@ -121,6 +126,8 @@ function DashboardContent() {
         return 'Employee Challenges';
       case 'promotions':
         return 'Promotions';
+      case 'receipt-settings':
+        return 'Receipt Settings';
       case 'overview':
       default:
         return 'Dashboard Overview';
