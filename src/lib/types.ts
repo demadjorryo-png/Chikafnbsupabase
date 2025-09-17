@@ -29,7 +29,7 @@ export type User = {
   name: string;
   role: UserRole;
   storeId: string; // The primary store for a user
-  password?: string; // Added password field
+  // Password is no longer stored here, it's managed by Firebase Auth
 };
 
 export type Product = {

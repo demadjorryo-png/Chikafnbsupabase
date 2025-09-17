@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { products, stores, users } from '@/lib/data';
+import { stores, users } from '@/lib/data';
 import type { Product, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -42,6 +42,9 @@ import {
 } from '@/components/ui/dialog';
 import { AddProductForm } from '@/components/dashboard/add-product-form';
 import { useSearchParams } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role'] }) {
     if (!product) return null;
@@ -83,10 +86,26 @@ export default function Products() {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
   
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
-  const currentUser = users.find(u => u.id === userId);
+  const currentUser = users.find(u => u.id === userId); // This will need to be updated with Firestore user
   const userRole = currentUser?.role || 'cashier';
+
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      const productsCollection = collection(db, 'products');
+      const productSnapshot = await getDocs(productsCollection);
+      const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(productList);
+      setIsLoading(false);
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
@@ -173,44 +192,56 @@ export default function Products() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => {
-                const totalStock = Object.values(product.stock).reduce((acc, val) => acc + val, 0);
-                return (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {totalStock <= lowStockThreshold ? (
-                      <Badge variant="destructive">Low ({totalStock})</Badge>
-                    ) : (
-                      totalStock
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    Rp {product.price.toLocaleString('id-ID')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleViewDetails(product)}>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              )})}
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                products.map((product) => {
+                  const totalStock = Object.values(product.stock).reduce((acc, val) => acc + val, 0);
+                  return (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{product.category}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {totalStock <= lowStockThreshold ? (
+                        <Badge variant="destructive">Low ({totalStock})</Badge>
+                      ) : (
+                        totalStock
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      Rp {product.price.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleViewDetails(product)}>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )})
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, LogOut, Settings, UserCircle } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import * as React from 'react';
-import { users } from '@/lib/data';
 import type { User } from '@/lib/types';
+import { auth, db } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function Header({
   title,
@@ -30,13 +32,20 @@ export function Header({
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
 
   React.useEffect(() => {
-    if (userId) {
-      const user = users.find((u) => u.id === userId);
-      setCurrentUser(user || null);
-    }
+    const fetchUser = async () => {
+      if (userId) {
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+        }
+      }
+    };
+    fetchUser();
   }, [userId]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     router.push('/login');
   };
 

@@ -23,7 +23,7 @@ import {
 import { Logo } from '@/components/dashboard/logo';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { users, stores } from '@/lib/data';
+import { stores } from '@/lib/data';
 import {
   Select,
   SelectContent,
@@ -33,6 +33,10 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import * as React from 'react';
 
 const FormSchema = z.object({
   storeId: z.string({
@@ -49,6 +53,7 @@ const FormSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -58,24 +63,46 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    const user = users.find(
-      (u) => u.id === data.userId && u.password === data.password
-    );
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    setIsLoading(true);
+    // Construct email from userId
+    const email = `${data.userId}@bekupon.com`;
 
-    if (user) {
-      toast({
-        title: 'Login Berhasil!',
-        description: `Selamat datang kembali, ${user.name}.`,
-      });
-      // Pass userId to dashboard page
-      router.push(`/dashboard?storeId=${data.storeId}&userId=${user.id}`);
-    } else {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        data.password
+      );
+      const user = userCredential.user;
+
+      // Fetch user role from Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        toast({
+          title: 'Login Berhasil!',
+          description: `Selamat datang kembali, ${userData.name}.`,
+        });
+        
+        // Pass Firebase UID to dashboard page
+        router.push(`/dashboard?storeId=${data.storeId}&userId=${user.uid}`);
+
+      } else {
+         throw new Error("User data not found in Firestore.");
+      }
+
+    } catch (error: any) {
+      console.error(error);
       toast({
         variant: 'destructive',
         title: 'Login Gagal',
         description: 'User ID atau password salah. Silakan coba lagi.',
       });
+    } finally {
+        setIsLoading(false);
     }
   }
 
@@ -100,18 +127,8 @@ export default function LoginPage() {
             <AlertDescription>
               <div className="text-xs">
                 <p className="mt-2">
-                  <span className="font-semibold">Admin:</span>
-                  <br />
-                  User ID: <code className="font-mono">admin001</code>
-                  <br />
-                  Password: <code className="font-mono">password123</code>
-                </p>
-                <p className="mt-2">
-                  <span className="font-semibold">Kasir:</span>
-                  <br />
-                  User ID: <code className="font-mono">kasir001</code>
-                  <br />
-                  Password: <code className="font-mono">password123</code>
+                  <span className="font-semibold">Penting:</span> Buat pengguna di Firebase Authentication.
+                  Contoh: email `kasir001@bekupon.com` dengan password `password123`.
                 </p>
               </div>
             </AlertDescription>
@@ -176,8 +193,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Logging in...' : 'Login'}
               </Button>
             </form>
           </Form>

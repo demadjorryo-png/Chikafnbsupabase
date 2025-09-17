@@ -18,9 +18,12 @@ import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores, users } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -52,7 +55,26 @@ function DashboardContent() {
   const storeId = searchParams.get('storeId') || stores[0].id;
   const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
-  const currentUser = users.find(u => u.id === userId);
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = React.useState(true);
+  
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
+        }
+      }
+      setIsLoadingUser(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (isLoadingUser) {
+    return <DashboardSkeleton />;
+  }
 
   const renderView = () => {
     // If admin is on overview, show the special admin overview

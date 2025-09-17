@@ -27,11 +27,15 @@ import {
   Receipt,
 } from 'lucide-react';
 import * as React from 'react';
-import { users, stores } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User, Store } from '@/lib/types';
 import { Separator } from '../ui/separator';
 import { TopUpDialog } from './top-up-dialog';
 import { Dialog, DialogTrigger } from '../ui/dialog';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
+
 
 export function MainSidebar() {
   const router = useRouter();
@@ -46,15 +50,26 @@ export function MainSidebar() {
 
 
   React.useEffect(() => {
-    if (userId) {
-      const user = users.find(u => u.id === userId);
-      setCurrentUser(user || null);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
+            }
+        } else {
+            setCurrentUser(null);
+            router.push('/login');
+        }
+    });
+
     if (storeId) {
         const store = stores.find(s => s.id === storeId);
         setActiveStore(store || null);
     }
-  }, [userId, storeId]);
+    
+    return () => unsubscribe();
+  }, [userId, storeId, router]);
 
 
   const navigate = (view: string) => {
@@ -66,7 +81,8 @@ export function MainSidebar() {
     router.push(`/dashboard?view=${view}&storeId=${storeId}&userId=${userId}`);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     router.push('/login');
   };
 
