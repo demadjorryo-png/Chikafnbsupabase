@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,17 +33,17 @@ import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 
 const FormSchema = z.object({
-  name: z.string().min(2, {
-    message: 'Name must be at least 2 characters.',
-  }),
+  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   category: z.enum(productCategories),
   barcode: z.string().optional(),
   price: z.coerce.number().min(0, "Price is required"),
   costPrice: z.coerce.number().min(0).optional(),
-  brand: z.string().min(2, {
-    message: 'Brand must be at least 2 characters.',
-  }),
-  stock: z.record(z.coerce.number().min(0, "Stock can't be negative.")),
+  brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
+  stock: z.array(z.object({
+    storeId: z.string(),
+    storeName: z.string(),
+    quantity: z.coerce.number().min(0, "Stock can't be negative."),
+  })),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -61,11 +61,6 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   
-  const defaultStockValues = stores.reduce((acc, store) => {
-    acc[store.id] = product.stock[store.id] || 0;
-    return acc;
-  }, {} as Record<string, number>);
-
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -75,8 +70,17 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
       costPrice: product.costPrice,
       brand: product.attributes.brand,
       category: product.category,
-      stock: defaultStockValues,
+      stock: stores.map(store => ({
+        storeId: store.id,
+        storeName: store.name,
+        quantity: product.stock[store.id] || 0,
+      })),
     },
+  });
+
+  const { fields } = useFieldArray({
+    control: form.control,
+    name: "stock",
   });
 
 
@@ -94,6 +98,12 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
 
     const productRef = doc(db, 'products', product.id);
 
+    // Convert array of stock objects back to a map for Firestore
+    const stockAsMap = data.stock.reduce((acc, item) => {
+        acc[item.storeId] = item.quantity;
+        return acc;
+    }, {} as Record<string, number>);
+
     try {
         await updateDoc(productRef, {
             name: data.name,
@@ -101,7 +111,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
             barcode: data.barcode || '',
             price: data.price,
             costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
-            stock: data.stock,
+            stock: stockAsMap,
             'attributes.brand': data.brand,
         });
         
@@ -234,19 +244,21 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
           <div className="space-y-2">
               <Label>Stock Levels</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
-                  {stores.map(store => (
-                    <div key={store.id} className="space-y-2">
-                      <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
-                      <Input
-                          id={`stock-${store.id}`}
-                          type="number"
-                          placeholder="0"
-                          {...form.register(`stock.${store.id}`)}
-                      />
-                       <FormMessage>
-                        {form.formState.errors.stock?.[store.id]?.message}
-                      </FormMessage>
-                    </div>
+                  {fields.map((field, index) => (
+                    <FormField
+                      key={field.id}
+                      control={form.control}
+                      name={`stock.${index}.quantity`}
+                      render={({ field: formField }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">{stores.find(s => s.id === field.storeId)?.name}</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0" {...formField} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   ))}
               </div>
           </div>
