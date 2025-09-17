@@ -61,7 +61,6 @@ import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentReference, DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
-import { updatePradanaTokenBalance } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
@@ -267,7 +266,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
         const tokenDoc = await transaction.get(tokenRef);
         
         if (!tokenDoc.exists()) {
-            throw new Error("Saldo Pradana Token tidak cukup atau belum diinisialisasi. Silakan lakukan top-up.");
+            throw new Error("Saldo Pradana Token tidak ditemukan. Silakan lakukan top-up.");
         }
         const currentTokenBalance = tokenDoc.data().balance || 0;
 
@@ -276,20 +275,23 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
         }
 
         for (const item of cart) {
-            const productRef = doc(db, "products", item.productId);
-            const productDoc = await transaction.get(productRef);
-            if (!productDoc.exists()) {
-                throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+            if (!item.productId.startsWith('manual-')) { // Do not process stock for manual items
+              const productRef = doc(db, "products", item.productId);
+              const productDoc = await transaction.get(productRef);
+              if (!productDoc.exists()) {
+                  throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+              }
+              const currentStock = productDoc.data().stock[urlStoreId] || 0;
+              const newStock = currentStock - item.quantity;
+              if (newStock < 0) {
+                  throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
+              }
+              transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
             }
-            const currentStock = productDoc.data().stock[urlStoreId] || 0;
-            const newStock = currentStock - item.quantity;
-            if (newStock < 0) {
-                throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-            }
-            transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
         }
         
-        await updatePradanaTokenBalance(-tokenCost);
+        // Update token balance within the transaction
+        transaction.update(tokenRef, { balance: currentTokenBalance - tokenCost });
 
         if (selectedCustomer) {
             const customerRef = doc(db, "customers", selectedCustomer.id);
