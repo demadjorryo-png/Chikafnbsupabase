@@ -22,6 +22,10 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { productCategories } from '@/lib/types';
+import * as React from 'react';
+import { ScanBarcode } from 'lucide-react';
+import { BarcodeScanner } from './barcode-scanner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -43,6 +47,8 @@ type AddProductFormProps = {
 
 export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
   const { toast } = useToast();
+  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -55,6 +61,15 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
     },
   });
 
+  const handleBarcodeScanned = (barcode: string) => {
+    form.setValue('barcode', barcode);
+    toast({
+      title: 'Barcode Scanned!',
+      description: `SKU ${barcode} has been filled.`,
+    });
+    setIsScannerOpen(false);
+  };
+
   function onSubmit(data: z.infer<typeof FormSchema>) {
     console.log(data);
     toast({
@@ -65,6 +80,7 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
   }
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -123,9 +139,15 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Barcode (SKU)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., 899..." {...field} />
-              </FormControl>
+                <div className="flex gap-2">
+                    <FormControl>
+                        <Input placeholder="e.g., 899..." {...field} />
+                    </FormControl>
+                    <Button variant="outline" size="icon" type="button" onClick={() => setIsScannerOpen(true)}>
+                        <ScanBarcode className="h-4 w-4" />
+                        <span className="sr-only">Scan Barcode</span>
+                    </Button>
+                </div>
               <FormMessage />
             </FormItem>
           )}
@@ -176,5 +198,18 @@ export function AddProductForm({ setDialogOpen }: AddProductFormProps) {
         </Button>
       </form>
     </Form>
+    
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-headline tracking-wider">Scan Barcode</DialogTitle>
+            <DialogDescription>
+              Point your camera at a product's barcode to capture the SKU.
+            </DialogDescription>
+          </DialogHeader>
+          <BarcodeScanner onScan={handleBarcodeScanned} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
