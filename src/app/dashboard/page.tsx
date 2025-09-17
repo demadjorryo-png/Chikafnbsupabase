@@ -18,8 +18,8 @@ import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores, users } from '@/lib/data';
-import type { User } from '@/lib/types';
+import { stores, users, redemptionOptions as initialRedemptionOptions } from '@/lib/data';
+import type { User, RedemptionOption } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -53,6 +53,7 @@ function DashboardContent() {
   const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [redemptionOptions, setRedemptionOptions] = React.useState(initialRedemptionOptions);
   
   React.useEffect(() => {
     // TEMPORARY: Set a default user to bypass auth checks
@@ -101,9 +102,9 @@ function DashboardContent() {
       case 'challenges':
         return <Challenges />;
       case 'promotions':
-        return <Promotions />;
+        return <Promotions redemptionOptions={redemptionOptions} setRedemptionOptions={setRedemptionOptions} />;
       case 'receipt-settings':
-        return <ReceiptSettings />;
+        return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       case 'overview':
       default:
         return <Overview storeId={storeId} />;

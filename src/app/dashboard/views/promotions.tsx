@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { redemptionOptions as initialRedemptionOptions, users, products, transactions } from '@/lib/data';
+import { users, products, transactions } from '@/lib/data';
 import type { RedemptionOption, User, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,9 +48,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+type PromotionsProps = {
+    redemptionOptions: RedemptionOption[];
+    setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
+}
 
-export default function Promotions() {
-  const [redemptionOptions, setRedemptionOptions] = React.useState(initialRedemptionOptions);
+export default function Promotions({ redemptionOptions, setRedemptionOptions }: PromotionsProps) {
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const searchParams = useSearchParams();

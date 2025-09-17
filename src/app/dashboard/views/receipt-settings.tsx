@@ -19,10 +19,14 @@ import {
 } from '@/lib/receipt-settings';
 import { Loader, Receipt, Sparkles, WandSparkles } from 'lucide-react';
 import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
-import { redemptionOptions } from '@/lib/data';
+import type { RedemptionOption } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-export default function ReceiptSettings() {
+type ReceiptSettingsProps = {
+  redemptionOptions: RedemptionOption[];
+};
+
+export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
   const [headerText, setHeaderText] = React.useState(
     initialSettings.headerText
   );
