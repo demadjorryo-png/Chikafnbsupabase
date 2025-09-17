@@ -143,7 +143,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
-              Masukkan User ID dan Password Anda untuk masuk.
+              Pilih STORE, lalu masukkan User ID dan password Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
