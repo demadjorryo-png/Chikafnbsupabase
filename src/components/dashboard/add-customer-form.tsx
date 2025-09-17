@@ -97,7 +97,7 @@ const FormSchema = z
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
   onCustomerAdded?: () => void;
-  userRole?: UserRole; // Optional, might not be available in all contexts
+  userRole: UserRole; 
 };
 
 export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: AddCustomerFormProps) {
@@ -271,3 +271,5 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
     </Form>
   );
 }
+
+    

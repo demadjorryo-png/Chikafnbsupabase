@@ -74,7 +74,6 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
-    // Start loading, even if it's a re-fetch
     setIsLoading(true);
 
     if (!userId) {
@@ -83,7 +82,7 @@ function DashboardContent() {
           title: 'Sesi Tidak Ditemukan',
           description: 'User ID tidak ada. Silakan login kembali.'
       });
-      setIsLoading(false);
+      // Don't set loading to false, let the skeleton show until redirect or fix
       return;
     }
     
@@ -122,7 +121,7 @@ function DashboardContent() {
         
         const isAdmin = fetchedUser?.role === 'admin';
         
-        // Final validation before stopping the loading
+        // Final validation after all data is fetched and state is set
         if (!fetchedUser || (!isAdmin && !foundStore)) {
              toast({
                 variant: 'destructive',
@@ -338,3 +337,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    
