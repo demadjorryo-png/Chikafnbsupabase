@@ -181,16 +181,14 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   return (
     <>
     <div className="grid gap-6">
-
-      {userRole === 'admin' && (
-        <StockAdjustmentCard 
-            products={products}
-            stores={stores}
-            onStockUpdated={handleDataUpdate}
-            isLoading={isLoading}
-        />
-      )}
-      
+        {userRole === 'admin' && (
+            <StockAdjustmentCard 
+                products={products}
+                stores={stores}
+                onStockUpdated={handleDataUpdate}
+                isLoading={isLoading}
+            />
+        )}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
@@ -387,3 +385,5 @@ export default function Products({ products, stores, userRole, onDataChange, isL
     </>
   );
 }
+
+    
