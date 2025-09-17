@@ -13,9 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Banknote, Info, Wallet } from 'lucide-react';
+import { Banknote, Info, Loader, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings, updatePradanaTokenBalance } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
@@ -37,6 +37,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
   const [selectedAmount, setSelectedAmount] = React.useState<number | string>(topUpPackages[1]);
   const [manualAmount, setManualAmount] = React.useState('');
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
+  const [isProcessing, setIsProcessing] = React.useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -63,7 +64,7 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
   const finalAmount = typeof selectedAmount === 'number' ? selectedAmount : Number(manualAmount);
   const totalRp = finalAmount * feeSettings.tokenValueRp;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (finalAmount <= 0) {
         toast({
             variant: 'destructive',
@@ -81,26 +82,46 @@ export function TopUpDialog({ storeName, currentBalance, setDialogOpen }: TopUpD
         return;
     }
 
-    const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
+    setIsProcessing(true);
+
+    try {
+        // Step 1: Update Firestore
+        await updatePradanaTokenBalance(finalAmount);
+
+        // Step 2: Prepare WhatsApp message
+        const message = `Halo, saya admin dari toko "${storeName}" ingin melakukan konfirmasi top-up Pradana Token.
 
 Detail:
 - Top-up untuk: Saldo Global Aplikasi
 - Jumlah Token: ${finalAmount} Token
 - Total Transfer: Rp ${totalRp.toLocaleString('id-ID')}
 
-Mohon segera diproses. Terima kasih.`;
+Pembayaran sudah ditransfer. Mohon segera dicek. Terima kasih.
+(Pembaruan saldo sudah tercatat di sistem).`;
 
-    const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
-    
-    // Open WhatsApp in a new tab
-    window.open(whatsappUrl, '_blank');
+        const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
+        
+        // Step 3: Open WhatsApp and show success toast
+        window.open(whatsappUrl, '_blank');
 
-    toast({
-        title: 'Lanjutkan di WhatsApp',
-        description: `Anda akan diarahkan ke WhatsApp untuk mengirim konfirmasi. Saldo akan diperbarui setelah admin memverifikasi pembayaran.`
-    });
+        toast({
+            title: 'Top Up Berhasil!',
+            description: `Saldo Pradana Token telah berhasil ditambahkan sebesar ${finalAmount}. Lanjutkan konfirmasi di WhatsApp.`,
+        });
 
-    setDialogOpen(false);
+        // Step 4: Close dialog
+        setDialogOpen(false);
+
+    } catch (error) {
+        console.error("Error during top-up process:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Top Up Gagal',
+            description: 'Terjadi kesalahan saat memperbarui saldo token. Silakan coba lagi.'
+        });
+    } finally {
+        setIsProcessing(false);
+    }
   };
 
   return (
@@ -163,15 +184,18 @@ Mohon segera diproses. Terima kasih.`;
                 <ol className="list-decimal pl-4 text-xs space-y-1 mt-2">
                     <li>Silakan transfer ke rekening berikut:</li>
                     <li className="list-none ml-2 font-semibold">{BANK_INFO.name}: {BANK_INFO.account} a.n {BANK_INFO.holder}</li>
-                    <li>Setelah transfer berhasil, klik tombol konfirmasi di bawah untuk mengirim bukti via WhatsApp.</li>
-                    <li>Saldo token akan diperbarui setelah pembayaran diverifikasi oleh admin.</li>
+                    <li>Setelah transfer berhasil, klik tombol konfirmasi di bawah untuk memperbarui saldo dan mengirim bukti via WhatsApp.</li>
+                    <li>Saldo token akan langsung diperbarui di sistem.</li>
                 </ol>
             </AlertDescription>
         </Alert>
 
       </div>
       <DialogFooter>
-        <Button className="w-full" onClick={handleConfirm}>Konfirmasi via WhatsApp</Button>
+        <Button className="w-full" onClick={handleConfirm} disabled={isProcessing}>
+            {isProcessing && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+            Konfirmasi & Kirim Bukti via WhatsApp
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
