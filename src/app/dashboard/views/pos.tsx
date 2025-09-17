@@ -66,7 +66,7 @@ type POSProps = {
     products: Product[];
     customers: Customer[];
     currentUser: User;
-    stores: Store[];
+    activeStore: Store | undefined;
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -95,7 +95,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, currentUser, stores, onDataChange, isLoading, feeSettings }: POSProps) {
+export default function POS({ products, customers, currentUser, activeStore, onDataChange, isLoading, feeSettings }: POSProps) {
   const searchParams = useSearchParams();
   const urlStoreId = searchParams.get('storeId')!;
   
@@ -112,8 +112,6 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
   const { toast } = useToast();
   
-  const currentStore = stores.find(s => s.id === urlStoreId);
-
   const customerOptions = customers.map((c) => ({
     value: c.id,
     label: c.name,
@@ -253,7 +251,7 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
   );
   
   const handleCheckout = async () => {
-    if (cart.length === 0 || !currentUser || !currentStore) {
+    if (cart.length === 0 || !currentUser || !activeStore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Keranjang kosong atau data staff/toko tidak ditemukan.' });
       return;
     }
@@ -284,7 +282,6 @@ export default function POS({ products, customers, currentUser, stores, onDataCh
               if (newStock < 0) {
                   throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
               }
-              // Correct way to update a nested field with a dynamic key
               transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
             }
         }

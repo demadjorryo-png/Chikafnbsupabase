@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MainSidebar } from '@/components/dashboard/main-sidebar';
+import { MainSidebar } from '@/app/dashboard/main-sidebar';
 import { Header } from '@/components/dashboard/header';
 import { SidebarInset } from '@/components/ui/sidebar';
 import Overview from '@/app/dashboard/views/overview';
@@ -73,8 +73,46 @@ function DashboardContent() {
 
   const fetchAllData = React.useCallback(async () => {
     setIsLoading(true);
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-        // Batch fetch all collections and settings
+        const userDocRef = doc(db, 'users', userId);
+        const userDocSnap = await getDoc(userDocRef);
+
+        let fetchedUser: User | null = null;
+        if (userDocSnap.exists()) {
+          fetchedUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
+        } else if (userId === 'admin001') {
+           const { users: mockUsers } = await import('@/lib/data');
+           const mockAdmin = mockUsers.find(u => u.userId === 'Pradana01');
+           if(mockAdmin) {
+               fetchedUser = { ...mockAdmin, id: userId };
+           }
+        }
+        
+        if (!fetchedUser) {
+            throw new Error('User not found');
+        }
+        setCurrentUser(fetchedUser);
+
+        // Define fetches based on user role
+        const isAdmin = fetchedUser.role === 'admin';
+        const storeSpecificQueries = [
+          getDocs(query(collection(db, 'products'), orderBy('name'))),
+          getDocs(query(collection(db, 'customers'), orderBy('name'))),
+          getDocs(query(collection(db, 'transactions'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'pendingOrders'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'))),
+        ];
+        const adminQueries = [
+          getDocs(collection(db, 'products')),
+          getDocs(collection(db, 'customers')),
+          getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
+        ];
+
         const [
             storesSnapshot,
             productsSnapshot,
@@ -87,11 +125,11 @@ function DashboardContent() {
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, 'products'), orderBy('name'))),
-            getDocs(query(collection(db, 'customers'), orderBy('name'))),
-            getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
+            ...(isAdmin ? adminQueries : storeSpecificQueries.slice(0,1)), // Products
+            ...(isAdmin ? adminQueries.slice(1,2) : storeSpecificQueries.slice(1,2)), // Customers
+            ...(isAdmin ? adminQueries.slice(2,3) : storeSpecificQueries.slice(2,3)), // Transactions
             getDocs(query(collection(db, 'users'), where("status", "==", "active"))),
-            getDocs(query(collection(db, 'pendingOrders'), orderBy('createdAt', 'desc'))),
+            ...(isAdmin ? adminQueries.slice(3,4) : storeSpecificQueries.slice(3,4)), // Pending Orders
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
@@ -104,22 +142,11 @@ function DashboardContent() {
         setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
         
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        
-        // Handle mock superadmin separately
-        const { users: mockUsers } = await import('@/lib/data');
-        const mockAdmin = mockUsers.find(u => u.userId === 'Pradana01');
-        
         const combinedUsers = [...firestoreUsers];
-        if (userId === 'admin001' && mockAdmin) { // Check if the logged-in user is the superadmin
-            const superAdminInFirestore = firestoreUsers.some(u => u.id === 'admin001');
-            if (!superAdminInFirestore) {
-                combinedUsers.push({ ...mockAdmin, id: userId });
-            }
+        if (fetchedUser.role === 'admin' && !firestoreUsers.some(u => u.id === fetchedUser.id)) {
+            combinedUsers.push(fetchedUser);
         }
         setUsers(combinedUsers);
-        
-        const user = combinedUsers.find(u => u.id === userId);
-        setCurrentUser(user || null);
 
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
@@ -136,7 +163,7 @@ function DashboardContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [userId, toast]);
+  }, [userId, storeId, toast]);
   
   React.useEffect(() => {
     fetchAllData();
@@ -166,7 +193,7 @@ function DashboardContent() {
                     products={products} 
                     customers={customers} 
                     currentUser={currentUser}
-                    stores={stores} 
+                    activeStore={activeStore}
                     onDataChange={fetchAllData} 
                     isLoading={isLoading} 
                     feeSettings={feeSettings} 
@@ -200,6 +227,10 @@ function DashboardContent() {
 
   const getTitle = () => {
     const isAdmin = currentUser?.role === 'admin';
+    
+    if (isAdmin && view === 'pos') {
+        return 'Point of Sale';
+    }
     
     if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
       return 'Dashboard Overview';
