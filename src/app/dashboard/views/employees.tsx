@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { stores, users as mockUsers } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,35 +39,71 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Employees() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
+  const { toast } = useToast();
+
+  const fetchUsers = React.useCallback(async () => {
+    setIsLoading(true);
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef);
+    const querySnapshot = await getDocs(q);
+    const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    
+    setUsers(firestoreUsers);
+    setIsLoading(false);
+  }, []);
 
   React.useEffect(() => {
-    const fetchUsers = async () => {
-      setIsLoading(true);
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef);
-      const querySnapshot = await getDocs(q);
-      const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      
-      setUsers(firestoreUsers);
-      setIsLoading(false);
-    };
-
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
 
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
     setIsEditDialogOpen(true);
+  };
+  
+  const handleDeactivateClick = (user: User) => {
+    setSelectedUser(user);
+    setIsDeactivateDialogOpen(true);
+  }
+
+  const handleConfirmDeactivate = async () => {
+    if (!selectedUser) return;
+    
+    // In a real scenario, you'd call a Cloud Function to disable the user in Firebase Auth.
+    // For now, we'll simulate it and remove the user from the local state.
+    console.log(`Deactivating user: ${selectedUser.name} (simulation)`);
+
+    setUsers(prevUsers => prevUsers.filter(u => u.id !== selectedUser.id));
+
+    toast({
+      title: 'Karyawan Dinonaktifkan',
+      description: `Akun untuk ${selectedUser.name} telah dinonaktifkan.`,
+    });
+
+    setIsDeactivateDialogOpen(false);
+    setSelectedUser(null);
   };
 
   const handleDialogClose = () => {
@@ -160,7 +196,10 @@ export default function Employees() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEditClick(user)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem>Reset Password</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeactivateClick(user)}
+                          >
                             Deactivate
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -191,6 +230,28 @@ export default function Employees() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will permanently deactivate the account for{' '}
+              <span className="font-bold">{selectedUser?.name}</span>. They will no
+              longer be able to log in. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeactivate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
