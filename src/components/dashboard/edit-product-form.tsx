@@ -45,11 +45,11 @@ type EditProductFormProps = {
   setDialogOpen: (open: boolean) => void;
   userRole: UserRole;
   onProductUpdated: () => void;
-  stores: Store[];
+  activeStore: Store;
   product: Product;
 };
 
-export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, stores, product }: EditProductFormProps) {
+export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, activeStore, product }: EditProductFormProps) {
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -77,7 +77,8 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
-    const productRef = doc(db, 'products', product.id);
+    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const productRef = doc(db, productCollectionName, product.id);
 
     try {
         await updateDoc(productRef, {

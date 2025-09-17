@@ -72,8 +72,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
   }));
   
   const outOfStockProducts = products.filter((product) => {
-    const stockInStore = product.stock[currentStoreId] || 0;
-    return stockInStore === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return product.stock === 0 && product.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const addToPendingList = (product: Product) => {

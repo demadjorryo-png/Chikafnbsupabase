@@ -118,8 +118,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
   }));
 
   const addToCart = (product: Product) => {
-    const stockInStore = product.stock[urlStoreId] || 0;
-    if (stockInStore === 0) {
+    if (product.stock === 0) {
       toast({
         variant: 'destructive',
         title: 'Out of Stock',
@@ -132,11 +131,11 @@ export default function POS({ products, customers, currentUser, activeStore, onD
         (item) => item.productId === product.id
       );
       if (existingItem) {
-        if (existingItem.quantity >= stockInStore) {
+        if (existingItem.quantity >= product.stock) {
             toast({
                 variant: 'destructive',
                 title: 'Stock Limit Reached',
-                description: `Only ${stockInStore} units of ${product.name} available.`,
+                description: `Only ${product.stock} units of ${product.name} available.`,
             });
             return prevCart;
         }
@@ -165,16 +164,15 @@ export default function POS({ products, customers, currentUser, activeStore, onD
     }
 
     const product = products.find(p => p.id === productId);
-    const stockInStore = product?.stock[urlStoreId] || 0;
-    if(product && quantity > stockInStore) {
+    if(product && quantity > product.stock) {
         toast({
             variant: 'destructive',
             title: 'Stock Limit Reached',
-            description: `Only ${stockInStore} units of ${product.name} available.`,
+            description: `Only ${product.stock} units of ${product.name} available.`,
         });
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item.productId === productId ? { ...item, quantity: stockInStore } : item
+                item.productId === productId ? { ...item, quantity: product.stock } : item
             )
         );
         return;
@@ -228,8 +226,6 @@ export default function POS({ products, customers, currentUser, activeStore, onD
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   // Temporarily disable token cost
-  // const tokenFeeInRp = Math.max(feeSettings.minFeeRp, totalAmount * feeSettings.feePercentage);
-  // const tokenCost = tokenFeeInRp / feeSettings.tokenValueRp;
   const tokenCost = 0;
 
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,28 +256,28 @@ export default function POS({ products, customers, currentUser, activeStore, onD
     
     try {
       const newTransactionRef = doc(collection(db, 'transactions'));
+      const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
       
       await runTransaction(db, async (transaction) => {
         // --- Token Logic Disabled ---
         
         for (const item of cart) {
-            // Skip stock check for manual items
             if (item.productId.startsWith('manual-')) {
                 continue;
             }
 
-            const productRef = doc(db, "products", item.productId);
+            const productRef = doc(db, productCollectionName, item.productId);
             const productDoc = await transaction.get(productRef);
+
             if (!productDoc.exists()) {
                 throw new Error(`Produk ${item.productName} tidak ditemukan.`);
             }
-            const currentStock = productDoc.data().stock[urlStoreId] || 0;
+            const currentStock = productDoc.data().stock || 0;
             const newStock = currentStock - item.quantity;
             if (newStock < 0) {
                 throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
             }
-            // Use correct syntax for dynamic field update
-            transaction.update(productRef, { [`stock.${urlStoreId}`]: newStock });
+            transaction.update(productRef, { stock: newStock });
         }
         
         // --- Token Logic Disabled ---
@@ -385,7 +381,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
                         </TableRow>
                     ))
                   ) : filteredProducts.map((product) => {
-                    const stockInStore = product.stock[urlStoreId] || 0;
+                    const stockInStore = product.stock;
                     const isOutOfStock = stockInStore === 0;
                     return (
                       <TableRow key={product.id} className={cn(isOutOfStock && "text-muted-foreground")}>
@@ -607,10 +603,6 @@ export default function POS({ products, customers, currentUser, activeStore, onD
                 <span>Total</span>
                 <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
-              {/* <div className="flex justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><Coins className="h-3 w-3" />Biaya Token</span>
-                <span>-{tokenCost.toFixed(2)} Token</span>
-              </div> */}
             </div>
             
             {selectedCustomer && cart.length > 0 && (
@@ -655,5 +647,3 @@ export default function POS({ products, customers, currentUser, activeStore, onD
     </>
   );
 }
-
-    

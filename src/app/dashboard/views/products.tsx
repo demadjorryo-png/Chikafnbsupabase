@@ -61,9 +61,10 @@ type ProductsProps = {
     userRole: User['role'];
     onDataChange: () => void;
     isLoading: boolean;
+    activeStore: Store;
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; stores: Store[] }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, activeStore }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; activeStore: Store }) {
     if (!product) return null;
 
     return (
@@ -82,14 +83,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
                    {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
                    {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
                    {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                   <div><strong>Stock:</strong>
-                     <ul className="list-disc pl-5 mt-1 space-y-1">
-                       {Object.entries(product.stock).map(([storeId, qty]) => {
-                         const store = stores.find(s => s.id === storeId);
-                         return <li key={storeId}>{(store ? store.name : storeId)}: {qty}</li>
-                       })}
-                     </ul>
-                   </div>
+                   <div><strong>Stock di {activeStore.name}:</strong> {product.stock}</div>
                    {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
                    <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                 </div>
@@ -98,7 +92,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, stores }:
     );
 }
 
-export default function Products({ products, stores, userRole, onDataChange, isLoading }: ProductsProps) {
+export default function Products({ products, stores, userRole, onDataChange, isLoading, activeStore }: ProductsProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -110,17 +104,18 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
 
-  const handleStockChange = async (productId: string, storeId: string, currentStock: number, adjustment: 1 | -1) => {
+  const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
     const newStock = currentStock + adjustment;
     if (newStock < 0) return;
+    
+    setUpdatingStock(productId);
 
-    const updateKey = `${productId}_${storeId}`;
-    setUpdatingStock(updateKey);
+    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const productRef = doc(db, productCollectionName, productId);
 
-    const productRef = doc(db, 'products', productId);
     try {
       await updateDoc(productRef, {
-        [`stock.${storeId}`]: newStock
+        stock: newStock
       });
       onDataChange(); // Refresh data from parent
     } catch (error) {
@@ -131,9 +126,6 @@ export default function Products({ products, stores, userRole, onDataChange, isL
         description: 'Terjadi kesalahan. Coba lagi.',
       });
     } finally {
-      // It's better to let the onDataChange prop handle the loading state,
-      // but for instant feedback, we'll clear the specific updating key.
-      // A small delay helps prevent UI flashing.
       setTimeout(() => setUpdatingStock(null), 300);
     }
   };
@@ -156,8 +148,9 @@ export default function Products({ products, stores, userRole, onDataChange, isL
   const handleConfirmDelete = async () => {
     if (!selectedProduct) return;
     
+    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
     try {
-        await deleteDoc(doc(db, "products", selectedProduct.id));
+        await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
         toast({
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
@@ -222,7 +215,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
               <CardTitle className="font-headline tracking-wider">
                 Products
               </CardTitle>
-              <CardDescription>Manage your product inventory.</CardDescription>
+              <CardDescription>Kelola inventaris produk di toko {activeStore.name}.</CardDescription>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <div className="relative w-64">
@@ -281,14 +274,14 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                       Add New Product
                     </DialogTitle>
                     <DialogDescription>
-                      Add a new product to your inventory.
+                      Menambahkan produk baru ke inventaris toko {activeStore.name}.
                     </DialogDescription>
                   </DialogHeader>
                   <AddProductForm 
                     setDialogOpen={setIsAddDialogOpen} 
                     userRole={userRole} 
                     onProductAdded={handleDataUpdate}
-                    stores={stores}
+                    activeStore={activeStore}
                   />
                 </DialogContent>
               </Dialog>
@@ -302,8 +295,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-center">Stok Tumpang</TableHead>
-                <TableHead className="text-center">Stok Sawojajar</TableHead>
+                <TableHead className="text-center">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                  {userRole === 'admin' && <TableHead className="w-[100px] text-right">Actions</TableHead>}
               </TableRow>
@@ -315,30 +307,47 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
                     {userRole === 'admin' && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : (
-                filteredProducts.map((product) => {
-                  const stockTumpang = product.stock['store_tpg'] || 0;
-                  const stockSawojajar = product.stock['store_swj'] || 0;
-                  return (
+                filteredProducts.map((product) => (
                   <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                        <span className={`${getStockColorClass(stockTumpang)}`}>
-                            {stockTumpang}
+                       {userRole === 'admin' ? (
+                         <div className="flex items-center justify-center gap-2">
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => handleStockChange(product.id, product.stock, -1)}
+                                disabled={updatingStock === product.id}
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className={`w-8 text-center ${getStockColorClass(product.stock)}`}>
+                                {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
+                            </span>
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => handleStockChange(product.id, product.stock, 1)}
+                                disabled={updatingStock === product.id}
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                       ) : (
+                        <span className={`${getStockColorClass(product.stock)}`}>
+                            {product.stock}
                         </span>
-                    </TableCell>
-                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                        <span className={`${getStockColorClass(stockSawojajar)}`}>
-                            {stockSawojajar}
-                        </span>
+                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
@@ -361,7 +370,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                         </TableCell>
                     )}
                   </TableRow>
-                )})
+                ))
               )}
             </TableBody>
           </Table>
@@ -375,7 +384,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
           open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
-          stores={stores}
+          activeStore={activeStore}
         />
        )}
 
@@ -390,7 +399,7 @@ export default function Products({ products, stores, userRole, onDataChange, isL
                     setDialogOpen={setIsEditDialogOpen} 
                     userRole={userRole} 
                     onProductUpdated={handleDataUpdate}
-                    stores={stores}
+                    activeStore={activeStore}
                     product={selectedProduct}
                   />
                 </DialogContent>

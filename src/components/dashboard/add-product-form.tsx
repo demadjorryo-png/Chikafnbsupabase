@@ -42,16 +42,17 @@ const FormSchema = z.object({
   brand: z.string().min(2, {
     message: 'Brand must be at least 2 characters.',
   }),
+  stock: z.coerce.number().min(0, 'Stock awal harus diisi.')
 });
 
 type AddProductFormProps = {
   setDialogOpen: (open: boolean) => void;
   userRole: UserRole;
   onProductAdded: () => void;
-  stores: Store[];
+  activeStore: Store;
 };
 
-export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores }: AddProductFormProps) {
+export function AddProductForm({ setDialogOpen, userRole, onProductAdded, activeStore }: AddProductFormProps) {
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -64,6 +65,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
       price: 0,
       costPrice: 0,
       brand: '',
+      stock: 1,
     },
   });
 
@@ -82,19 +84,15 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
     
-    // Set initial stock to 1 for all stores automatically
-    const initialStock = stores.reduce((acc, store) => {
-      acc[store.id] = 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
 
     try {
-        await addDoc(collection(db, "products"), {
+        await addDoc(collection(db, productCollectionName), {
             name: data.name,
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: initialStock,
+            stock: data.stock, // Now using single stock field
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
@@ -106,7 +104,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
         
         toast({
             title: 'Produk Berhasil Ditambahkan!',
-            description: `${data.name} telah ditambahkan dengan stok awal 1 di setiap toko.`,
+            description: `${data.name} telah ditambahkan ke toko ${activeStore.name}.`,
         });
 
         onProductAdded();
@@ -228,6 +226,21 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                 </FormItem>
             )}
         />
+
+        <FormField
+            control={form.control}
+            name="stock"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Initial Stock</FormLabel>
+                <FormControl>
+                    <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
+
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}

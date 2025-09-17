@@ -78,6 +78,10 @@ function DashboardContent() {
       return;
     }
     
+    // For cashier, product collection is specific to their store.
+    // For admin, we might need a different logic, but for now we'll scope it to the selected store.
+    const productCollectionName = `products_${storeId.replace('store_', '')}`;
+    
     try {
         const [
             storesSnapshot,
@@ -91,11 +95,11 @@ function DashboardContent() {
             tokenBalanceData,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, 'products'), orderBy('name'))),
+            getDocs(query(collection(db, productCollectionName), orderBy('name'))), // Fetch from dynamic collection
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
-            getDocs(query(collection(db, 'transactions'))),
+            getDocs(collection(db, 'transactions')),
             getDocs(query(collection(db, 'users'))),
-            getDocs(query(collection(db, 'pendingOrders'))),
+            getDocs(collection(db, 'pendingOrders')),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
@@ -115,6 +119,7 @@ function DashboardContent() {
         setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
+        // Client-side sorting
         const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setTransactions(sortedTransactions);
@@ -132,12 +137,12 @@ function DashboardContent() {
         toast({
             variant: 'destructive',
             title: 'Gagal Memuat Data',
-            description: 'Terjadi kesalahan saat mengambil data dari database. Coba muat ulang halaman.'
+            description: 'Terjadi kesalahan saat mengambil data. Coba muat ulang halaman.'
         });
     } finally {
         setIsLoading(false);
     }
-  }, [userId, toast]);
+  }, [userId, storeId, toast]);
   
   React.useEffect(() => {
     fetchAllData();
@@ -149,7 +154,8 @@ function DashboardContent() {
     return <DashboardSkeleton />;
   }
   
-  if (!currentUser) {
+  if (!currentUser || !activeStore) {
+    // This can happen briefly on logout or if data is missing.
     return <DashboardSkeleton />;
   }
 
@@ -157,16 +163,25 @@ function DashboardContent() {
     const isAdmin = currentUser?.role === 'admin';
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
     
+    // Redirect cashier to their overview if they try to access an admin-only view
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-       // Redirect cashier to their overview if they try to access an admin-only view
-      return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
+        const cashierStoreId = currentUser.storeId;
+        const filteredTransactions = transactions.filter(t => t.storeId === cashierStoreId);
+        const filteredUsers = users.filter(u => u.storeId === cashierStoreId);
+        const filteredPendingOrders = pendingOrders.filter(po => po.storeId === cashierStoreId);
+        return <Overview storeId={cashierStoreId} transactions={filteredTransactions} users={filteredUsers} customers={customers} pendingOrders={filteredPendingOrders} onDataChange={fetchAllData} />;
     }
+
+    // Filter data for cashier views
+    const viewTransactions = isAdmin ? transactions : transactions.filter(t => t.storeId === storeId);
+    const viewPendingOrders = isAdmin ? pendingOrders : pendingOrders.filter(po => po.storeId === storeId);
+    const viewUsers = isAdmin ? users : users.filter(u => u.storeId === storeId);
 
     switch (view) {
       case 'overview':
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
+          : <Overview storeId={storeId} transactions={viewTransactions} users={viewUsers} customers={customers} pendingOrders={viewPendingOrders} onDataChange={fetchAllData} />;
       case 'pos':
         return <POS 
                     products={products} 
@@ -178,13 +193,13 @@ function DashboardContent() {
                     feeSettings={feeSettings} 
                 />;
       case 'products':
-        return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} />;
+        return <Products products={products} stores={stores} userRole={currentUser.role} onDataChange={fetchAllData} isLoading={isLoading} activeStore={activeStore} />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isLoading} />;
+        return <Transactions transactions={viewTransactions} stores={stores} users={users} isLoading={isLoading} />;
       case 'pending-orders':
         return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'settings':
@@ -200,7 +215,7 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       default:
-        return <Overview storeId={storeId} transactions={transactions} users={users} customers={customers} pendingOrders={pendingOrders} onDataChange={fetchAllData} />;
+        return <Overview storeId={storeId} transactions={viewTransactions} users={viewUsers} customers={customers} pendingOrders={viewPendingOrders} onDataChange={fetchAllData} />;
     }
   };
 

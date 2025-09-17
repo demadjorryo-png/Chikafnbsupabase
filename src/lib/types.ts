@@ -42,7 +42,7 @@ export type Product = {
   id: string;
   name: string;
   category: ProductCategory;
-  stock: Record<string, number>; // e.g., { storeId: quantity }
+  stock: number; // Now a single number per product, as it's in a store-specific collection
   price: number;
   costPrice: number;
   supplierId: string;
