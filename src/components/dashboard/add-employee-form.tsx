@@ -22,9 +22,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { stores } from '@/lib/data';
-// import { auth, db } from '@/lib/firebase';
-// import { createUserWithEmailAndPassword } from 'firebase/auth';
-// import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import * as React from 'react';
+import { Loader } from 'lucide-react';
 
 const FormSchema = z.object({
     userId: z.string().min(4, {
@@ -48,6 +50,7 @@ type AddEmployeeFormProps = {
 
 export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -57,16 +60,48 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
     },
   });
 
-  // NOTE: This is a temporary, client-side only submission for demonstration.
-  // It does not save the employee to any database.
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-      console.log("New Employee Data (Temporary):", data);
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+      setIsLoading(true);
+      const email = `${data.userId}@bekupon.com`;
 
-      toast({
-          title: 'Registration Submitted (Temporary)',
-          description: `Data for ${data.name} was logged to the console.`,
-      });
-      setDialogOpen(false);
+      try {
+        // Step 1: Create user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, data.password);
+        const user = userCredential.user;
+
+        // Step 2: Save user details to Firestore
+        // We use the UID from Auth as the document ID in Firestore for consistency
+        await setDoc(doc(db, "users", user.uid), {
+            name: data.name,
+            userId: data.userId,
+            role: data.role,
+            storeId: data.storeId,
+            email: email,
+        });
+
+        toast({
+            title: 'Karyawan Berhasil Ditambahkan!',
+            description: `Akun untuk ${data.name} telah berhasil dibuat.`,
+        });
+        setDialogOpen(false);
+
+      } catch (error: any) {
+        console.error("Error adding employee:", error);
+        let errorMessage = "Gagal menambahkan karyawan. Silakan coba lagi.";
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "User ID ini sudah digunakan. Silakan pilih User ID lain.";
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = "Password terlalu lemah. Gunakan minimal 8 karakter.";
+        }
+        
+        toast({
+            variant: 'destructive',
+            title: 'Terjadi Kesalahan',
+            description: errorMessage,
+        });
+      } finally {
+        setIsLoading(false);
+      }
   }
 
   return (
@@ -156,7 +191,8 @@ export function AddEmployeeForm({ setDialogOpen }: AddEmployeeFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Add Employee
         </Button>
       </form>
