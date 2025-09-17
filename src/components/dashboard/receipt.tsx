@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { Transaction } from '@/lib/types';
 import { stores, users } from '@/lib/data';
-import { Logo } from './logo';
+import Image from 'next/image';
 
 type ReceiptProps = {
     transaction: Transaction;
@@ -19,7 +19,12 @@ export function Receipt({ transaction }: ReceiptProps) {
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">
       <div className="text-center space-y-2 mb-4">
         <div className="flex justify-center">
-            <Logo />
+            <Image 
+                src="https://storage.googleapis.com/stedi-studio-outputs/439eba28-1b2c-473d-8d26-b8e727e4e899/bekupon-vapestore-logo.png"
+                alt="Bekupon Vapestore Logo"
+                width={150}
+                height={75}
+            />
         </div>
         <p>{store?.name || 'Bekupon Vape Store'}</p>
         <p>{store?.location || 'Jl. Vape Master No. 42, Jakarta'}</p>

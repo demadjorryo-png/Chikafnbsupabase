@@ -9,12 +9,12 @@ export default function WelcomePage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
             <div className="mb-4">
-                <Image 
-                    src="https://era5758.co.id/wp-content/uploads/2024/07/logo-bkpn-1-scaled.png" 
-                    alt="Bekupon Logo" 
-                    width={80} 
-                    height={80} 
-                    className="rounded-full"
+                <Image
+                  src="https://storage.googleapis.com/stedi-studio-outputs/439eba28-1b2c-473d-8d26-b8e727e4e899/bekupon-vapestore-logo.png"
+                  alt="Bekupon Vapestore Logo"
+                  width={200}
+                  height={100}
+                  priority
                 />
             </div>
           <CardTitle className="font-headline text-4xl tracking-wider">
