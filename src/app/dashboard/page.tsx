@@ -18,9 +18,12 @@ import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { stores, users, redemptionOptions as initialRedemptionOptions } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User, RedemptionOption } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -53,18 +56,41 @@ function DashboardContent() {
   const userId = searchParams.get('userId');
   const activeStore = stores.find(s => s.id === storeId);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [redemptionOptions, setRedemptionOptions] = React.useState(initialRedemptionOptions);
-  
+  const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
+  const { toast } = useToast();
+
   React.useEffect(() => {
-    // TEMPORARY: Set a default user to bypass auth checks
-    if (userId) {
-        const user = users.find(u => u.id === userId);
-        setCurrentUser(user || null);
-    } else {
-        // Fallback to a default admin if no userId is in URL
-        setCurrentUser(users.find(u => u.role === 'admin') || null);
-    }
-  }, [userId]);
+    const fetchInitialData = async () => {
+        // Fetch User
+        if (userId) {
+             if (userId === 'admin001') {
+                const { users: mockUsers } = await import('@/lib/data');
+                setCurrentUser(mockUsers.find(u => u.id === 'admin001') || null);
+            } else {
+                const userDoc = await getDocs(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                }
+            }
+        }
+        
+        // Fetch Redemption Options
+        try {
+            const querySnapshot = await getDocs(collection(db, 'redemptionOptions'));
+            const options = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption));
+            setRedemptionOptions(options);
+        } catch (error) {
+            console.error("Error fetching redemption options: ", error);
+            toast({
+                variant: 'destructive',
+                title: 'Gagal Memuat Promo',
+                description: 'Tidak dapat mengambil data promosi dari database.'
+            });
+        }
+    };
+    
+    fetchInitialData();
+  }, [userId, toast]);
 
   if (!currentUser) {
     return <DashboardSkeleton />;

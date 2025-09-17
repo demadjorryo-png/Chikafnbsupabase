@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { users, products, transactions } from '@/lib/data';
+import { users } from '@/lib/data';
 import type { RedemptionOption, User, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+
 
 type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
@@ -58,6 +61,16 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
   const [isLoading, setIsLoading] = React.useState(false);
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+
+  React.useEffect(() => {
+    const fetchTransactions = async () => {
+        const querySnapshot = await getDocs(collection(db, 'transactions'));
+        setTransactions(querySnapshot.docs.map(doc => doc.data() as Transaction));
+    }
+    fetchTransactions();
+  }, [])
   
   const userId = searchParams.get('userId');
   const currentUser = users.find((u) => u.id === userId);
@@ -73,15 +86,25 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
     setIsDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!promotionToDelete) return;
     
-    setRedemptionOptions(prev => prev.filter(p => p.id !== promotionToDelete.id));
+    try {
+        await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
+        setRedemptionOptions(prev => prev.filter(p => p.id !== promotionToDelete.id));
+        toast({
+        title: 'Promosi Dihapus!',
+        description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
+        });
+    } catch (error) {
+        console.error("Error deleting promotion: ", error);
+        toast({
+            variant: "destructive",
+            title: "Gagal menghapus",
+            description: "Terjadi kesalahan saat menghapus promosi."
+        });
+    }
 
-    toast({
-      title: 'Promosi Dihapus!',
-      description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
-    });
 
     setIsDeleteDialogOpen(false);
     setPromotionToDelete(null);
@@ -96,16 +119,32 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions }: 
     });
   };
 
-  const toggleStatus = (id: string) => {
-    setRedemptionOptions((prevOptions) =>
-      prevOptions.map((option) =>
-        option.id === id ? { ...option, isActive: !option.isActive } : option
-      )
-    );
-     toast({
-        title: 'Status Updated',
-        description: `Promotion status has been successfully changed.`,
-    });
+  const toggleStatus = async (id: string) => {
+    const option = redemptionOptions.find(o => o.id === id);
+    if (!option) return;
+
+    const newStatus = !option.isActive;
+    const optionRef = doc(db, 'redemptionOptions', id);
+
+    try {
+        await updateDoc(optionRef, { isActive: newStatus });
+        setRedemptionOptions((prevOptions) =>
+            prevOptions.map((opt) =>
+                opt.id === id ? { ...opt, isActive: newStatus } : opt
+            )
+        );
+        toast({
+            title: 'Status Diperbarui',
+            description: `Status promosi telah berhasil diubah.`,
+        });
+    } catch (error) {
+        console.error("Error updating promotion status: ", error);
+        toast({
+            variant: "destructive",
+            title: "Gagal memperbarui",
+            description: "Terjadi kesalahan saat mengubah status promosi."
+        });
+    }
   };
 
   const handleGenerateRecommendations = async () => {

@@ -4,9 +4,11 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader, Sparkles } from 'lucide-react';
-import type { Customer } from '@/lib/types';
+import type { Customer, RedemptionOption } from '@/lib/types';
 import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommendation';
-import { redemptionOptions } from '@/lib/data';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
@@ -19,18 +21,38 @@ export function LoyaltyRecommendation({
 }: LoyaltyRecommendationProps) {
   const [recommendation, setRecommendation] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    const fetchRedemptionOptions = async () => {
+        try {
+            const q = query(collection(db, 'redemptionOptions'), where('isActive', '==', true));
+            const querySnapshot = await getDocs(q);
+            const options = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption));
+            setRedemptionOptions(options);
+        } catch (error) {
+            console.error("Failed to fetch redemption options for AI", error);
+            toast({ variant: 'destructive', title: 'Gagal memuat data promo aktif.'});
+        }
+    }
+    fetchRedemptionOptions();
+  }, [toast]);
+
 
   const handleGetRecommendation = async () => {
     setIsLoading(true);
     setRecommendation('');
+    if (redemptionOptions.length === 0) {
+        toast({ variant: 'destructive', title: 'Tidak Ada Promo Aktif', description: 'Tidak ada promo penukaran poin yang dapat direkomendasikan saat ini.' });
+        setIsLoading(false);
+        return;
+    }
     try {
-      // Filter for active redemption options only
-      const activeRedemptionOptions = redemptionOptions.filter(o => o.isActive);
-
       const result = await getLoyaltyPointRecommendation({
         loyaltyPoints: customer.loyaltyPoints,
         totalPurchaseAmount,
-        availableRedemptionOptions: activeRedemptionOptions,
+        availableRedemptionOptions: redemptionOptions,
       });
       setRecommendation(result.recommendation);
     } catch (error) {

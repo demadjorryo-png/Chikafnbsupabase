@@ -22,10 +22,4 @@ export const pendingOrders: PendingOrder[] = [];
 
 export const salesData: { date: string, revenue: number }[] = [];
 
-export const redemptionOptions: RedemptionOption[] = [
-  { id: 'redeem001', description: 'Potongan Rp 25.000', pointsRequired: 100, value: 25000, isActive: true },
-  { id: 'redeem002', description: 'Potongan Rp 75.000', pointsRequired: 250, value: 75000, isActive: true },
-  { id: 'redeem003', description: 'Liquid Gratis (senilai Rp 150.000)', pointsRequired: 500, value: 150000, isActive: true },
-  { id: 'redeem004', description: 'Merchandise Eksklusif Topi', pointsRequired: 1000, value: 200000, isActive: true },
-  { id: 'redeem005', description: 'Diskon 50% Semua Liquid (Maks. 1 botol)', pointsRequired: 750, value: 75000, isActive: false },
-];
+export const redemptionOptions: RedemptionOption[] = [];
