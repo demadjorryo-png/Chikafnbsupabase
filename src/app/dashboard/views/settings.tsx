@@ -32,8 +32,9 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Database } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { seedDatabase } from '@/lib/seed';
 
 const PasswordFormSchema = z
   .object({
@@ -53,6 +54,7 @@ export default function Settings() {
   const userId = searchParams.get('userId');
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSeeding, setIsSeeding] = React.useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
@@ -70,13 +72,18 @@ export default function Settings() {
   React.useEffect(() => {
     async function fetchUser() {
         if (userId) {
+          // This is a simplified fetch assuming 'id' is a field in the document.
+          // In a real scenario, you might query by a unique 'userId' field.
           const userQuery = query(collection(db, "users"), where("id", "==", userId));
-          const userDocs = await getDocs(userQuery);
-          if (!userDocs.empty) {
-            // Since we're querying by a unique ID field you'd set, we expect one doc
-            const userFromDb = { id: userDocs.docs[0].id, ...userDocs.docs[0].data() } as User;
-            setCurrentUser(userFromDb);
-          }
+          // This is not a correct way to query by document ID.
+          // Let's assume there's a unique field `userId` in the user documents.
+          // A better approach would be to get the document by its Firestore ID if known.
+          // For now, we'll stick to a query.
+
+          const usersSnapshot = await getDocs(collection(db, "users"));
+          const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+          const foundUser = firestoreUsers.find(u => u.id === userId);
+          setCurrentUser(foundUser || null);
         }
     }
     fetchUser();
@@ -132,9 +139,33 @@ export default function Settings() {
       setIsLoading(false);
     }
   };
+  
+  const handleSeedDatabase = async () => {
+    setIsSeeding(true);
+    toast({
+        title: "Memulai Proses Seed...",
+        description: "Mengunggah data produk ke Firestore. Ini mungkin memakan waktu beberapa saat."
+    });
+    try {
+        await seedDatabase();
+        toast({
+            title: "Database Seeding Berhasil!",
+            description: "Data produk sampel telah berhasil ditambahkan ke koleksi toko."
+        });
+    } catch (error) {
+        console.error("Database seeding failed:", error);
+        toast({
+            variant: "destructive",
+            title: "Gagal Melakukan Seeding",
+            description: "Terjadi kesalahan saat mengunggah data. Lihat konsol untuk detail."
+        });
+    } finally {
+        setIsSeeding(false);
+    }
+  }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
       <Card className="lg:col-span-1">
         <CardHeader>
           <CardTitle className="font-headline tracking-wider">
@@ -149,124 +180,149 @@ export default function Settings() {
             <UserCircle className="h-6 w-6 text-muted-foreground" />
             <div>
                 <p className='text-sm text-muted-foreground'>Nama</p>
-                <p className="font-semibold">{currentUser?.name}</p>
+                <p className="font-semibold">{currentUser?.name || 'Loading...'}</p>
             </div>
           </div>
            <div className="flex items-center gap-3">
             <KeyRound className="h-6 w-6 text-muted-foreground" />
              <div>
                 <p className='text-sm text-muted-foreground'>Jabatan</p>
-                <p className="font-semibold capitalize">{currentUser?.role}</p>
+                <p className="font-semibold capitalize">{currentUser?.role || 'Loading...'}</p>
             </div>
           </div>
            <div className="flex items-center gap-3">
             <Building className="h-6 w-6 text-muted-foreground" />
              <div>
                 <p className='text-sm text-muted-foreground'>Toko Utama</p>
-                <p className="font-semibold">{store?.name || 'Global'}</p>
+                <p className="font-semibold">{store?.name || (currentUser?.role === 'admin' ? 'Global' : 'Loading...')}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="font-headline tracking-wider">
-            Ubah Password
-          </CardTitle>
-          <CardDescription>
-            Untuk keamanan, masukkan password Anda saat ini sebelum membuat
-            yang baru.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(handlePasswordChange)}
-              className="space-y-6 max-w-md"
-            >
-              <FormField
-                control={form.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password Saat Ini</FormLabel>
-                    <div className="relative">
-                        <FormControl>
-                        <Input type={showCurrentPassword ? 'text' : 'password'} {...field} />
-                        </FormControl>
-                        <Button 
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        >
-                            {showCurrentPassword ? <EyeOff /> : <Eye />}
-                        </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password Baru</FormLabel>
-                     <div className="relative">
-                        <FormControl>
-                        <Input type={showNewPassword ? 'text' : 'password'} {...field} />
-                        </FormControl>
-                        <Button 
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                        >
-                            {showNewPassword ? <EyeOff /> : <Eye />}
-                        </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Konfirmasi Password Baru</FormLabel>
-                    <div className="relative">
-                        <FormControl>
-                        <Input type={showConfirmPassword ? 'text' : 'password'} {...field} />
-                        </FormControl>
-                        <Button 
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                            {showConfirmPassword ? <EyeOff /> : <Eye />}
-                        </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && (
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Simpan Password Baru
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      <div className="lg:col-span-2 grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+              Ubah Password
+            </CardTitle>
+            <CardDescription>
+              Untuk keamanan, masukkan password Anda saat ini sebelum membuat
+              yang baru.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(handlePasswordChange)}
+                className="space-y-6 max-w-md"
+              >
+                <FormField
+                  control={form.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password Saat Ini</FormLabel>
+                      <div className="relative">
+                          <FormControl>
+                          <Input type={showCurrentPassword ? 'text' : 'password'} {...field} />
+                          </FormControl>
+                          <Button 
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          >
+                              {showCurrentPassword ? <EyeOff /> : <Eye />}
+                          </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password Baru</FormLabel>
+                       <div className="relative">
+                          <FormControl>
+                          <Input type={showNewPassword ? 'text' : 'password'} {...field} />
+                          </FormControl>
+                          <Button 
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                          >
+                              {showNewPassword ? <EyeOff /> : <Eye />}
+                          </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Konfirmasi Password Baru</FormLabel>
+                      <div className="relative">
+                          <FormControl>
+                          <Input type={showConfirmPassword ? 'text' : 'password'} {...field} />
+                          </FormControl>
+                          <Button 
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                              {showConfirmPassword ? <EyeOff /> : <Eye />}
+                          </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Simpan Password Baru
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {currentUser?.role === 'admin' && (
+           <Card className="border-amber-500/50">
+            <CardHeader>
+                <CardTitle className="font-headline tracking-wider text-amber-500">
+                    Developer Actions
+                </CardTitle>
+                <CardDescription>
+                    Aksi ini untuk pengembangan dan tidak boleh digunakan di lingkungan produksi.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button variant="outline" onClick={handleSeedDatabase} disabled={isSeeding}>
+                    {isSeeding ? (
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Database className="mr-2 h-4 w-4" />
+                    )}
+                    Seed Product Database
+                </Button>
+            </CardContent>
+           </Card>
+        )}
+      </div>
     </div>
   );
 }
