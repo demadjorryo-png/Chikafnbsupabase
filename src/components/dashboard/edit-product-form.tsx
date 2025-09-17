@@ -32,28 +32,21 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 
-// Dynamically create the schema for stocks based on the stores
-const createFormSchema = (stores: Store[]) => {
-  const stockSchema = stores.reduce((acc, store) => {
-    acc[store.id] = z.coerce.number().min(0, "Stock can't be negative.").default(0);
-    return acc;
-  }, {} as Record<string, z.ZodType<number>>);
+const FormSchema = z.object({
+  name: z.string().min(2, {
+    message: 'Name must be at least 2 characters.',
+  }),
+  category: z.enum(productCategories),
+  barcode: z.string().optional(),
+  price: z.coerce.number().min(0, "Price is required"),
+  costPrice: z.coerce.number().min(0).optional(),
+  brand: z.string().min(2, {
+    message: 'Brand must be at least 2 characters.',
+  }),
+  stock: z.record(z.coerce.number().min(0, "Stock can't be negative.")),
+});
 
-  return z.object({
-    name: z.string().min(2, {
-      message: 'Name must be at least 2 characters.',
-    }),
-    category: z.enum(productCategories),
-    barcode: z.string().optional(),
-    price: z.coerce.number().min(0, "Price is required"),
-    costPrice: z.coerce.number().min(0).optional(),
-    brand: z.string().min(2, {
-      message: 'Brand must be at least 2 characters.',
-    }),
-    stock: z.object(stockSchema),
-  });
-};
-
+type FormValues = z.infer<typeof FormSchema>;
 
 type EditProductFormProps = {
   setDialogOpen: (open: boolean) => void;
@@ -68,15 +61,12 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   
-  // Memoize the schema creation
-  const FormSchema = React.useMemo(() => createFormSchema(stores), [stores]);
-
   const defaultStockValues = stores.reduce((acc, store) => {
     acc[store.id] = product.stock[store.id] || 0;
     return acc;
   }, {} as Record<string, number>);
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: product.name,
@@ -99,7 +89,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
     setIsScannerOpen(false);
   };
 
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
+  async function onSubmit(data: FormValues) {
     setIsLoading(true);
 
     const productRef = doc(db, 'products', product.id);
@@ -245,25 +235,18 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, sto
               <Label>Stock Levels</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border p-4">
                   {stores.map(store => (
-                    <FormField
-                      key={store.id}
-                      control={form.control}
-                      name={`stock.${store.id}` as any}
-                      render={({ field }) => (
-                        <FormItem className="grid gap-2">
-                          <FormLabel htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</FormLabel>
-                          <FormControl>
-                            <Input
-                                id={`stock-${store.id}`}
-                                type="number"
-                                placeholder="0"
-                                {...field}
-                            />
-                          </FormControl>
-                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div key={store.id} className="space-y-2">
+                      <Label htmlFor={`stock-${store.id}`} className="text-sm">{store.name}</Label>
+                      <Input
+                          id={`stock-${store.id}`}
+                          type="number"
+                          placeholder="0"
+                          {...form.register(`stock.${store.id}`)}
+                      />
+                       <FormMessage>
+                        {form.formState.errors.stock?.[store.id]?.message}
+                      </FormMessage>
+                    </div>
                   ))}
               </div>
           </div>
