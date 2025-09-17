@@ -39,7 +39,7 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -66,8 +66,7 @@ export default function Employees() {
     setIsLoading(true);
     try {
         const usersRef = collection(db, 'users');
-        // Filter out the superadmin
-        const q = query(usersRef, where("userId", "!=", "Pradana01"));
+        const q = query(usersRef);
         const querySnapshot = await getDocs(q);
         const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         
@@ -224,7 +223,7 @@ export default function Employees() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {stores.find((s) => s.id === user.storeId)?.name || 'N/A'}
+                      {stores.find((s) => s.id === user.storeId)?.name || 'Global'}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

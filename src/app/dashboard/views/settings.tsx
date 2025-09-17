@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
-import { users, stores } from '@/lib/data';
+import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -26,13 +26,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const PasswordFormSchema = z
   .object({
@@ -67,12 +68,18 @@ export default function Settings() {
   });
 
   React.useEffect(() => {
-    if (userId) {
-      // In a real app with full Firestore users, you'd fetch from there.
-      // For now, we rely on the mock data which includes the superadmin.
-      const user = users.find((u) => u.id === userId);
-      setCurrentUser(user || null);
+    async function fetchUser() {
+        if (userId) {
+          const userQuery = query(collection(db, "users"), where("id", "==", userId));
+          const userDocs = await getDocs(userQuery);
+          if (!userDocs.empty) {
+            // Since we're querying by a unique ID field you'd set, we expect one doc
+            const userFromDb = { id: userDocs.docs[0].id, ...userDocs.docs[0].data() } as User;
+            setCurrentUser(userFromDb);
+          }
+        }
     }
+    fetchUser();
   }, [userId]);
 
   const store = React.useMemo(() => {
@@ -96,27 +103,6 @@ export default function Settings() {
       });
       setIsLoading(false);
       return;
-    }
-    
-    // For superadmin, we simulate the password change as it's not in Firebase Auth
-    if (currentUser?.userId === 'Pradana01' && currentUser.password !== values.currentPassword) {
-         toast({
-            variant: 'destructive',
-            title: 'Gagal',
-            description: 'Password Anda saat ini salah.',
-        });
-        setIsLoading(false);
-        return;
-    }
-     if (currentUser?.userId === 'Pradana01') {
-        // Here you would update the mock data or your separate database for superadmin
-        toast({
-            title: 'Berhasil (Simulasi)!',
-            description: 'Password superadmin telah diperbarui.',
-        });
-        setIsLoading(false);
-        form.reset();
-        return;
     }
 
     const credential = EmailAuthProvider.credential(
@@ -177,7 +163,7 @@ export default function Settings() {
             <Building className="h-6 w-6 text-muted-foreground" />
              <div>
                 <p className='text-sm text-muted-foreground'>Toko Utama</p>
-                <p className="font-semibold">{store?.name}</p>
+                <p className="font-semibold">{store?.name || 'Global'}</p>
             </div>
           </div>
         </CardContent>

@@ -108,16 +108,9 @@ function DashboardContent() {
         setStores(allStores);
 
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const { users: mockUsersData } = await import('@/lib/data');
+        setUsers(firestoreUsers);
         
-        const adminUser = mockUsersData.find(u => u.userId === 'Pradana01');
-        let combinedUsers = [...firestoreUsers];
-        if (adminUser && !firestoreUsers.some(fu => fu.userId === adminUser.userId)) {
-            combinedUsers.push(adminUser);
-        }
-        setUsers(combinedUsers);
-        
-        const fetchedUser = combinedUsers.find(u => u.id === userId) || null;
+        const fetchedUser = firestoreUsers.find(u => u.id === userId) || null;
         setCurrentUser(fetchedUser);
         
         const isAdmin = fetchedUser?.role === 'admin';
