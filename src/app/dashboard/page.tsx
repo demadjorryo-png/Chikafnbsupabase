@@ -104,7 +104,7 @@ function DashboardContent() {
           getDocs(query(collection(db, 'products'), orderBy('name'))),
           getDocs(query(collection(db, 'customers'), orderBy('name'))),
           getDocs(query(collection(db, 'transactions'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'pendingOrders'), where('storeId', '==', storeId), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'pendingOrders'), where('storeId', '==', storeId))),
         ];
         const adminQueries = [
           getDocs(collection(db, 'products')),
@@ -148,7 +148,11 @@ function DashboardContent() {
         }
         setUsers(combinedUsers);
 
-        setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
+        // Sort pending orders client-side
+        const unsortedPendingOrders = pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
+        const sortedPendingOrders = unsortedPendingOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setPendingOrders(sortedPendingOrders);
+        
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
         setPradanaTokenBalance(tokenBalanceData);
