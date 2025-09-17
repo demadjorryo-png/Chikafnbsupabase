@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
-    // Construct email from userId
+    // Construct email from userId for Firebase Auth
     const email = `${data.userId}@bekupon.com`;
 
     try {
@@ -128,7 +128,7 @@ export default function LoginPage() {
               <div className="text-xs">
                 <p className="mt-2">
                   <span className="font-semibold">Penting:</span> Buat pengguna di Firebase Authentication.
-                  Contoh: email `kasir001@bekupon.com` dengan password `password123`.
+                  Gunakan format email `userID@bekupon.com`. Contoh: `kasir001@bekupon.com` dengan password `password123`.
                 </p>
               </div>
             </AlertDescription>
