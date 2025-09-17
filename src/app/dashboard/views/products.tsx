@@ -195,9 +195,12 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   };
 
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(allProducts.map(p => p.category));
+    const productsForCurrentStore = isAdmin 
+      ? allProducts.filter(p => p.storeId === currentStoreId)
+      : allProducts;
+    const categories = new Set(productsForCurrentStore.map(p => p.category));
     return Array.from(categories).sort();
-  }, [allProducts]);
+  }, [allProducts, isAdmin, currentStoreId]);
   
   const filteredProducts = React.useMemo(() => {
     const productsForCurrentStore = isAdmin 
@@ -222,30 +225,22 @@ export default function Products({ products: allProducts, stores, userRole, onDa
 
   return (
     <>
-    <div className={cn("grid gap-6", isAdmin && "grid-cols-[16rem_1fr]")}>
+    <div className={cn(isAdmin ? "grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-6" : "")}>
       {isAdmin && (
-        <aside className="hidden lg:flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pilih Toko</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-2">
-                {stores.map(store => (
-                  <Button
-                    key={store.id}
-                    variant={adminSelectedStoreId === store.id ? 'default' : 'ghost'}
-                    onClick={() => setAdminSelectedStoreId(store.id)}
-                    className="justify-start gap-2"
-                  >
-                    <Building className="h-4 w-4"/>
-                    {store.name}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
+        <nav className="grid gap-2 text-sm text-muted-foreground">
+          <h3 className="font-semibold text-primary px-4">Pilih Toko</h3>
+          {stores.map(store => (
+            <Button
+              key={store.id}
+              variant={adminSelectedStoreId === store.id ? 'default' : 'ghost'}
+              onClick={() => setAdminSelectedStoreId(store.id)}
+              className="justify-start gap-2"
+            >
+              <Building className="h-4 w-4"/>
+              {store.name}
+            </Button>
+          ))}
+        </nav>
       )}
       <main>
       <Card>
@@ -366,7 +361,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
                             >
                                 <Minus className="h-4 w-4" />
                             </Button>
-                            <span className={`w-8 text-center ${getStockColorClass(product.stock)}`}>
+                            <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
                                 {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
                             </span>
                             <Button
@@ -380,7 +375,7 @@ export default function Products({ products: allProducts, stores, userRole, onDa
                             </Button>
                         </div>
                        ) : (
-                        <span className={`${getStockColorClass(product.stock)}`}>
+                        <span className={cn(getStockColorClass(product.stock))}>
                             {product.stock}
                         </span>
                        )}
