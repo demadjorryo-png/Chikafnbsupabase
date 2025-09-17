@@ -90,17 +90,14 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
 
-    // If cashier is adding, cost price is same as selling price
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
 
-    // Create the stock object for Firestore, ensuring all stores are included
     const stockForFirestore = stores.reduce((acc, store) => {
         acc[store.id] = stockLevels[store.id] || 0;
         return acc;
     }, {} as Record<string, number>);
 
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
-
 
     try {
         await addDoc(collection(db, "products"), {
@@ -255,6 +252,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, stores
                             id={`stock-${store.id}`}
                             type="number"
                             placeholder="0"
+                            value={stockLevels[store.id] || ''}
                             onChange={(e) => handleStockChange(store.id, e.target.value)}
                             className="w-full"
                         />
