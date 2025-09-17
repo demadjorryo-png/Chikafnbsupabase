@@ -18,7 +18,7 @@ import type { Product, Store } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction } from 'firebase/firestore';
-import { Boxes, Loader, Save } from 'lucide-react';
+import { Loader, Save } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
 type StockAdjustmentCardProps = {
@@ -116,7 +116,6 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
     }
   };
   
-  // Reset adjustments when product changes
   React.useEffect(() => {
     setAdjustments({});
   }, [selectedProductId]);
@@ -166,11 +165,11 @@ export function StockAdjustmentCard({ products, stores, onStockUpdated, isLoadin
                   </div>
                 ))}
               </div>
+               <Button onClick={handleSaveStock} disabled={isProcessing} className="w-full sm:w-auto">
+                {isProcessing ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Stock Changes
+              </Button>
             </div>
-            <Button onClick={handleSaveStock} disabled={isProcessing} className="w-full sm:w-auto">
-              {isProcessing ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Stock Changes
-            </Button>
           </>
         )}
       </CardContent>
