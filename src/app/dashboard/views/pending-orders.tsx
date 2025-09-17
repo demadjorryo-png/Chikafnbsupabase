@@ -162,6 +162,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 customerAvatarUrl: selectedCustomer.avatarUrl,
                 productId: item.productId,
                 productName: item.productName,
+                quantity: item.quantity,
                 createdAt: new Date().toISOString(),
             });
         });

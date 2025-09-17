@@ -104,6 +104,7 @@ export type PendingOrder = {
   customerAvatarUrl: string;
   productId: string;
   productName: string;
+  quantity: number;
   createdAt: string; // ISO 8601
 };
 

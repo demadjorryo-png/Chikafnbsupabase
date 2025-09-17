@@ -430,6 +430,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
               <TableRow>
                 <TableHead>Pelanggan</TableHead>
                 <TableHead>Produk</TableHead>
+                <TableHead className="text-center">Qty</TableHead>
                 <TableHead className="text-right">Tanggal Permintaan</TableHead>
               </TableRow>
             </TableHeader>
@@ -451,6 +452,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
                             </div>
                         </TableCell>
                         <TableCell>{order.productName}</TableCell>
+                        <TableCell className="text-center font-mono">{order.quantity}</TableCell>
                         <TableCell className="text-right">
                           {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
                         </TableCell>
