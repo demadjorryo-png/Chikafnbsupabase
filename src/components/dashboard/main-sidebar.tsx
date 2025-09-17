@@ -136,7 +136,7 @@ export function MainSidebar() {
                 <Separator className="mb-2 bg-sidebar-border" />
                 <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
                     <CircleDollarSign className="h-4 w-4" />
-                    <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString('id-ID')}</span>
+                    <span className="font-mono text-sm font-semibold">{activeStore.coinBalance.toLocaleString()}</span>
                 </div>
                  <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
             </div>

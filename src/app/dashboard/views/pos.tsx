@@ -246,11 +246,12 @@ export default function POS() {
         items: cart,
     };
 
-    // --- Coin System Simulation ---
-    const transactionFee = Math.max(500, newTransaction.totalAmount * 0.005);
+    // --- Token System Simulation ---
+    const transactionFeeRp = Math.max(500, newTransaction.totalAmount * 0.005);
+    const transactionFeeTokens = transactionFeeRp / 1000;
     toast({
         title: "Transaction Fee (Simulation)",
-        description: `Biaya sebesar Rp ${transactionFee.toLocaleString('id-ID')} akan dipotong dari Pradana Token.`
+        description: `Biaya sebesar ${transactionFeeTokens.toFixed(3)} Pradana Token telah dipotong.`
     })
     // In a real app, you would deduct this from the store's coinBalance in the database.
     // ----------------------------
