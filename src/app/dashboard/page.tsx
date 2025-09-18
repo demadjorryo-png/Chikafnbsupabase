@@ -188,20 +188,20 @@ function DashboardContent() {
               onDataChange={fetchAllData} 
             />;
       case 'pos':
-        return activeStore && currentUser ? <POS 
+        return <POS 
                     products={products} 
                     customers={customers}
                     onDataChange={fetchAllData} 
                     isLoading={isLoading} 
                     feeSettings={feeSettings} 
-                /> : <DashboardSkeleton />;
+                />;
       case 'products':
-        return currentUser ? <Products 
+        return <Products 
                   products={products}
-                  stores={stores} 
+                  stores={stores}
                   onDataChange={fetchAllData} 
                   isLoading={isLoading} 
-                /> : <DashboardSkeleton />;
+                />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
       case 'employees':
