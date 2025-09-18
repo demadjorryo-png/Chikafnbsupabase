@@ -97,7 +97,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
 }
 
 export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
-  const { currentUser, activeStore } = useAuth();
+  const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -355,6 +355,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       });
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      
+      if (currentUser.role === 'admin') {
+          refreshPradanaTokenBalance();
+      }
+      
       setCart([]);
       setDiscountValue(0);
       setPointsToRedeem(0);
