@@ -97,9 +97,11 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
   const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
 
   React.useEffect(() => {
+    if (!activeStore) return;
     const fetchStrategies = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'appliedStrategies'));
+            const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
+            const querySnapshot = await getDocs(collection(db, strategyCollectionName));
             const strategies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppliedStrategy));
             setAppliedStrategies(strategies);
         } catch (error) {
@@ -112,7 +114,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
         }
     };
     fetchStrategies();
-  }, [toast]);
+  }, [activeStore, toast]);
 
 
   const {
@@ -185,8 +187,9 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
   }, [transactions, products, idLocale]);
 
   const handleGenerateRecommendations = async () => {
+    if (!activeStore) return;
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       // deductAiUsageFee throws an error if balance is insufficient, which is caught here.
       // The toast is handled inside the function, so we just need to stop execution.
@@ -215,15 +218,18 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
   }
 
   const handleApplyStrategy = async (type: 'weekly' | 'monthly', recommendation: string) => {
+    if (!activeStore) return;
     const newStrategyData = {
       type,
       recommendation,
       appliedDate: formatISO(new Date()),
       status: 'active' as const,
     };
+    
+    const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
 
     try {
-        const docRef = await addDoc(collection(db, 'appliedStrategies'), newStrategyData);
+        const docRef = await addDoc(collection(db, strategyCollectionName), newStrategyData);
         setAppliedStrategies(prev => [...prev, { id: docRef.id, ...newStrategyData }]);
         toast({
             title: 'Strategi Diterapkan!',
@@ -240,8 +246,10 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
   };
 
   const handleCompleteStrategy = async (id: string) => {
+    if (!activeStore) return;
+    const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
     try {
-        await deleteDoc(doc(db, 'appliedStrategies', id));
+        await deleteDoc(doc(db, strategyCollectionName, id));
         setAppliedStrategies(prev => prev.filter(s => s.id !== id));
         toast({
             title: 'Strategi Selesai!',
@@ -265,10 +273,11 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
   }
 
   const handleDeletePendingOrder = async () => {
-    if (!orderToDelete) return;
+    if (!orderToDelete || !activeStore) return;
 
     try {
-      await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
+      const pendingOrderCollectionName = `pendingOrders_${activeStore.id}`;
+      await deleteDoc(doc(db, pendingOrderCollectionName, orderToDelete.id));
       onDataChange();
       toast({
         title: 'Pesanan Dihapus',

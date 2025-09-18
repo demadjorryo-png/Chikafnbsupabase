@@ -44,7 +44,8 @@ export function PendingOrderFollowUpDialog({
   const { toast } = useToast();
 
   const handleGenerate = React.useCallback(async () => {
-    if (isAdmin && activeStore) {
+    if (!activeStore) return;
+    if (isAdmin) {
       try {
         await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
       } catch (error) {
@@ -73,14 +74,15 @@ export function PendingOrderFollowUpDialog({
   }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast, feeSettings, activeStore]);
 
   React.useEffect(() => {
-    if (open) {
+    if (open && activeStore) {
       // Automatically generate message when dialog opens
       handleGenerate();
 
       // Fetch customer phone number
       const fetchCustomer = async () => {
         try {
-          const customerRef = doc(db, 'customers', order.customerId);
+          const customerCollectionName = `customers_${activeStore.id}`;
+          const customerRef = doc(db, customerCollectionName, order.customerId);
           const customerSnap = await getDoc(customerRef);
           if (customerSnap.exists()) {
             setCustomer(customerSnap.data() as Customer);
@@ -99,7 +101,7 @@ export function PendingOrderFollowUpDialog({
       setIsLoading(false);
       setCustomer(null);
     }
-  }, [open, order, toast, handleGenerate]);
+  }, [open, order, toast, handleGenerate, activeStore]);
 
   const formattedPhone = customer?.phone
     ? customer.phone.startsWith('0')

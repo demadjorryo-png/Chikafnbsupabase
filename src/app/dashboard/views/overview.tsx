@@ -59,7 +59,7 @@ import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
@@ -83,7 +83,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
     const handleGenerate = async () => {
         if (currentUser?.role === 'admin' && activeStore) {
             try {
-                await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+                await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
             } catch (error) {
                 return;
             }
@@ -181,7 +181,7 @@ type OverviewProps = {
   feeSettings: TransactionFeeSettings;
 };
 
-export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange, feeSettings }: OverviewProps) {
+export default function Overview({ transactions, users, customers, pendingOrders, onDataChange, feeSettings }: OverviewProps) {
   const { currentUser, activeStore } = useAuth();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
@@ -192,11 +192,6 @@ export default function Overview({ transactions, users, customers, pendingOrders
   
   const isAdmin = currentUser?.role === 'admin';
   const storeId = activeStore?.id;
-  
-  const pendingOrders = React.useMemo(() => 
-    allPendingOrders.filter(po => po.storeId === storeId),
-    [allPendingOrders, storeId]
-  );
 
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
@@ -244,7 +239,6 @@ export default function Overview({ transactions, users, customers, pendingOrders
     const endOfThisMonth = endOfMonth(new Date());
 
     const thisMonthTransactions = transactions.filter(t => 
-        t.storeId === storeId &&
         isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth })
     );
 
@@ -259,13 +253,12 @@ export default function Overview({ transactions, users, customers, pendingOrders
     });
 
     return Object.values(sales).sort((a, b) => b.totalOmset - a.totalOmset);
-  }, [transactions, users, storeId]);
+  }, [transactions, users]);
 
   const weeklySalesData = React.useMemo(() => {
     const today = new Date();
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
-    const storeTransactions = transactions.filter(t => t.storeId === storeId);
     
     const daysInWeek = eachDayOfInterval({
         start: startOfThisWeek,
@@ -273,7 +266,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
     });
 
     const dailyRevenue = daysInWeek.map(day => {
-        const dailyTransactions = storeTransactions.filter(t => format(new Date(t.createdAt), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
+        const dailyTransactions = transactions.filter(t => format(new Date(t.createdAt), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
         const revenue = dailyTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
         return {
             date: format(day, 'E'), 
@@ -282,13 +275,14 @@ export default function Overview({ transactions, users, customers, pendingOrders
     });
 
     return dailyRevenue;
-  }, [storeId, transactions]);
+  }, [transactions]);
   
   const handleDeletePendingOrder = async () => {
-    if (!orderToDelete) return;
+    if (!orderToDelete || !storeId) return;
 
     try {
-      await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
+      const pendingOrderCollectionName = `pendingOrders_${storeId}`;
+      await deleteDoc(doc(db, pendingOrderCollectionName, orderToDelete.id));
       onDataChange();
       toast({
         title: 'Pesanan Dihapus',

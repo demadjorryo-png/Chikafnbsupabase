@@ -49,7 +49,11 @@ function DashboardContent() {
     setIsDataLoading(true);
     
     try {
-        const productCollectionName = `products_${activeStore.id}`;
+        const storeId = activeStore.id;
+        const productCollectionName = `products_${storeId}`;
+        const customerCollectionName = `customers_${storeId}`;
+        const transactionCollectionName = `transactions_${storeId}`;
+        const pendingOrderCollectionName = `pendingOrders_${storeId}`;
 
         const [
             storesSnapshot,
@@ -63,12 +67,12 @@ function DashboardContent() {
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             getDocs(query(collection(db, productCollectionName), orderBy('name'))),
-            getDocs(query(collection(db, 'customers'), orderBy('name'))),
+            getDocs(query(collection(db, customerCollectionName), orderBy('name'))),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
-            getDocs(collection(db, 'transactions')),
-            getDocs(collection(db, 'pendingOrders')),
+            getDocs(query(collection(db, transactionCollectionName), orderBy('createdAt', 'desc'))),
+            getDocs(query(collection(db, pendingOrderCollectionName), orderBy('createdAt', 'desc'))),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
@@ -80,18 +84,12 @@ function DashboardContent() {
         setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
-        const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-        const sortedTransactions = unsortedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setTransactions(sortedTransactions);
-        
-        const unsortedPendingOrders = pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
-        const sortedPendingOrders = unsortedPendingOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setPendingOrders(sortedPendingOrders);
+        setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
         
-        // Refresh token balance as part of data fetch
         refreshPradanaTokenBalance();
 
     } catch (error) {
@@ -122,16 +120,13 @@ function DashboardContent() {
   }
 
   const renderView = () => {
-    const storeTransactions = transactions.filter(t => t.storeId === activeStore?.id);
-    const storePendingOrders = pendingOrders.filter(po => po.storeId === activeStore?.id);
-
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
         return <Overview 
-          transactions={storeTransactions} 
+          transactions={transactions} 
           users={users} 
           customers={customers} 
-          pendingOrders={storePendingOrders} 
+          pendingOrders={pendingOrders} 
           onDataChange={fetchAllData}
           feeSettings={feeSettings} 
         />;
@@ -141,19 +136,19 @@ function DashboardContent() {
       case 'overview':
         if (isAdmin) {
           return <AdminOverview
-                    transactions={storeTransactions} 
+                    transactions={transactions} 
                     products={products}
                     customers={customers}
-                    pendingOrders={storePendingOrders}
+                    pendingOrders={pendingOrders}
                     onDataChange={fetchAllData}
                     feeSettings={feeSettings}
                  />;
         }
         return <Overview 
-              transactions={storeTransactions} 
+              transactions={transactions} 
               users={users} 
               customers={customers} 
-              pendingOrders={storePendingOrders} 
+              pendingOrders={pendingOrders} 
               onDataChange={fetchAllData}
               feeSettings={feeSettings}
             />;
@@ -175,11 +170,11 @@ function DashboardContent() {
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'customer-analytics':
-        return <CustomerAnalytics customers={customers} transactions={storeTransactions} isLoading={isDataLoading} />;
+        return <CustomerAnalytics customers={customers} transactions={transactions} isLoading={isDataLoading} />;
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={storeTransactions} stores={stores} users={users} isLoading={isDataLoading} />;
+        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isDataLoading} />;
       case 'pending-orders':
         return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'settings':
@@ -197,10 +192,10 @@ function DashboardContent() {
         return <ReceiptSettings redemptionOptions={redemptionOptions} feeSettings={feeSettings} />;
       default:
         return <Overview 
-              transactions={storeTransactions} 
+              transactions={transactions} 
               users={users} 
               customers={customers} 
-              pendingOrders={storePendingOrders} 
+              pendingOrders={pendingOrders} 
               onDataChange={fetchAllData} 
               feeSettings={feeSettings}
             />;

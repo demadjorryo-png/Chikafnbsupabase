@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,7 +26,7 @@ import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import * as React from 'react';
 import { Loader } from 'lucide-react';
-import { UserRole } from '@/lib/types';
+import type { UserRole, Store } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const currentYear = new Date().getFullYear();
@@ -56,10 +57,11 @@ const FormSchema = z
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
   onCustomerAdded?: () => void;
-  userRole: UserRole; 
+  userRole: UserRole;
+  activeStore: Store;
 };
 
-export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: AddCustomerFormProps) {
+export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, activeStore }: AddCustomerFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -78,10 +80,11 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
         : new Date(0).toISOString().split('T')[0]; // Default date if not provided
         
     const avatarUrl = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
-
+    
+    const customerCollectionName = `customers_${activeStore.id}`;
 
     try {
-        await addDoc(collection(db, "customers"), {
+        await addDoc(collection(db, customerCollectionName), {
             name: data.name,
             phone: data.phone,
             birthDate: birthDate,
@@ -93,7 +96,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
 
         toast({
             title: 'Pelanggan Berhasil Didaftarkan!',
-            description: `${data.name} sekarang telah terdaftar.`,
+            description: `${data.name} sekarang telah terdaftar di toko ${activeStore.name}.`,
         });
 
         onCustomerAdded?.();

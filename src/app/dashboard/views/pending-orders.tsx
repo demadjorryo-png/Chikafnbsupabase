@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import * as React from 'react';
@@ -43,10 +45,10 @@ import {
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'next/navigation';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/auth-context';
 
 type PendingOrdersProps = {
     products: Product[];
@@ -56,6 +58,7 @@ type PendingOrdersProps = {
 };
 
 export default function PendingOrders({ products, customers, onDataChange, isLoading }: PendingOrdersProps) {
+  const { activeStore, currentUser } = useAuth();
   const [pendingList, setPendingList] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -63,8 +66,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const { toast } = useToast();
   
-  const searchParams = useSearchParams();
-  const currentStoreId = searchParams.get('storeId') || '';
+  const currentStoreId = activeStore?.id || '';
 
   const customerOptions = customers.map((c) => ({
     value: c.id,
@@ -151,10 +153,16 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
       toast({ variant: 'destructive', title: 'Pelanggan Belum Dipilih', description: 'Pilih pelanggan untuk membuat pesanan tertunda.' });
       return;
     }
+    if (!currentStoreId) {
+        toast({ variant: 'destructive', title: 'Toko Tidak Aktif', description: 'Sesi toko tidak valid. Silakan login ulang.' });
+        return;
+    }
+    
+    const pendingOrderCollectionName = `pendingOrders_${currentStoreId}`;
 
     try {
         const batchPromises = pendingList.map(item => {
-            return addDoc(collection(db, 'pendingOrders'), {
+            return addDoc(collection(db, pendingOrderCollectionName), {
                 storeId: currentStoreId,
                 customerId: selectedCustomer.id,
                 customerName: selectedCustomer.name,
@@ -190,13 +198,13 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
       <div className="lg:col-span-2 xl:col-span-3">
         <Card>
           <CardHeader className="border-b">
-             <CardTitle className="font-headline tracking-wider">Out of Stock & Manual Products</CardTitle>
-             <CardDescription>Select out-of-stock items or add new unlisted items to a pending order.</CardDescription>
+             <CardTitle className="font-headline tracking-wider">Produk Habis & Manual</CardTitle>
+             <CardDescription>Pilih produk yang habis atau tambahkan item baru ke daftar tunggu.</CardDescription>
             <div className="relative flex items-center gap-2 pt-2">
               <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search out-of-stock products..."
+                placeholder="Cari produk yang habis..."
                 className="w-full rounded-lg bg-secondary pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -204,14 +212,14 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
             </div>
             <div className="flex items-center gap-2 pt-2">
               <Input
-                placeholder="Add manual item (e.g., 'Liquid FOO BAR v2')"
+                placeholder="Tambah item manual (e.g., 'Baju edisi terbatas')"
                 value={manualItemName}
                 onChange={(e) => setManualItemName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddManualItem()}
               />
               <Button onClick={handleAddManualItem} className="gap-1 whitespace-nowrap">
                 <Plus className="h-4 w-4" />
-                <span>Add Manual</span>
+                <span>Tambah Manual</span>
               </Button>
             </div>
           </CardHeader>
@@ -220,7 +228,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
+                    <TableHead>Produk</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -261,7 +269,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Pending Order List
+              Daftar Tunggu Pesanan
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -272,9 +280,9 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 onValueChange={(value) => {
                   setSelectedCustomer(customers.find((c) => c.id === value));
                 }}
-                placeholder="Search customer..."
-                searchPlaceholder="Search by name..."
-                notFoundText="No customer found."
+                placeholder="Cari pelanggan..."
+                searchPlaceholder="Cari nama pelanggan..."
+                notFoundText="Pelanggan tidak ditemukan."
               />
               <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
                 <DialogTrigger asChild>
@@ -284,10 +292,10 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">Register New Member</DialogTitle>
-                    <DialogDescription>Add a new customer to the Bekupon community.</DialogDescription>
+                    <DialogTitle className="font-headline tracking-wider">Daftar Pelanggan Baru</DialogTitle>
+                    <DialogDescription>Tambahkan pelanggan baru ke dalam sistem.</DialogDescription>
                   </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
+                  {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore} />}
                 </DialogContent>
               </Dialog>
             </div>
@@ -323,7 +331,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                     <div className="flex-1">
                       <p className="font-medium">{item.productName}</p>
                       <p className="text-sm text-muted-foreground">
-                        Requested Quantity
+                        Jumlah Diminta
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -361,7 +369,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 ))
               ) : (
                 <div className="py-10 text-center text-sm text-muted-foreground">
-                  No products in the pending list.
+                  Belum ada produk di daftar tunggu.
                 </div>
               )}
               </div>
@@ -369,7 +377,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
             <Separator />
             <Button size="lg" className="w-full gap-2 font-headline text-lg tracking-wider" onClick={handleCreatePendingOrder}>
                 <ClipboardList className="h-5 w-5" />
-                Create Pending Order
+                Buat Pesanan Tertunda
             </Button>
           </CardContent>
         </Card>
