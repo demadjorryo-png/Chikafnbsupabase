@@ -243,7 +243,7 @@ function DashboardContent() {
     }[view] || 'Dashboard';
     
     if (isAdmin && view === 'overview') {
-        return `Admin Overview: ${activeStore?.name}`;
+        return `Admin Overview`;
     }
 
     return baseTitle;
