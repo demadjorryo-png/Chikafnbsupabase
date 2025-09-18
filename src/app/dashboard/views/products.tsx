@@ -94,12 +94,12 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
 }
 
 export default function Products({ products: cashierProducts, stores, onDataChange }: ProductsProps) {
-  const { currentUser, activeStore } = useAuth();
+  const { currentUser } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
 
   // Admin state for store selection and their products
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
+  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(isAdmin && stores.length > 0 ? stores[0].id : '');
   const [adminProducts, setAdminProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(isAdmin); // Admins start loading, cashiers don't.
 
@@ -114,17 +114,16 @@ export default function Products({ products: cashierProducts, stores, onDataChan
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
   
-  const currentStoreForAdmin = React.useMemo(() => {
-    return stores.find(s => s.id === adminSelectedStoreId);
+  const selectedStoreName = React.useMemo(() => {
+    return stores.find(s => s.id === adminSelectedStoreId)?.name || '...';
   }, [stores, adminSelectedStoreId]);
   
-  const currentStore = isAdmin ? currentStoreForAdmin : activeStore;
+  const currentStore = isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : null;
   const currentStoreId = currentStore?.id;
-  const selectedStoreName = stores.find(s => s.id === adminSelectedStoreId)?.name || '...';
 
 
   const fetchProductsForStore = React.useCallback(async (storeId: string) => {
-    if (!storeId) return;
+    if (!storeId || !isAdmin) return;
     setIsLoading(true);
     setAdminProducts([]);
     try {
@@ -143,7 +142,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
     } finally {
         setIsLoading(false);
     }
-  }, [stores, toast]);
+  }, [isAdmin, stores, toast]);
 
   React.useEffect(() => {
     if (isAdmin && adminSelectedStoreId) {
@@ -299,7 +298,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Daftar Produk: {isAdmin ? selectedStoreName : activeStore?.name}
+                Daftar Produk: {isAdmin ? selectedStoreName : ''}
               </CardTitle>
               <CardDescription>
                 Kelola inventaris produk di toko yang dipilih.
