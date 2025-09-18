@@ -23,9 +23,8 @@ export function ChikaChatButton() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              isIcon
               size="lg"
-              className="rounded-full shadow-lg h-14 w-14 bg-primary hover:bg-primary/90"
+              className="rounded-full shadow-lg h-14 w-14 p-0 bg-primary hover:bg-primary/90"
               onClick={() => setIsDialogOpen(true)}
             >
               <Sparkles className="h-7 w-7" />
