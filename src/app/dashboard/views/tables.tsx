@@ -50,6 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 
 type TablesProps = {
@@ -122,7 +123,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   }
 
   const handleClearTable = async () => {
-    if (!activeStore || !selectedTable) return;
+    if (!activeStore || !selectedTable || !currentUser) return;
      const tableCollectionName = `tables_${activeStore.id}`;
      const tableRef = doc(db, tableCollectionName, selectedTable.id);
      
@@ -154,6 +155,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                 pointsRedeemed: 0,
                 items: order!.items,
                 tableId: selectedTable.id,
+                status: 'Selesai',
             };
             transaction.set(newTransactionRef, finalTransactionData);
             
