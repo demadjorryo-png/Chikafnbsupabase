@@ -1,3 +1,4 @@
+'use server';
 import { config } from 'dotenv';
 config();
 
@@ -8,3 +9,4 @@ import '@/ai/flows/challenge-generator.ts';
 import '@/ai/flows/admin-recommendation.ts';
 import '@/ai/flows/promotion-recommendation.ts';
 import '@/ai/flows/receipt-promo-generator.ts';
+import '@/ai/flows/business-analyst.ts';

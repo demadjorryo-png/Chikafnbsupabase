@@ -23,7 +23,7 @@ import type { User, RedemptionOption, Product, Store, Customer, Transaction, Pen
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings, getPradanaTokenBalance } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -113,7 +113,9 @@ function DashboardContent() {
         setFeeSettings(feeSettingsData);
         
         // Refresh token balance as part of data fetch
-        refreshPradanaTokenBalance();
+        if (currentUser.role === 'admin') {
+            refreshPradanaTokenBalance();
+        }
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);

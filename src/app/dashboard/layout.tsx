@@ -2,6 +2,7 @@
 'use client';
 
 import { FloatingStoreIndicator } from "@/components/dashboard/floating-store-indicator";
+import { ChikaChatButton } from "@/components/dashboard/chika-chat-button";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
@@ -61,6 +62,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-screen w-full bg-background">
           {children}
           <FloatingStoreIndicator />
+          <ChikaChatButton />
         </div>
       </SidebarProvider>
   );
