@@ -135,11 +135,19 @@ No. WhatsApp: ${whatsapp}
 ----------------------------------
 Mohon segera verifikasi dan berikan sambutan.`;
 
-        const welcomeMessage = `*Pendaftaran Berhasil!*
+        const welcomeMessage = `*Pendaftaran Akun Kasir POS Chika Anda Berhasil!*
 
-Selamat datang, ${name}!
+Halo ${name}, selamat datang!
 
-Akun Anda untuk toko *${storeName}* telah berhasil dibuat. Anda mendapatkan bonus saldo awal *50 Pradana Token* untuk memulai.
+Berikut adalah detail akun Anda untuk toko *${storeName}*:
+- *Nama Lengkap:* ${name}
+- *Nama Toko:* ${storeName}
+- *Email (untuk login):* ${email}
+- *Nomor WhatsApp:* ${whatsapp}
+
+*PENTING:* Untuk keamanan akun Anda, kami *tidak mengirimkan password* Anda melalui pesan ini. Mohon simpan password yang telah Anda buat di tempat yang aman.
+
+Anda mendapatkan bonus saldo awal *50 Pradana Token* untuk memulai.
 
 Silakan login dan mulai kelola bisnis Anda dengan Kasir POS Chika.
 
