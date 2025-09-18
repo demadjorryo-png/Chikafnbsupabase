@@ -20,6 +20,10 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
+import { consultWithChika } from '@/ai/flows/app-consultant';
+import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
+import { getWhatsappSettings } from '@/lib/whatsapp-settings';
+
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -59,21 +63,27 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
     React.useState<TransactionFeeSettings | null>(null);
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  
+  const isBusinessAnalystMode = !!currentUser;
+
+  const initialMessage = isBusinessAnalystMode 
+    ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
+    : "Halo! Saya Chika, konsultan AI Anda. Senang bisa membantu. Aplikasi seperti apa yang ada di pikiran Anda? Ceritakan saja ide besarnya.";
 
   React.useEffect(() => {
     if (open) {
-      getTransactionFeeSettings().then(setFeeSettings);
-      if (messages.length === 0) {
-        setMessages([
-          {
-            id: 1,
-            sender: 'ai',
-            text: `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`,
-          },
-        ]);
+      if (isBusinessAnalystMode) {
+        getTransactionFeeSettings().then(setFeeSettings);
       }
+      if (messages.length === 0) {
+        setMessages([{ id: 1, sender: 'ai', text: initialMessage }]);
+      }
+    } else {
+        // Reset chat when dialog is closed
+        setMessages([]);
+        setInput('');
     }
-  }, [open, currentUser, activeStore, messages.length]);
+  }, [open, currentUser, activeStore, messages.length, isBusinessAnalystMode, initialMessage]);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -87,85 +97,159 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
     }
   }, [messages]);
 
+ const sendSummaryToWhatsapp = async (summary: string) => {
+    try {
+        const { deviceId, adminGroup } = await getWhatsappSettings();
+        if (!deviceId || !adminGroup) {
+            toast({ variant: 'destructive', title: 'WhatsApp Belum Dikonfigurasi', description: 'Gagal mengirim ringkasan ke admin.' });
+            return;
+        }
+        
+        const finalMessage = `Konsultasi Pembuatan Aplikasi Baru
+---------------------------------
+Chika AI telah menyelesaikan sesi konsultasi dengan calon klien. Berikut adalah ringkasannya:
+
+${summary}
+
+---------------------------------
+Mohon untuk segera ditindaklanjuti.`;
+
+        await sendWhatsAppNotification({
+            isGroup: true,
+            target: adminGroup,
+            message: finalMessage,
+        });
+        
+        toast({ title: "Ringkasan Terkirim!", description: "Ringkasan konsultasi telah dikirim ke tim admin." });
+
+    } catch (error) {
+         console.error("Failed to send summary to WA:", error);
+         toast({ variant: 'destructive', title: 'Gagal Mengirim Ringkasan' });
+    }
+  }
+
 
   const handleSendMessage = async (question: string) => {
-    if (!question.trim() || isLoading || !feeSettings || !activeStore) return;
+    if (!question.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now(),
       sender: 'user',
       text: question,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-      refreshPradanaTokenBalance();
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'ai',
-          text: 'Maaf, saldo token Anda tidak mencukupi. Silakan isi ulang untuk melanjutkan.',
-        },
-      ]);
-      setIsLoading(false);
-      return;
+    if(isBusinessAnalystMode) {
+        await handleBusinessAnalyst(question, newMessages);
+    } else {
+        await handleAppConsultant(question, newMessages);
     }
-
-    // --- Data Gathering for AI ---
-    try {
-        const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
-        const now = new Date();
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const startOfLastMonth = startOfMonth(lastMonth);
-        const endOfLastMonth = endOfMonth(lastMonth);
-
-        const transactionsRef = collection(db, 'transactions');
-        const q = query(transactionsRef, where('storeId', '==', activeStore.id));
-        const transactionSnap = await getDocs(q);
-        const storeTransactions = transactionSnap.docs.map(d => d.data() as Transaction);
-
-        const lastMonthTransactions = storeTransactions.filter(t => isWithinInterval(new Date(t.createdAt), {start: startOfLastMonth, end: endOfLastMonth}));
-        const totalRevenueLastMonth = lastMonthTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
-
-        const productSales: Record<string, number> = {};
-        storeTransactions.forEach(t => {
-            t.items.forEach(item => {
-                if (!productSales[item.productName]) productSales[item.productName] = 0;
-                productSales[item.productName] += item.quantity;
-            });
+  };
+  
+  const handleAppConsultant = async (userInput: string, currentMessages: Message[]) => {
+     try {
+        const result = await consultWithChika({
+            conversationHistory: currentMessages.map(m => `${m.isUser ? 'User' : 'AI'}: ${m.text}`).join('\n'),
+            userInput: userInput,
         });
-        const sortedProducts = Object.entries(productSales).sort(([, a], [, b]) => b - a);
 
-        const aiInput: ChikaAnalystInput = {
-            question: userMessage.text,
-            activeStoreName: activeStore.name,
-            totalRevenueLastMonth,
-            topSellingProducts: sortedProducts.slice(0, 5).map(([name]) => name),
-            worstSellingProducts: sortedProducts.slice(-5).reverse().map(([name]) => name),
-        };
+        const updatedMessages: Message[] = [...currentMessages, { id: Date.now() + 1, sender: 'ai', text: result.response }];
+        setMessages(updatedMessages);
+        
+        if (result.isFinished && result.summary) {
+            sendSummaryToWhatsapp(result.summary);
+            setMessages(prev => [...prev, {
+                id: Date.now() + 2,
+                sender: 'ai',
+                text: "Terima kasih! Ringkasan kebutuhan Anda telah saya kirimkan ke tim kami. Silakan tunggu follow up dari kami ya!",
+            }]);
+        }
 
-        const result = await askChika(aiInput);
-
-        setMessages((prev) => [
-            ...prev,
-            { id: Date.now() + 1, sender: 'ai', text: result.answer },
-        ]);
-
-    } catch (aiError) {
-        console.error("AI processing error:", aiError);
-        setMessages((prev) => [
-            ...prev,
-            { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat menganalisis data. Coba lagi beberapa saat.' },
-        ]);
+    } catch (error) {
+        console.error("AI consultation error:", error);
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: "Maaf, terjadi sedikit gangguan. Bisakah Anda mengulangi?", sender: 'ai' }]);
+        toast({ variant: 'destructive', title: "Terjadi Kesalahan AI" });
     } finally {
         setIsLoading(false);
     }
-  };
+  }
+
+  const handleBusinessAnalyst = async (userInput: string, currentMessages: Message[]) => {
+      if (!feeSettings || !activeStore) {
+        setIsLoading(false);
+        return;
+      };
+
+      try {
+        await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
+        refreshPradanaTokenBalance();
+      } catch (error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: 'ai',
+            text: 'Maaf, saldo token Anda tidak mencukupi. Silakan isi ulang untuk melanjutkan.',
+          },
+        ]);
+        setIsLoading(false);
+        return;
+      }
+
+      // --- Data Gathering for AI ---
+      try {
+          const productCollectionName = `products_${activeStore.id}`;
+          const now = new Date();
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const startOfLastMonth = startOfMonth(lastMonth);
+          const endOfLastMonth = endOfMonth(lastMonth);
+
+          const transactionsRef = collection(db, `transactions_${activeStore.id}`);
+          const q = query(transactionsRef);
+          const transactionSnap = await getDocs(q);
+          const storeTransactions = transactionSnap.docs.map(d => d.data() as Transaction);
+
+          const lastMonthTransactions = storeTransactions.filter(t => isWithinInterval(new Date(t.createdAt), {start: startOfLastMonth, end: endOfLastMonth}));
+          const totalRevenueLastMonth = lastMonthTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
+
+          const productSales: Record<string, number> = {};
+          storeTransactions.forEach(t => {
+              t.items.forEach(item => {
+                  if (!productSales[item.productName]) productSales[item.productName] = 0;
+                  productSales[item.productName] += item.quantity;
+              });
+          });
+          const sortedProducts = Object.entries(productSales).sort(([, a], [, b]) => b - a);
+
+          const aiInput: ChikaAnalystInput = {
+              question: userInput,
+              activeStoreName: activeStore.name,
+              totalRevenueLastMonth,
+              topSellingProducts: sortedProducts.slice(0, 5).map(([name]) => name),
+              worstSellingProducts: sortedProducts.slice(-5).reverse().map(([name]) => name),
+          };
+
+          const result = await askChika(aiInput);
+
+          setMessages((prev) => [
+              ...prev,
+              { id: Date.now() + 1, sender: 'ai', text: result.answer },
+          ]);
+
+      } catch (aiError) {
+          console.error("AI processing error:", aiError);
+          setMessages((prev) => [
+              ...prev,
+              { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat menganalisis data. Coba lagi beberapa saat.' },
+          ]);
+      } finally {
+          setIsLoading(false);
+      }
+  }
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,10 +261,12 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
       <DialogContent className="max-w-lg h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline tracking-wider flex items-center gap-2">
-            <BrainCircuit /> Chika AI Business Analyst
+            <BrainCircuit /> {isBusinessAnalystMode ? 'Chika AI Business Analyst' : 'Konsultasi Aplikasi dengan Chika'}
           </DialogTitle>
           <DialogDescription>
-            Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: {feeSettings?.aiUsageFee} Token/pesan)
+            {isBusinessAnalystMode
+              ? `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings?.aiUsageFee} Token/pesan)`
+              : "Jawab pertanyaan Chika untuk mendefinisikan kebutuhan aplikasi Anda."}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
@@ -237,7 +323,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
           </div>
         </ScrollArea>
         
-        {messages.length <= 1 && (
+        {isBusinessAnalystMode && messages.length <= 1 && (
             <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Atau coba tanya:</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -262,7 +348,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Contoh: Apa produk paling tidak laku bulan ini?"
+              placeholder="Ketik pesan Anda..."
               disabled={isLoading}
             />
             <Button type="submit" disabled={isLoading || !input.trim()}>
@@ -274,3 +360,4 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
     </Dialog>
   );
 }
+
