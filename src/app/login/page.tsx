@@ -27,6 +27,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ChikaChatDialog } from '@/components/dashboard/chika-chat-dialog';
+import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function LoginPage() {
@@ -34,10 +36,26 @@ export default function LoginPage() {
   const [password, setPassword] = React.useState('');
   const [isLoginLoading, setIsLoginLoading] = React.useState(false);
   const [isConsultDialogOpen, setIsConsultDialogOpen] = React.useState(false);
+  const [promoSettings, setPromoSettings] = React.useState<LoginPromoSettings>(defaultLoginPromoSettings);
+  const [isPromoLoading, setIsPromoLoading] = React.useState(true);
 
   const { toast } = useToast();
   const router = useRouter();
   const { login } = useAuth();
+
+  React.useEffect(() => {
+    async function fetchPromo() {
+        try {
+            const settings = await getLoginPromoSettings();
+            setPromoSettings(settings);
+        } catch (error) {
+            console.error("Failed to load promo settings, using defaults.");
+        } finally {
+            setIsPromoLoading(false);
+        }
+    }
+    fetchPromo();
+  }, []);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,10 +107,21 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 text-left text-sm">
-                    <p className="font-headline tracking-wider text-primary flex items-center gap-2 mb-2"><Megaphone/> PROMO SPESIAL!</p>
-                    <p>Dapatkan aplikasi kasir canggih seperti ini hanya <span className="font-bold">Rp 500/transaksi</span>, tanpa biaya langganan bulanan.</p>
-                    <p className="mt-2">Biaya setup awal diskon 90%, hanya <span className="font-bold text-lg">Rp 150.000</span> (dari Rp 1.500.000).</p>
-                    <p className="text-xs text-primary/80 mt-1">Penawaran terbatas!</p>
+                    {isPromoLoading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-5 w-1/3" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-4/5" />
+                        </div>
+                    ) : (
+                        <>
+                            <p className="font-headline tracking-wider text-primary flex items-center gap-2 mb-2"><Megaphone/> {promoSettings.title}</p>
+                            {promoSettings.line1 && <p>{promoSettings.line1}</p>}
+                            {promoSettings.line2 && <p className="mt-2">{promoSettings.line2}</p>}
+                            {promoSettings.line3 && <p className="mt-2">{promoSettings.line3}</p>}
+                            {promoSettings.footnote && <p className="text-xs text-primary/80 mt-1">{promoSettings.footnote}</p>}
+                        </>
+                    )}
                 </div>
                  <Button variant="outline" className="w-full" onClick={() => setIsConsultDialogOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4 text-primary" />
