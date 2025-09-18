@@ -44,6 +44,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
 const chartConfig = {
@@ -67,9 +68,10 @@ type AdminOverviewProps = {
     products: Product[];
     customers: Customer[];
     onDataChange: () => void;
+    feeSettings: TransactionFeeSettings;
 };
 
-export default function AdminOverview({ pendingOrders: initialPendingOrders, transactions, products, customers, onDataChange }: AdminOverviewProps) {
+export default function AdminOverview({ pendingOrders: initialPendingOrders, transactions, products, customers, onDataChange, feeSettings }: AdminOverviewProps) {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -184,7 +186,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
 
   const handleGenerateRecommendations = async () => {
     try {
-      await deductAiUsageFee(pradanaTokenBalance, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
     } catch (error) {
       // deductAiUsageFee throws an error if balance is insufficient, which is caught here.
       // The toast is handled inside the function, so we just need to stop execution.
@@ -345,7 +347,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
             <CardContent className="space-y-4">
                 <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
                     {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Buat Rekomendasi Baru (0.1 Token)
+                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
                 </Button>
 
                 {recommendations && (
@@ -569,6 +571,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
           order={orderToFollowUp}
           open={!!orderToFollowUp}
           onOpenChange={() => setOrderToFollowUp(null)}
+          feeSettings={feeSettings}
         />
       )}
 

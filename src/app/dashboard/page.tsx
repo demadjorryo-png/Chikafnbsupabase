@@ -138,7 +138,7 @@ function DashboardContent() {
   const isAdmin = currentUser?.role === 'admin';
   const view = new URLSearchParams(window.location.search).get('view') || 'overview';
   
-  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges')) {
+  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings')) {
     return <DashboardSkeleton />;
   }
 
@@ -153,7 +153,8 @@ function DashboardContent() {
           users={users} 
           customers={customers} 
           pendingOrders={storePendingOrders} 
-          onDataChange={fetchAllData} 
+          onDataChange={fetchAllData}
+          feeSettings={feeSettings} 
         />;
     }
 
@@ -166,6 +167,7 @@ function DashboardContent() {
                     customers={customers}
                     pendingOrders={storePendingOrders}
                     onDataChange={fetchAllData}
+                    feeSettings={feeSettings}
                  />;
         }
         return <Overview 
@@ -173,7 +175,8 @@ function DashboardContent() {
               users={users} 
               customers={customers} 
               pendingOrders={storePendingOrders} 
-              onDataChange={fetchAllData} 
+              onDataChange={fetchAllData}
+              feeSettings={feeSettings}
             />;
       case 'pos':
         return <POS 
@@ -202,15 +205,16 @@ function DashboardContent() {
       case 'settings':
         return <Settings />;
       case 'challenges':
-        return <Challenges />;
+        return <Challenges feeSettings={feeSettings} />;
       case 'promotions':
         return <Promotions 
                     redemptionOptions={redemptionOptions} 
                     setRedemptionOptions={setRedemptionOptions} 
                     transactions={transactions}
+                    feeSettings={feeSettings}
                 />;
       case 'receipt-settings':
-        return <ReceiptSettings redemptionOptions={redemptionOptions} />;
+        return <ReceiptSettings redemptionOptions={redemptionOptions} feeSettings={feeSettings} />;
       default:
         return <Overview 
               transactions={storeTransactions} 
@@ -218,6 +222,7 @@ function DashboardContent() {
               customers={customers} 
               pendingOrders={storePendingOrders} 
               onDataChange={fetchAllData} 
+              feeSettings={feeSettings}
             />;
     }
   };

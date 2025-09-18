@@ -653,7 +653,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             </div>
             
             {selectedCustomer && cart.length > 0 && (
-              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} />
+              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
             <div className="grid grid-cols-3 gap-2">

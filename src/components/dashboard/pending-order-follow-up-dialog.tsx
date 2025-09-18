@@ -20,17 +20,20 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type PendingOrderFollowUpDialogProps = {
   order: PendingOrder;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  feeSettings: TransactionFeeSettings;
 };
 
 export function PendingOrderFollowUpDialog({
   order,
   open,
   onOpenChange,
+  feeSettings
 }: PendingOrderFollowUpDialogProps) {
   const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
@@ -42,7 +45,7 @@ export function PendingOrderFollowUpDialog({
   const handleGenerate = React.useCallback(async () => {
     if (isAdmin) {
       try {
-        await deductAiUsageFee(pradanaTokenBalance, toast);
+        await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
       } catch (error) {
         onOpenChange(false); // Close dialog if not enough tokens
         return;
@@ -66,7 +69,7 @@ export function PendingOrderFollowUpDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast]);
+  }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast, feeSettings]);
 
   React.useEffect(() => {
     if (open) {
@@ -116,7 +119,7 @@ export function PendingOrderFollowUpDialog({
           </DialogTitle>
           <DialogDescription>
             Kirim notifikasi ke {order.customerName} bahwa produknya sudah
-            tersedia. {isAdmin && '(Biaya 0.1 Token)'}
+            tersedia. {isAdmin && `(Biaya ${feeSettings.aiUsageFee} Token)`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">

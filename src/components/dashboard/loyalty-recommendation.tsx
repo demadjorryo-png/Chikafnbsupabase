@@ -12,15 +12,18 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
   totalPurchaseAmount: number;
+  feeSettings: TransactionFeeSettings;
 };
 
 export function LoyaltyRecommendation({
   customer,
   totalPurchaseAmount,
+  feeSettings
 }: LoyaltyRecommendationProps) {
   const [recommendation, setRecommendation] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
@@ -48,7 +51,7 @@ export function LoyaltyRecommendation({
   const handleGetRecommendation = async () => {
     if (isAdmin) {
       try {
-        await deductAiUsageFee(pradanaTokenBalance, toast);
+        await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
       } catch (error) {
         return; // Stop if not enough tokens
       }
@@ -92,7 +95,7 @@ export function LoyaltyRecommendation({
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        <span>Get AI Point Recommendation {isAdmin && '(0.1 Token)'}</span>
+        <span>Get AI Point Recommendation {isAdmin && `(${feeSettings.aiUsageFee} Token)`}</span>
       </Button>
 
       {recommendation && (

@@ -25,12 +25,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type ReceiptSettingsProps = {
   redemptionOptions: RedemptionOption[];
+  feeSettings: TransactionFeeSettings;
 };
 
-export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
+export default function ReceiptSettings({ redemptionOptions, feeSettings }: ReceiptSettingsProps) {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { toast } = useToast();
 
@@ -79,7 +81,7 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
 
   const handleGeneratePromo = async () => {
     try {
-      await deductAiUsageFee(pradanaTokenBalance, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -203,7 +205,7 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                Generate with Chika AI (0.1 Token)
+                Generate with Chika AI ({feeSettings.aiUsageFee} Token)
               </Button>
               {generatedPromo && (
                 <div className="mt-4 space-y-4">

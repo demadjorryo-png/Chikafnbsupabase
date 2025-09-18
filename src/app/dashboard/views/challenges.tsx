@@ -24,8 +24,13 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
-export default function Challenges() {
+type ChallengesProps = {
+  feeSettings: TransactionFeeSettings;
+};
+
+export default function Challenges({ feeSettings }: ChallengesProps) {
   const [budget, setBudget] = React.useState(500000);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(),
@@ -57,7 +62,7 @@ export default function Challenges() {
     }
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -164,7 +169,7 @@ export default function Challenges() {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              Generate with Chika AI (0.1 Token)
+              Generate with Chika AI ({feeSettings.aiUsageFee} Token)
             </Button>
           </div>
         </CardContent>

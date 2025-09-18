@@ -8,6 +8,7 @@ export type TransactionFeeSettings = {
   tokenValueRp: number;
   feePercentage: number;
   minFeeRp: number;
+  aiUsageFee: number;
 };
 
 // Default settings in case the document doesn't exist in Firestore
@@ -15,6 +16,7 @@ export const defaultFeeSettings: TransactionFeeSettings = {
   tokenValueRp: 1000, // 1 token = Rp 1.000
   feePercentage: 0.005, // Biaya 0.5% per transaksi
   minFeeRp: 500, // Biaya minimum Rp 500
+  aiUsageFee: 0.1, // Biaya 0.1 token per penggunaan AI
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {
@@ -26,7 +28,9 @@ export async function getTransactionFeeSettings(): Promise<TransactionFeeSetting
       // Merge with defaults to ensure all properties are present
       return { ...defaultFeeSettings, ...docSnap.data() };
     } else {
-      console.warn("Transaction fee settings not found in Firestore, using default values.");
+      console.warn("Transaction fee settings not found, creating document with default values.");
+      // If the document doesn't exist, create it with default values
+      await setDoc(settingsDocRef, defaultFeeSettings);
       return defaultFeeSettings;
     }
   } catch (error) {
@@ -75,8 +79,8 @@ export async function updatePradanaTokenBalance(amount: number) {
     }
 }
 
-export async function deductAiUsageFee(currentBalance: number, toast: Function) {
-  const fee = 0.1;
+export async function deductAiUsageFee(currentBalance: number, feeSettings: TransactionFeeSettings, toast: Function) {
+  const fee = feeSettings.aiUsageFee;
   if (currentBalance < fee) {
     toast({
       variant: 'destructive',

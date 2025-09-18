@@ -59,14 +59,16 @@ import {
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
     setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
     transactions: Transaction[];
+    feeSettings: TransactionFeeSettings;
 }
 
-export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions }: PromotionsProps) {
+export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
   const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
@@ -148,7 +150,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
 
   const handleGenerateRecommendations = async () => {
     try {
-      await deductAiUsageFee(pradanaTokenBalance, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -280,7 +282,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                     ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Buat Rekomendasi Baru (0.1 Token)
+                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
                 </Button>
                 {recommendations && (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

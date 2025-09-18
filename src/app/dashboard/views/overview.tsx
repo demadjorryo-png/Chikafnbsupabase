@@ -63,6 +63,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 const chartConfig = {
   revenue: {
@@ -71,7 +72,7 @@ const chartConfig = {
   },
 };
 
-function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
+function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void, feeSettings: TransactionFeeSettings }) {
     const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser } = useAuth();
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
@@ -81,7 +82,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
     const handleGenerate = async () => {
         if (currentUser?.role === 'admin') {
             try {
-                await deductAiUsageFee(pradanaTokenBalance, toast);
+                await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
             } catch (error) {
                 return;
             }
@@ -147,7 +148,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Generate with Chika AI {currentUser?.role === 'admin' && '(0.1 Token)'}
+                        Generate with Chika AI {currentUser?.role === 'admin' && `(${feeSettings.aiUsageFee} Token)`}
                     </Button>
                     {message && (
                         <div className="space-y-2">
@@ -176,9 +177,10 @@ type OverviewProps = {
   customers: Customer[];
   pendingOrders: PendingOrder[];
   onDataChange: () => void;
+  feeSettings: TransactionFeeSettings;
 };
 
-export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange }: OverviewProps) {
+export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange, feeSettings }: OverviewProps) {
   const { currentUser, activeStore } = useAuth();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
@@ -548,6 +550,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
                     setSelectedCustomer(null)
                 }
             }}
+            feeSettings={feeSettings}
         />
       )}
       
@@ -556,6 +559,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
           order={orderToFollowUp}
           open={!!orderToFollowUp}
           onOpenChange={() => setOrderToFollowUp(null)}
+          feeSettings={feeSettings}
         />
       )}
 
