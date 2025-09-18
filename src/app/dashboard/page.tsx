@@ -104,9 +104,9 @@ function DashboardContent() {
         const isAdmin = currentUser?.role === 'admin';
         
         let allProducts: Product[] = [];
+        // For cashiers, fetch products for their specific store.
+        // For admins, products are fetched on-demand inside the Products view.
         if (!isAdmin && activeStore?.id) {
-            // Cashier: fetch products from their active store.
-            // Admin products are now fetched directly in the Products view component.
             const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
             const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
             allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
@@ -182,8 +182,6 @@ function DashboardContent() {
                     feeSettings={feeSettings} 
                 />;
       case 'products':
-        // For admin, `stores` is passed, but products will be fetched inside.
-        // For cashier, `products` is passed, which is already filtered for their store.
         return <Products 
                   products={products}
                   stores={stores}
@@ -288,3 +286,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    

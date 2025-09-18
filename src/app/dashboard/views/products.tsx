@@ -270,7 +270,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
 
   return (
     <div className="grid gap-6">
-      {isAdmin && (
+      {isAdmin && stores.length > 0 && (
           <Card>
             <CardHeader>
                 <CardTitle className="font-headline tracking-wider">Pilih Toko</CardTitle>
@@ -511,3 +511,5 @@ export default function Products({ products: cashierProducts, stores, onDataChan
     </div>
   );
 }
+
+    
