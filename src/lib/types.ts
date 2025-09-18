@@ -40,7 +40,6 @@ export type User = {
   id: string;
   name: string;
   role: UserRole;
-  storeId: string; // The primary store for a user
   userId?: string; // The login ID
   password?: string; // NOTE: Storing plain text password is not secure. For temporary use only.
   email?: string;

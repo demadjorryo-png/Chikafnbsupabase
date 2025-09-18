@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { stores } from '@/lib/data';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -38,7 +37,6 @@ const FormSchema = z.object({
     role: z.enum(['admin', 'cashier'], {
         required_error: "Please select a role."
     }),
-    storeId: z.string({ required_error: 'Please select a store.'}),
     password: z.string().min(8, {
       message: 'Password must be at least 8 characters.',
     }),
@@ -84,25 +82,18 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
 
 
       try {
-        // We need to create a temporary auth instance to create user, then sign out
-        // to not interfere with the current user's session.
-        // This is a known limitation when admins create users.
         const tempAuth = auth;
         const originalUser = tempAuth.currentUser;
 
-        // Step 1: Create user in Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, data.password);
         const user = userCredential.user;
 
-        // Step 2: Save user details to Firestore
-        // We use the UID from Auth as the document ID in Firestore for consistency
         await setDoc(doc(db, "users", user.uid), {
             name: data.name,
             userId: data.userId,
             role: data.role,
-            storeId: data.storeId,
             email: email,
-            status: 'active', // Set initial status to active
+            status: 'active',
         });
 
         toast({
@@ -110,7 +101,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
             description: `Akun untuk ${data.name} telah berhasil dibuat.`,
         });
         
-        onEmployeeAdded(); // Trigger refresh
+        onEmployeeAdded();
         setDialogOpen(false);
 
       } catch (error: any) {
@@ -129,10 +120,6 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
         });
       } finally {
         setIsLoading(false);
-        // Important: sign back in the original user if they were signed out.
-        // In a real production app with robust session management, this might be handled differently.
-        // For this app's flow, this is a simplified way to manage it.
-        // await signInWithCredential(tempAuth, originalUser.credential);
       }
   }
 
@@ -152,20 +139,20 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="userId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>User ID (for login)</FormLabel>
-              <FormControl>
-                <Input placeholder="budi_p" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <div className="grid grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="userId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>User ID (for login)</FormLabel>
+                <FormControl>
+                    <Input placeholder="budi_p" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
             <FormField
             control={form.control}
             name="role"
@@ -181,28 +168,6 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
                     <SelectContent>
                         <SelectItem value="cashier">Cashier</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="storeId"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Primary Store</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a store" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {stores.map(store => (
-                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                        ))}
                     </SelectContent>
                 </Select>
                 <FormMessage />

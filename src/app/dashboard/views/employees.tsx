@@ -16,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -107,7 +106,6 @@ export default function Employees() {
     try {
         await updateDoc(userDocRef, { status: newStatus });
         
-        // Update state locally to reflect the change immediately
         setUsers(prevUsers => prevUsers.map(u => u.id === selectedUser.id ? {...u, status: newStatus} : u));
 
         toast({
@@ -135,11 +133,11 @@ export default function Employees() {
   }
 
   const handleUserAdded = () => {
-    fetchUsers(); // Re-fetch users when a new one is added
+    fetchUsers();
   }
   
   const handleUserUpdated = () => {
-      fetchUsers(); // Re-fetch users when one is updated
+      fetchUsers();
   }
 
   return (
@@ -186,7 +184,6 @@ export default function Employees() {
                 <TableHead>User ID</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Primary Store</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -198,7 +195,6 @@ export default function Employees() {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
@@ -221,9 +217,6 @@ export default function Employees() {
                       >
                         {user.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {stores.find((s) => s.id === user.storeId)?.name || 'Global'}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

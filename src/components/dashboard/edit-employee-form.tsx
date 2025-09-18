@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { stores } from '@/lib/data';
 import type { User } from '@/lib/types';
 import * as React from 'react';
 import { db } from '@/lib/firebase';
@@ -35,7 +34,6 @@ const FormSchema = z.object({
     role: z.enum(['admin', 'cashier'], {
         required_error: "Please select a role."
     }),
-    storeId: z.string({ required_error: 'Please select a store.'}),
   });
 
 type EditEmployeeFormProps = {
@@ -53,7 +51,6 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
     defaultValues: {
       name: employee.name,
       role: employee.role,
-      storeId: employee.storeId,
     },
   });
 
@@ -65,7 +62,6 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
         await updateDoc(userDocRef, {
             name: data.name,
             role: data.role,
-            storeId: data.storeId,
         });
         
         toast({
@@ -103,51 +99,27 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Role</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="cashier">Cashier</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="storeId"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Primary Store</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a store" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {stores.map(store => (
-                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
+        <FormField
+          control={form.control}
+          name="role"
+          render={({ field }) => (
+              <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                      <SelectItem value="cashier">Cashier</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+              </Select>
+              <FormMessage />
+              </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
