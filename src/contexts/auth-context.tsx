@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -123,9 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         status: 'active',
     });
     
-    // 4. Send notification to webhook
+    // 4. Send notifications
     try {
-        const message = `Pendaftaran Baru Kasir POS Chika!
+        const adminMessage = `Pendaftaran Baru Kasir POS Chika!
 ----------------------------------
 Nama: ${name}
 Nama Toko: ${storeName}
@@ -133,11 +134,32 @@ Email: ${email}
 No. WhatsApp: ${whatsapp}
 ----------------------------------
 Mohon segera verifikasi dan berikan sambutan.`;
-        
-        const webhookBaseUrl = 'https://app.whacenter.com/api/sendGroup?device_id=0fe2d894646b1e3111e0e40c809b5501&group=SPV%20ERA%20MMBP&message=';
-        const fullWebhookUrl = `${webhookBaseUrl}${encodeURIComponent(message)}`;
 
-        await fetch(fullWebhookUrl);
+        const welcomeMessage = `*Pendaftaran Berhasil!*
+
+Selamat datang, ${name}!
+
+Akun Anda untuk toko *${storeName}* telah berhasil dibuat. Anda mendapatkan bonus saldo awal *50 Pradana Token* untuk memulai.
+
+Silakan login dan mulai kelola bisnis Anda dengan Kasir POS Chika.
+
+Terima kasih!
+Tim Kasir POS Chika`;
+
+        const deviceId = '0fe2d894646b1e3111e0e40c809b5501';
+
+        // Send to admin group
+        const adminWebhookUrl = `https://app.whacenter.com/api/sendGroup?device_id=${deviceId}&group=SPV%20ERA%20MMBP&message=${encodeURIComponent(adminMessage)}`;
+        
+        // Send to new user
+        const userWebhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${whatsapp}&message=${encodeURIComponent(welcomeMessage)}`;
+
+        // Send both notifications in parallel
+        await Promise.allSettled([
+            fetch(adminWebhookUrl),
+            fetch(userWebhookUrl)
+        ]);
+
     } catch (webhookError) {
         console.error("Failed to send webhook notification:", webhookError);
         // Don't block the user registration for this, just log it.
