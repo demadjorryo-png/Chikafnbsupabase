@@ -58,14 +58,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
     products: Product[];
     stores: Store[];
-    userRole: User['role'];
     onDataChange: () => void;
     isLoading: boolean;
-    activeStoreId: string | null; // For cashiers
 };
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; storeName: string; }) {
@@ -96,7 +95,11 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products: allProducts, stores, userRole, onDataChange, isLoading, activeStoreId }: ProductsProps) {
+export default function Products({ products: allProducts, stores, onDataChange, isLoading }: ProductsProps) {
+  const { currentUser, activeStore } = useAuth();
+  const userRole = currentUser?.role || 'cashier';
+  const isAdmin = userRole === 'admin';
+
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -109,19 +112,14 @@ export default function Products({ products: allProducts, stores, userRole, onDa
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
 
   // Admin state for store selection
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>('');
-  const isAdmin = userRole === 'admin';
+  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
   
-  // Use admin's selection if admin, otherwise use the prop for cashier
-  const currentStoreId = isAdmin ? adminSelectedStoreId : activeStoreId;
-  
+  // currentStore is either the cashier's active store, or the admin's selected store.
   const currentStore = React.useMemo(() => {
-    // If admin and no store selected, default to the first one.
-    if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
-      return stores[0];
-    }
-    return stores.find(s => s.id === currentStoreId);
-  }, [stores, currentStoreId, isAdmin, adminSelectedStoreId]);
+    return isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : activeStore;
+  }, [isAdmin, stores, adminSelectedStoreId, activeStore]);
+  
+  const currentStoreId = currentStore?.id;
 
 
   React.useEffect(() => {
