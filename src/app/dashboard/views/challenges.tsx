@@ -40,29 +40,30 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
   const [generatedChallenges, setGeneratedChallenges] =
     React.useState<ChallengeGeneratorOutput | null>(null);
   const { toast } = useToast();
-  const { pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
 
 
   const handleGenerateChallenges = async () => {
     if (budget <= 0) {
       toast({
         variant: 'destructive',
-        title: 'Invalid Budget',
-        description: 'Please enter a budget greater than zero.',
+        title: 'Anggaran Tidak Valid',
+        description: 'Silakan masukkan anggaran lebih besar dari nol.',
       });
       return;
     }
     if (!date?.from || !date?.to) {
         toast({
             variant: 'destructive',
-            title: 'Invalid Date',
-            description: 'Please select a start and end date.',
+            title: 'Tanggal Tidak Valid',
+            description: 'Silakan pilih tanggal mulai dan selesai.',
         });
         return;
     }
+    if (!activeStore) return;
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -78,15 +79,15 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
       setGeneratedChallenges(result);
       refreshPradanaTokenBalance();
       toast({
-        title: 'Challenges Generated!',
-        description: `Chika AI has successfully created new challenges for the period ${result.period}.`,
+        title: 'Tantangan Dibuat!',
+        description: `Chika AI telah berhasil membuat tantangan baru untuk periode ${result.period}.`,
       });
     } catch (error) {
       console.error('Error generating challenges:', error);
       toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description: 'Could not generate challenges. Please try again.',
+        title: 'Gagal Membuat Tantangan',
+        description: 'Tidak dapat membuat tantangan. Silakan coba lagi.',
       });
     } finally {
       setIsLoading(false);
@@ -98,18 +99,18 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
       <Card>
         <CardHeader>
           <CardTitle className="font-headline tracking-wider">
-            Generate Employee Challenges
+            Buat Tantangan Karyawan
           </CardTitle>
           <CardDescription>
-            Set a reward budget and a date range. Chika AI will create motivating sales
-            challenges based on total revenue (omset) for that period.
+            Tetapkan anggaran hadiah dan rentang tanggal. Chika AI akan membuat tantangan penjualan
+            yang memotivasi berdasarkan total pendapatan (omset) untuk periode tersebut.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="max-w-md space-y-4">
              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="budget">Reward Budget (Rp)</Label>
+                  <Label htmlFor="budget">Anggaran Hadiah (Rp)</Label>
                   <Input
                     id="budget"
                     type="number"
@@ -120,7 +121,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
                   />
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="date">Challenge Period</Label>
+                    <Label htmlFor="date">Periode Tantangan</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                         <Button
@@ -142,7 +143,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
                                 format(date.from, "LLL dd, y")
                             )
                             ) : (
-                            <span>Pick a date</span>
+                            <span>Pilih tanggal</span>
                             )}
                         </Button>
                         </PopoverTrigger>
@@ -169,7 +170,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              Generate with Chika AI ({feeSettings.aiUsageFee} Token)
+              Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
             </Button>
           </div>
         </CardContent>
@@ -178,10 +179,10 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Generated Challenges
+              Tantangan yang Dihasilkan
             </CardTitle>
             <CardDescription>
-              Active challenges for the period: <span className='font-semibold'>{generatedChallenges.period}</span>
+              Tantangan aktif untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -206,7 +207,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">
-                        Reward
+                        Hadiah
                       </p>
                       <p className="text-lg font-semibold text-accent">
                         {challenge.reward}
@@ -218,10 +219,12 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
             ))}
           </CardContent>
           <CardFooter>
-            <Button>Save & Activate Challenges</Button>
+            <Button>Simpan & Aktifkan Tantangan</Button>
           </CardFooter>
         </Card>
       )}
     </div>
   );
 }
+
+    

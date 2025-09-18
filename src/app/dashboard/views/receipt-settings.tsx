@@ -80,8 +80,9 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
   };
 
   const handleGeneratePromo = async () => {
+    if (!activeStore) return;
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -127,7 +128,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
       return (
         <Card>
             <CardHeader>
-                <CardTitle>Receipt Settings</CardTitle>
+                <CardTitle>Pengaturan Struk</CardTitle>
             </CardHeader>
             <CardContent>
                 <Alert variant="destructive">
@@ -175,7 +176,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
               id="promo-text"
               value={settings.promoText}
               onChange={(e) => handleInputChange('promoText', e.target.value)}
-              placeholder="Contoh: Beli 2 Liquid Gratis 1!"
+              placeholder="Contoh: Beli 2 gratis 1!"
               rows={2}
             />
             <p className="text-sm text-muted-foreground">
@@ -205,7 +206,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                Generate with Chika AI ({feeSettings.aiUsageFee} Token)
+                Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
               </Button>
               {generatedPromo && (
                 <div className="mt-4 space-y-4">
@@ -219,7 +220,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
                   <div className="flex gap-2">
                     <Button onClick={handleApplyPromo}>Terapkan</Button>
                     <Button variant="ghost" onClick={handleGeneratePromo} disabled={isGenerating}>
-                      Generate Ulang
+                      Buat Ulang
                     </Button>
                   </div>
                 </div>
@@ -233,7 +234,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
               id="footer-text"
               value={settings.footerText}
               onChange={(e) => handleInputChange('footerText', e.target.value)}
-              placeholder="Contoh: Terima kasih, selamat nge-vape!"
+              placeholder="Contoh: Terima kasih, selamat berbelanja kembali!"
               rows={3}
             />
             <p className="text-sm text-muted-foreground">
@@ -275,3 +276,5 @@ function ReceiptSettingsSkeleton() {
         </Card>
     )
 }
+
+    
