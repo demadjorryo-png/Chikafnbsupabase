@@ -75,7 +75,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
 
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
-    : "Halo! Selamat datang. Saya Chika, asisten AI untuk Rio Pradana, konsultan aplikasi AI kami. Saya di sini untuk membantu Anda menggali ide-ide aplikasi Anda agar tim kami bisa memberikan solusi terbaik. Jangan sungkan untuk berbagi detail sebanyak-banyaknya ya!";
+    : "Halo! Saya Chika, asisten AI untuk Rio Pradana, konsultan aplikasi AI kami. Saya di sini untuk membantu Anda menggali ide-ide aplikasi Anda agar tim kami bisa memberikan solusi terbaik. Jangan sungkan untuk berbagi detail sebanyak-banyaknya ya!";
     
   const exampleQuestions = isBusinessAnalystMode ? businessAnalystExampleQuestions : appConsultantExampleQuestions;
 
