@@ -57,7 +57,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference, DocumentSnapshot } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
@@ -255,40 +255,64 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     
     try {
       await runTransaction(db, async (transaction) => {
-        // --- 1. Update Product Stock ---
-        for (const item of cart) {
-            // Skip stock check for manual items, as they don't exist in the DB
-            if (item.productId.startsWith('manual-')) {
-                continue;
-            }
+        // --- Phase 1: READ ---
+        // Create references for all documents we need to read.
+        const productRefs = cart
+          .filter(item => !item.productId.startsWith('manual-'))
+          .map(item => ({
+            ref: doc(db, productCollectionName, item.productId),
+            item: item,
+          }));
+        
+        const customerRef = selectedCustomer ? doc(db, "customers", selectedCustomer.id) : null;
+  
+        // Read all documents.
+        const productDocs = await Promise.all(
+          productRefs.map(p => transaction.get(p.ref))
+        );
+        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
 
-            const productRef = doc(db, productCollectionName, item.productId);
-            const productDoc = await transaction.get(productRef);
+        // --- Phase 2: VALIDATE & CALCULATE ---
+        const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
+        
+        for (let i = 0; i < productDocs.length; i++) {
+          const productDoc = productDocs[i];
+          const { item } = productRefs[i];
+          
+          if (!productDoc.exists()) {
+            throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
+          }
+          const currentStock = productDoc.data().stock || 0;
+          const newStock = currentStock - item.quantity;
+          if (newStock < 0) {
+            throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
+          }
+          stockUpdates.push({ ref: productDoc.ref, newStock });
+        }
 
-            if (!productDoc.exists()) {
-                throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
-            }
-            const currentStock = productDoc.data().stock || 0;
-            const newStock = currentStock - item.quantity;
-            if (newStock < 0) {
-                throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-            }
-            transaction.update(productRef, { stock: newStock });
+        let newCustomerPoints: number | null = null;
+        if (selectedCustomer && customerDoc) {
+          if (!customerDoc.exists()) {
+            throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
+          }
+          const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
+          newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
+        }
+
+        // --- Phase 3: WRITE ---
+        // Perform all writes after all reads and validation are complete.
+        
+        // 1. Update product stocks.
+        stockUpdates.forEach(update => {
+          transaction.update(update.ref, { stock: update.newStock });
+        });
+
+        // 2. Update customer points.
+        if (customerRef && newCustomerPoints !== null) {
+          transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
-        // --- 2. Update Customer Points (if a customer is selected) ---
-        if (selectedCustomer) {
-            const customerRef = doc(db, "customers", selectedCustomer.id);
-            const customerDoc = await transaction.get(customerRef);
-             if (!customerDoc.exists()) {
-                throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
-            }
-            const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
-            const newPoints = currentPoints + pointsEarned - pointsToRedeem;
-            transaction.update(customerRef, { loyaltyPoints: newPoints });
-        }
-
-        // --- 3. Create Transaction Record ---
+        // 3. Create the new transaction record.
         const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
@@ -307,11 +331,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        // --- 4. Set transaction data for receipt dialog ---
+        // Set transaction data for receipt dialog on success.
         setLastTransaction(finalTransactionData);
       });
 
-      // --- 5. Post-Transaction Success Actions ---
+      // --- Post-Transaction Success Actions (runs only if transaction succeeds) ---
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       setCart([]);
       setDiscountValue(0);
