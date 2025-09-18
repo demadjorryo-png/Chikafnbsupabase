@@ -40,6 +40,7 @@ export type User = {
   userId?: string; // The login ID
   password?: string;
   email?: string;
+  whatsapp?: string;
   status: 'active' | 'inactive';
 };
 

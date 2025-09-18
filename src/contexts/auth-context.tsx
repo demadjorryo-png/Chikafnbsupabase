@@ -15,7 +15,7 @@ interface AuthContextType {
   pradanaTokenBalance: number;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, storeName: string, email: string, password: string) => Promise<void>;
+  register: (name: string, storeName: string, email: string, password: string, whatsapp: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
 }
@@ -30,14 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
-    if (!currentUser) return;
-    const q = query(collection(db, "stores"), where("adminUids", "array-contains", currentUser.id));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        const storeDoc = querySnapshot.docs[0];
+    if (!activeStore) return;
+    const storeDocRef = doc(db, 'stores', activeStore.id);
+    const storeDoc = await getDoc(storeDocRef);
+    if (storeDoc.exists()) {
         setPradanaTokenBalance(storeDoc.data().pradanaTokenBalance || 0);
     }
-  }, [currentUser]);
+  }, [activeStore]);
 
 
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
@@ -99,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const register = async (name: string, storeName: string, email: string, password: string) => {
+  const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
     // 1. Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
@@ -119,11 +118,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: name,
         userId: email, // Using email as userId for consistency
         email: email,
+        whatsapp: whatsapp,
         role: 'admin',
         status: 'active',
     });
     
-    // 4. Set session for the new user
+    // 4. Send notification to webhook
+    try {
+        const webhookUrl = 'https://your-webhook-url.com/notification'; // IMPORTANT: Replace with your actual webhook URL
+        await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: `Pendaftaran Baru Kasir POS Chika!
+----------------------------------
+Nama: ${name}
+Nama Toko: ${storeName}
+Email: ${email}
+No. WhatsApp: ${whatsapp}
+----------------------------------
+Mohon segera verifikasi dan berikan sambutan.`
+            }),
+        });
+    } catch (webhookError) {
+        console.error("Failed to send webhook notification:", webhookError);
+        // Don't block the user registration for this, just log it.
+    }
+
+
+    // 5. Set session for the new user
     await handleUserSession(firebaseUser);
     
     toast({

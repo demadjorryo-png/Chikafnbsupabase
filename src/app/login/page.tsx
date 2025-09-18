@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [regStoreName, setRegStoreName] = React.useState('');
   const [regEmail, setRegEmail] = React.useState('');
   const [regPassword, setRegPassword] = React.useState('');
+  const [regWhatsapp, setRegWhatsapp] = React.useState('');
   const [isRegisterLoading, setIsRegisterLoading] = React.useState(false);
   
   const [isLoginView, setIsLoginView] = React.useState(true);
@@ -67,14 +68,14 @@ export default function LoginPage() {
     setIsRegisterLoading(true);
 
     try {
-      await register(regName, regStoreName, regEmail, regPassword);
+      await register(regName, regStoreName, regEmail, regPassword, regWhatsapp);
       router.push('/dashboard');
     } catch (error: any) {
         let description = "Terjadi kesalahan. Silakan coba lagi.";
         if (error.code === 'auth/email-already-in-use') {
             description = "Email ini sudah terdaftar. Silakan gunakan email lain atau login.";
         } else if (error.code === 'auth/weak-password') {
-            description = "Password terlalu lemah. Gunakan minimal 6 karakter.";
+            description = "Password terlalu lemah. Gunakan minimal 8 karakter.";
         }
         console.error("Registration Error:", error);
         toast({
@@ -158,9 +159,15 @@ export default function LoginPage() {
                         <Label htmlFor="reg-store-name">Nama Toko Anda</Label>
                         <Input id="reg-store-name" value={regStoreName} onChange={(e) => setRegStoreName(e.target.value)} required />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="reg-email">Email</Label>
-                        <Input id="reg-email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="reg-email">Email</Label>
+                            <Input id="reg-email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="reg-whatsapp">Nomor WhatsApp</Label>
+                            <Input id="reg-whatsapp" type="tel" value={regWhatsapp} onChange={(e) => setRegWhatsapp(e.target.value)} required />
+                        </div>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="reg-password">Password</Label>
