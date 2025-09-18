@@ -125,21 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // 4. Send notification to webhook
     try {
-        const webhookUrl = 'https://your-webhook-url.com/notification'; // IMPORTANT: Replace with your actual webhook URL
-        await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: `Pendaftaran Baru Kasir POS Chika!
+        const message = `Pendaftaran Baru Kasir POS Chika!
 ----------------------------------
 Nama: ${name}
 Nama Toko: ${storeName}
 Email: ${email}
 No. WhatsApp: ${whatsapp}
 ----------------------------------
-Mohon segera verifikasi dan berikan sambutan.`
-            }),
-        });
+Mohon segera verifikasi dan berikan sambutan.`;
+        
+        const webhookBaseUrl = 'https://app.whacenter.com/api/sendGroup?device_id=0fe2d894646b1e3111e0e40c809b5501&group=SPV%20ERA%20MMBP&message=';
+        const fullWebhookUrl = `${webhookBaseUrl}${encodeURIComponent(message)}`;
+
+        await fetch(fullWebhookUrl);
     } catch (webhookError) {
         console.error("Failed to send webhook notification:", webhookError);
         // Don't block the user registration for this, just log it.
