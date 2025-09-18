@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -12,9 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'next/navigation';
-import { stores } from '@/lib/data';
-import type { User } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -26,14 +24,15 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useAuth } from '@/contexts/auth-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const PasswordFormSchema = z
   .object({
@@ -48,11 +47,43 @@ const PasswordFormSchema = z
     path: ['confirmPassword'],
   });
 
+function ProfileCardSkeleton() {
+    return (
+        <Card className="lg:col-span-1">
+            <CardHeader>
+                <CardTitle className="font-headline tracking-wider">Profil Anda</CardTitle>
+                <CardDescription>Informasi akun Anda yang sedang login.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-[80px]" />
+                        <Skeleton className="h-5 w-[150px]" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-[50px]" />
+                        <Skeleton className="h-5 w-[80px]" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-[60px]" />
+                        <Skeleton className="h-5 w-[120px]" />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function Settings() {
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
+  const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
@@ -67,29 +98,10 @@ export default function Settings() {
     },
   });
 
-  React.useEffect(() => {
-    async function fetchUser() {
-        if (userId) {
-          const usersSnapshot = await getDocs(collection(db, "users"));
-          const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-          const foundUser = firestoreUsers.find(u => u.id === userId);
-          setCurrentUser(foundUser || null);
-        }
-    }
-    fetchUser();
-  }, [userId]);
-
-  const store = React.useMemo(() => {
-    if (currentUser?.storeId) {
-      return stores.find((s) => s.id === currentUser.storeId);
-    }
-    return null;
-  }, [currentUser]);
-
   const handlePasswordChange = async (
     values: z.infer<typeof PasswordFormSchema>
   ) => {
-    setIsLoading(true);
+    setIsPasswordChangeLoading(true);
     const user = auth.currentUser;
 
     if (!user || !user.email) {
@@ -98,7 +110,7 @@ export default function Settings() {
         title: 'Error',
         description: 'Tidak ada pengguna yang login. Silakan login ulang.',
       });
-      setIsLoading(false);
+      setIsPasswordChangeLoading(false);
       return;
     }
 
@@ -126,45 +138,49 @@ export default function Settings() {
         description: description,
       });
     } finally {
-      setIsLoading(false);
+      setIsPasswordChangeLoading(false);
     }
   };
   
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
-      <Card className="lg:col-span-1">
-        <CardHeader>
-          <CardTitle className="font-headline tracking-wider">
-            Profil Anda
-          </CardTitle>
-          <CardDescription>
-            Informasi akun Anda yang sedang login.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <UserCircle className="h-6 w-6 text-muted-foreground" />
-            <div>
-                <p className='text-sm text-muted-foreground'>Nama</p>
-                <p className="font-semibold">{currentUser?.name || 'Loading...'}</p>
+      {isAuthLoading ? (
+        <ProfileCardSkeleton />
+      ) : (
+        <Card className="lg:col-span-1">
+            <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+                Profil Anda
+            </CardTitle>
+            <CardDescription>
+                Informasi akun Anda yang sedang login.
+            </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+                <UserCircle className="h-6 w-6 text-muted-foreground" />
+                <div>
+                    <p className='text-sm text-muted-foreground'>Nama</p>
+                    <p className="font-semibold">{currentUser?.name}</p>
+                </div>
             </div>
-          </div>
-           <div className="flex items-center gap-3">
-            <KeyRound className="h-6 w-6 text-muted-foreground" />
-             <div>
-                <p className='text-sm text-muted-foreground'>Jabatan</p>
-                <p className="font-semibold capitalize">{currentUser?.role || 'Loading...'}</p>
+            <div className="flex items-center gap-3">
+                <KeyRound className="h-6 w-6 text-muted-foreground" />
+                <div>
+                    <p className='text-sm text-muted-foreground'>Jabatan</p>
+                    <p className="font-semibold capitalize">{currentUser?.role}</p>
+                </div>
             </div>
-          </div>
-           <div className="flex items-center gap-3">
-            <Building className="h-6 w-6 text-muted-foreground" />
-             <div>
-                <p className='text-sm text-muted-foreground'>Toko Utama</p>
-                <p className="font-semibold">{store?.name || (currentUser?.role === 'admin' ? 'Global' : 'Loading...')}</p>
+            <div className="flex items-center gap-3">
+                <Building className="h-6 w-6 text-muted-foreground" />
+                <div>
+                    <p className='text-sm text-muted-foreground'>Toko Utama</p>
+                    <p className="font-semibold">{activeStore?.name || (currentUser?.role === 'admin' ? 'Global' : '-')}</p>
+                </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+        </Card>
+      )}
 
       <div className="lg:col-span-2 grid gap-6">
         <Card>
@@ -200,7 +216,7 @@ export default function Settings() {
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
                               onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                           >
-                              {showCurrentPassword ? <EyeOff /> : <Eye />}
+                              {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                       </div>
                       <FormMessage />
@@ -224,7 +240,7 @@ export default function Settings() {
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
                               onClick={() => setShowNewPassword(!showNewPassword)}
                           >
-                              {showNewPassword ? <EyeOff /> : <Eye />}
+                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                       </div>
                       <FormMessage />
@@ -248,15 +264,15 @@ export default function Settings() {
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           >
-                              {showConfirmPassword ? <EyeOff /> : <Eye />}
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                       </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && (
+                <Button type="submit" disabled={isPasswordChangeLoading}>
+                  {isPasswordChangeLoading && (
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Simpan Password Baru
