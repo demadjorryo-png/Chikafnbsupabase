@@ -11,6 +11,7 @@ import AdminOverview from '@/app/dashboard/views/admin-overview';
 import POS from '@/app/dashboard/views/pos';
 import Products from '@/app/dashboard/views/products';
 import Customers from '@/app/dashboard/views/customers';
+import CustomerAnalytics from '@/app/dashboard/views/customer-analytics';
 import Transactions from '@/app/dashboard/views/transactions';
 import PendingOrders from '@/app/dashboard/views/pending-orders';
 import Employees from '@/app/dashboard/views/employees';
@@ -48,7 +49,7 @@ function DashboardContent() {
     setIsDataLoading(true);
     
     try {
-        const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+        const productCollectionName = `products_${activeStore.id}`;
 
         const [
             storesSnapshot,
@@ -91,9 +92,7 @@ function DashboardContent() {
         setFeeSettings(feeSettingsData);
         
         // Refresh token balance as part of data fetch
-        if (currentUser.role === 'admin') {
-            refreshPradanaTokenBalance();
-        }
+        refreshPradanaTokenBalance();
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -126,7 +125,7 @@ function DashboardContent() {
     const storeTransactions = transactions.filter(t => t.storeId === activeStore?.id);
     const storePendingOrders = pendingOrders.filter(po => po.storeId === activeStore?.id);
 
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
         return <Overview 
           transactions={storeTransactions} 
@@ -170,12 +169,13 @@ function DashboardContent() {
       case 'products':
         return <Products 
                   products={products}
-                  stores={stores}
                   onDataChange={fetchAllData}
                   isLoading={isDataLoading}
                 />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
+      case 'customer-analytics':
+        return <CustomerAnalytics customers={customers} transactions={storeTransactions} isLoading={isDataLoading} />;
       case 'employees':
         return <Employees />;
       case 'transactions':
@@ -211,15 +211,16 @@ function DashboardContent() {
     const baseTitle = {
       'overview': 'Dashboard Overview',
       'pos': 'Point of Sale',
-      'products': 'Product Inventory',
-      'customers': 'Customer Management',
-      'employees': 'Employee Management',
-      'transactions': 'Transaction History',
-      'pending-orders': 'Pending Orders',
-      'settings': 'Settings',
-      'challenges': 'Employee Challenges',
-      'promotions': 'Promotions',
-      'receipt-settings': 'Receipt Settings',
+      'products': 'Inventaris Produk',
+      'customers': 'Manajemen Pelanggan',
+      'customer-analytics': 'Analisis Pelanggan',
+      'employees': 'Manajemen Karyawan',
+      'transactions': 'Riwayat Transaksi',
+      'pending-orders': 'Pesanan Tertunda',
+      'settings': 'Pengaturan',
+      'challenges': 'Tantangan Karyawan',
+      'promotions': 'Promosi',
+      'receipt-settings': 'Pengaturan Struk',
     }[view] || 'Dashboard';
     
     if (isAdmin && view === 'overview') {

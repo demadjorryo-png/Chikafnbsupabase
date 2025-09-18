@@ -62,7 +62,6 @@ import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
     products: Product[];
-    stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
 };
@@ -91,7 +90,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products, stores, onDataChange, isLoading }: ProductsProps) {
+export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
@@ -117,7 +116,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId}`;
     const productRef = doc(db, productCollectionName, productId);
 
     try {
@@ -153,7 +152,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId}`;
     try {
         await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
         toast({

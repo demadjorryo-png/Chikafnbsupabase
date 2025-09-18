@@ -27,6 +27,7 @@ import {
   CircleDollarSign,
   Receipt,
   UserCircle,
+  BarChart4,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
@@ -74,15 +75,21 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'products',
-      label: 'Products',
+      label: 'Produk',
       icon: <Package />,
       roles: ['admin', 'cashier'],
     },
     {
       view: 'customers',
-      label: 'Customers',
+      label: 'Pelanggan',
       icon: <Users />,
       roles: ['admin', 'cashier'],
+    },
+     {
+      view: 'customer-analytics',
+      label: 'Analisis Pelanggan',
+      icon: <BarChart4 />,
+      roles: ['admin'],
     },
     {
       view: 'employees',
@@ -92,19 +99,19 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'transactions',
-      label: 'Transactions',
+      label: 'Transaksi',
       icon: <History />,
       roles: ['admin', 'cashier'],
     },
     {
       view: 'pending-orders',
-      label: 'Pending Orders',
+      label: 'Pesanan Tertunda',
       icon: <ClipboardList />,
       roles: ['admin', 'cashier'],
     },
     {
       view: 'promotions',
-      label: 'Promotions',
+      label: 'Promosi',
       icon: <TicketPercent />,
       roles: ['admin', 'cashier'],
     },
@@ -116,7 +123,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'receipt-settings',
-      label: 'Receipt Settings',
+      label: 'Pengaturan Struk',
       icon: <Receipt />,
       roles: ['admin'],
     },
@@ -196,15 +203,15 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
                </div>
             )}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
+            <SidebarMenuButton tooltip="Pengaturan" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />
-              <span>Settings</span>
+              <span>Pengaturan</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log Out" onClick={handleLogout}>
+            <SidebarMenuButton tooltip="Keluar" onClick={handleLogout}>
               <LogOut />
-              <span>Log Out</span>
+              <span>Keluar</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
