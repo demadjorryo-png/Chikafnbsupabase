@@ -5,12 +5,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAT5-2FRf9wngx2Z1YQHScfB2wsJvTa9E4",
-  authDomain: "bekupon-vape-store-01447-d7c6e.firebaseapp.com",
-  projectId: "bekupon-vape-store-01447-d7c6e",
-  storageBucket: "bekupon-vape-store-01447-d7c6e.firebasestorage.app",
-  messagingSenderId: "643364201348",
-  appId: "1:643364201348:web:5d130be5baa2888919b3d1"
+  apiKey: "AIzaSyAcpYnh1IAcsdYqdwcAcGcVNPpg8XW8jrs",
+  authDomain: "kasir-pos-chika-77817547-3caa2.firebaseapp.com",
+  projectId: "kasir-pos-chika-77817547-3caa2",
+  storageBucket: "kasir-pos-chika-77817547-3caa2.firebasestorage.app",
+  messagingSenderId: "167545733860",
+  appId: "1:167545733860:web:ba789ac18ed13f069162f1"
 };
 
 // Initialize Firebase
