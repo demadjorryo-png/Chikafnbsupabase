@@ -25,9 +25,9 @@ import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import type { Transaction, Product } from '@/lib/types';
+import type { Transaction } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
 
 type Message = {
@@ -53,9 +53,10 @@ const appConsultantExampleQuestions = [
 type ChikaChatDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode: 'consultant' | 'analyst';
 };
 
-export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
+export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogProps) {
   const {
     currentUser,
     activeStore,
@@ -71,7 +72,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   
-  const isBusinessAnalystMode = !!currentUser;
+  const isBusinessAnalystMode = mode === 'analyst';
 
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
@@ -173,12 +174,12 @@ Mohon untuk segera ditindaklanjuti.`;
         setMessages(updatedMessages);
         
         if (result.isFinished && result.summary) {
-            sendSummaryToWhatsapp(result.summary);
-            setMessages(prev => [...prev, {
-                id: Date.now() + 2,
-                sender: 'ai',
-                text: "Terima kasih! Ringkasan kebutuhan Anda telah saya kirimkan ke tim kami. Silakan tunggu follow up dari kami ya!",
-            }]);
+          sendSummaryToWhatsapp(result.summary);
+          setMessages(prev => [...prev, {
+              id: Date.now() + 2,
+              sender: 'ai',
+              text: "Terima kasih! Ringkasan kebutuhan Anda telah saya kirimkan ke tim kami. Silakan tunggu follow up dari kami ya!",
+          }]);
         }
 
     } catch (error) {
@@ -268,18 +269,28 @@ Mohon untuk segera ditindaklanjuti.`;
     handleSendMessage(input);
   }
 
+  const getTitle = () => {
+    if (isBusinessAnalystMode) return 'Chika AI Business Analyst';
+    return 'Konsultasi Aplikasi dengan Chika AI';
+  }
+
+  const getDescription = () => {
+    if (isBusinessAnalystMode) {
+      return `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings?.aiUsageFee} Token/pesan)`;
+    }
+    return "Jelaskan ide aplikasi Anda. Chika akan membantu Anda merangkum kebutuhan proyek.";
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline tracking-wider flex items-center gap-2">
             <Sparkles /> 
-            {isBusinessAnalystMode ? 'Chika AI Business Analyst' : 'Konsultasi Aplikasi dengan Chika AI'}
+            {getTitle()}
           </DialogTitle>
           <DialogDescription>
-            {isBusinessAnalystMode
-              ? `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings?.aiUsageFee} Token/pesan)`
-              : "Jelaskan ide aplikasi Anda. Chika akan membantu Anda merangkum kebutuhan proyek."}
+            {getDescription()}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>

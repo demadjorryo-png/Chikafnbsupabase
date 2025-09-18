@@ -35,7 +35,7 @@ export function ChikaChatButton() {
           </TooltipContent>
         </Tooltip>
       </div>
-      <ChikaChatDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
+      <ChikaChatDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} mode="analyst" />
     </>
   );
 }

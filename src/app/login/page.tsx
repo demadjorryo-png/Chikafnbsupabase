@@ -128,7 +128,7 @@ export default function LoginPage() {
 
       </div>
     </main>
-    <ChikaChatDialog open={isConsultDialogOpen} onOpenChange={setIsConsultDialogOpen} />
+    <ChikaChatDialog open={isConsultDialogOpen} onOpenChange={setIsConsultDialogOpen} mode="consultant" />
     </>
   );
 }
