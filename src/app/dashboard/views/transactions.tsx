@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -20,7 +19,7 @@ import {
 import type { Transaction, Store, User, Customer } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Volume2, Send } from 'lucide-react';
+import { MoreHorizontal, Volume2, Send, CheckCircle, Loader } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +41,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { OrderReadyDialog } from '@/components/dashboard/order-ready-dialog';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, writeBatch, getDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 type TransactionsProps = {
     transactions: Transaction[];
@@ -132,10 +145,12 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, use
 
 export default function Transactions({ transactions, stores, users, customers, onDataChange, isLoading }: TransactionsProps) {
   const { activeStore } = useAuth();
+  const { toast } = useToast();
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
-  
-  const [actionInProgress, setActionInProgress] = React.useState<{ transactionId: string; type: 'call' | 'whatsapp' } | null>(null);
+  const [actionInProgress, setActionInProgress] = React.useState<{ transaction: Transaction; type: 'call' | 'whatsapp' } | null>(null);
+  const [completingTransactionId, setCompletingTransactionId] = React.useState<string | null>(null);
+  const [transactionToComplete, setTransactionToComplete] = React.useState<Transaction | null>(null);
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
@@ -151,10 +166,40 @@ export default function Transactions({ transactions, stores, users, customers, o
   }
 
   const handleActionClick = (transaction: Transaction, type: 'call' | 'whatsapp') => {
-    if (transaction.customerId || type === 'call') {
-      setActionInProgress({ transactionId: transaction.id, type });
-    }
+    setActionInProgress({ transaction, type });
   };
+  
+  const handleCompleteTransaction = async () => {
+    if (!transactionToComplete || !activeStore) return;
+    
+    setCompletingTransactionId(transactionToComplete.id);
+
+    const transactionCollectionName = `transactions_${activeStore.id}`;
+    const transactionRef = doc(db, transactionCollectionName, transactionToComplete.id);
+
+    try {
+        const batch = writeBatch(db);
+        batch.update(transactionRef, { status: 'Selesai' });
+
+        if (transactionToComplete.tableId) {
+            const tableCollectionName = `tables_${activeStore.id}`;
+            const tableRef = doc(db, tableCollectionName, transactionToComplete.tableId);
+            batch.update(tableRef, { status: 'Selesai Dibayar' });
+        }
+        
+        await batch.commit();
+
+        toast({ title: 'Pesanan Selesai!', description: `Status pesanan untuk ${transactionToComplete.customerName} telah diperbarui.`});
+        onDataChange();
+
+    } catch (error) {
+        console.error("Error completing transaction:", error);
+        toast({ variant: 'destructive', title: 'Gagal Menyelesaikan Pesanan' });
+    } finally {
+        setCompletingTransactionId(null);
+        setTransactionToComplete(null);
+    }
+  }
 
   return (
     <>
@@ -237,10 +282,20 @@ export default function Transactions({ transactions, stores, users, customers, o
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={() => handleActionClick(transaction, 'whatsapp')}
-                                        disabled={!transaction.customerId || transaction.customerId === 'N/A'}
+                                        disabled={!getCustomerForTransaction(transaction)}
                                     >
                                         <Send className="h-4 w-4"/>
                                         <span className="sr-only">Kirim WhatsApp</span>
+                                    </Button>
+                                     <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-500/10 border-green-500/30"
+                                        onClick={() => setTransactionToComplete(transaction)}
+                                        disabled={completingTransactionId === transaction.id}
+                                    >
+                                        {completingTransactionId === transaction.id ? <Loader className="h-4 w-4 animate-spin"/> : <CheckCircle className="h-4 w-4"/>}
+                                        <span className="sr-only">Selesaikan Pesanan</span>
                                     </Button>
                                 </>
                             )}
@@ -286,15 +341,28 @@ export default function Transactions({ transactions, stores, users, customers, o
       )}
       {actionInProgress && activeStore && (
         <OrderReadyDialog
-          transaction={transactions.find(t => t.id === actionInProgress.transactionId)!}
-          customer={getCustomerForTransaction(transactions.find(t => t.id === actionInProgress.transactionId)!)}
+          transaction={actionInProgress.transaction}
+          customer={getCustomerForTransaction(actionInProgress.transaction)}
           store={activeStore}
           open={!!actionInProgress}
           onOpenChange={() => setActionInProgress(null)}
-          onStatusUpdated={onDataChange}
           actionType={actionInProgress.type}
         />
       )}
+      <AlertDialog open={!!transactionToComplete} onOpenChange={() => setTransactionToComplete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Selesaikan Pesanan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan menandai pesanan untuk <span className="font-bold">{transactionToComplete?.customerName}</span> sebagai selesai. Pastikan pesanan sudah diserahkan kepada pelanggan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCompleteTransaction}>Ya, Selesaikan</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
