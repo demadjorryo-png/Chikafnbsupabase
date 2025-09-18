@@ -71,7 +71,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
-      roles: ['cashier'],
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'products',
