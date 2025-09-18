@@ -11,3 +11,4 @@ import '@/ai/flows/promotion-recommendation.ts';
 import '@/ai/flows/receipt-promo-generator.ts';
 import '@/ai/flows/business-analyst.ts';
 import '@/ai/flows/order-ready-follow-up.ts';
+import '@/ai/flows/text-to-speech.ts';

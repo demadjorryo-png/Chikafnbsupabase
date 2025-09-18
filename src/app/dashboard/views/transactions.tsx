@@ -20,7 +20,7 @@ import {
 import type { Transaction, Store, User, Customer } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Send } from 'lucide-react';
+import { MoreHorizontal, Volume2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -220,8 +220,8 @@ export default function Transactions({ transactions, stores, users, customers, o
                                     onClick={() => setOrderReadyTransaction(transaction)}
                                     disabled={!getCustomerForTransaction(transaction)}
                                 >
-                                    <Send className="h-3 w-3"/>
-                                    Pesanan Siap
+                                    <Volume2 className="h-3 w-3"/>
+                                    Panggil
                                 </Button>
                             )}
                             <DropdownMenu>
