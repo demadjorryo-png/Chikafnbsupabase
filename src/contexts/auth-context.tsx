@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { stores as staticStores } from '@/lib/data';
 
@@ -36,11 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCurrentUser(userData);
 
           const storeId = sessionStorage.getItem('activeStoreId');
-          if (userData.role === 'cashier' && storeId) {
+          if (storeId) {
             const storeData = staticStores.find(s => s.id === storeId) || null;
             setActiveStore(storeData);
           } else {
-            setActiveStore(null);
+             // This case might happen if session storage is cleared but user is still logged in
+             // We should probably log them out to be safe
+             throw new Error('Inconsistent session: User logged in but no active store found.');
           }
           
           toast({
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
+        sessionStorage.removeItem('activeStoreId');
       }
     } else {
       setCurrentUser(null);
@@ -73,8 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (userId: string, password: string, role: 'admin' | 'cashier', store?: Store) => {
+    if (!store) {
+      throw new Error("Store is required for login.");
+    }
+    
     const email = `${userId}@era5758.co.id`;
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password);
     
     const userQuery = query(collection(db, "users"), where("userId", "==", userId));
     const userDoc = await getDocs(userQuery);
@@ -86,25 +93,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const userData = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as User;
 
-    if (userData.role !== role) {
-        await signOut(auth);
-        throw new Error(`Anda mencoba login sebagai ${role}, tetapi akun Anda terdaftar sebagai ${userData.role}.`);
-    }
-
     if (userData.status === 'inactive') {
       await signOut(auth);
       throw new Error("Akun Anda saat ini nonaktif. Silakan hubungi admin.");
     }
     
     setCurrentUser(userData);
-    if (role === 'cashier' && store) {
-        setActiveStore(store);
-        // Persist store choice in session storage
-        sessionStorage.setItem('activeStoreId', store.id);
-    } else {
-        setActiveStore(null);
-        sessionStorage.removeItem('activeStoreId');
-    }
+    setActiveStore(store);
+    sessionStorage.setItem('activeStoreId', store.id);
+    
     setIsLoading(false);
 
     toast({

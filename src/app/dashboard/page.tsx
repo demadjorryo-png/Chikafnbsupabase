@@ -16,11 +16,8 @@ import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
-import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder } from '@/lib/types';
-import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -52,10 +49,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 function DashboardContent() {
-  const searchParams = useSearchParams();
-  const view = searchParams.get('view') || 'overview';
-  
-  const { currentUser, activeStore } = useAuth();
+  const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
   
   const [stores, setStores] = React.useState<Store[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -67,16 +61,19 @@ function DashboardContent() {
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
   const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isDataLoading, setIsDataLoading] = React.useState(true);
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
-    if (!currentUser) return;
-    setIsLoading(true);
+    if (!currentUser || !activeStore) return;
+    setIsDataLoading(true);
     
     try {
+        const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+
         const [
             storesSnapshot,
+            productsSnapshot,
             customersSnapshot,
             usersSnapshot,
             redemptionOptionsSnapshot,
@@ -86,33 +83,23 @@ function DashboardContent() {
             pendingOrdersSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
+            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
-            getDocs(collection(db, 'transactions')),
-            getDocs(collection(db, 'pendingOrders')),
+            getDocs(collection(db, 'transactions')), // Fetch all transactions
+            getDocs(collection(db, 'pendingOrders')), // Fetch all pending orders
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
         setStores(allStores);
-
-        const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        setUsers(firestoreUsers);
         
-        const isAdmin = currentUser?.role === 'admin';
-        
-        let allProducts: Product[] = [];
-        // For cashiers, fetch products for their specific store.
-        // For admins, products are fetched on-demand inside the Products view.
-        if (!isAdmin && activeStore?.id) {
-            const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
-            const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
-            allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        }
-
+        const allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setProducts(allProducts);
+
+        setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
         const unsortedTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
@@ -135,42 +122,50 @@ function DashboardContent() {
             description: 'Terjadi kesalahan saat mengambil data. Coba muat ulang halaman.'
         });
     } finally {
-        setIsLoading(false);
+        setIsDataLoading(false);
     }
   }, [currentUser, activeStore, toast]);
   
   React.useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    // Only fetch data if the session is valid
+    if (!isAuthLoading && currentUser && activeStore) {
+        fetchAllData();
+    } else if (!isAuthLoading && (!currentUser || !activeStore)) {
+        // If auth is done loading and session is invalid, stop the data loader
+        setIsDataLoading(false);
+    }
+  }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
+  const view = new URLSearchParams(window.location.search).get('view') || 'overview';
   
-  if (isLoading) {
+  if (isAuthLoading || isDataLoading) {
     return <DashboardSkeleton />;
   }
 
   const renderView = () => {
+    // Filter transactions and pending orders for the active store
+    const storeTransactions = transactions.filter(t => t.storeId === activeStore?.id);
+    const storePendingOrders = pendingOrders.filter(po => po.storeId === activeStore?.id);
+
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings'];
-    
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
         return <Overview 
-          transactions={transactions} 
+          transactions={storeTransactions} 
           users={users} 
           customers={customers} 
-          pendingOrders={pendingOrders} 
+          pendingOrders={storePendingOrders} 
           onDataChange={fetchAllData} 
         />;
     }
 
     switch (view) {
       case 'overview':
-        return isAdmin 
-          ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview 
-              transactions={transactions} 
+        return <Overview 
+              transactions={storeTransactions} 
               users={users} 
               customers={customers} 
-              pendingOrders={pendingOrders} 
+              pendingOrders={storePendingOrders} 
               onDataChange={fetchAllData} 
             />;
       case 'pos':
@@ -178,23 +173,24 @@ function DashboardContent() {
                     products={products} 
                     customers={customers}
                     onDataChange={fetchAllData} 
-                    isLoading={isLoading} 
+                    isLoading={isDataLoading} 
                     feeSettings={feeSettings} 
                 />;
       case 'products':
         return <Products 
                   products={products}
-                  stores={stores}
                   onDataChange={fetchAllData}
                 />;
       case 'customers':
-        return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
+        return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'employees':
+        // Admins now operate within a store context, but employee management is global.
+        // For simplicity, we'll keep it as is, but a real-world app might need a separate "global admin" view.
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isLoading} />;
+        return <Transactions transactions={storeTransactions} stores={stores} users={users} isLoading={isDataLoading} />;
       case 'pending-orders':
-        return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
+        return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'settings':
         return <Settings />;
       case 'challenges':
@@ -203,54 +199,38 @@ function DashboardContent() {
         return <Promotions 
                     redemptionOptions={redemptionOptions} 
                     setRedemptionOptions={setRedemptionOptions} 
-                    transactions={transactions} 
+                    transactions={transactions} // Pass all transactions for AI analysis
                 />;
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
       default:
-        return isAdmin 
-          ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
-          : <Overview 
-              transactions={transactions} 
+        return <Overview 
+              transactions={storeTransactions} 
               users={users} 
               customers={customers} 
-              pendingOrders={pendingOrders} 
+              pendingOrders={storePendingOrders} 
               onDataChange={fetchAllData} 
             />;
     }
   };
 
   const getTitle = () => {
-    if (!isAdmin && ['employees', 'challenges', 'receipt-settings'].includes(view)) {
-      return 'Dashboard Overview';
-    }
-    
-    switch (view) {
-      case 'overview':
-        return isAdmin ? 'Admin Dashboard' : 'Dashboard Overview';
-      case 'pos':
-        return 'Point of Sale';
-      case 'products':
-        return 'Product Inventory';
-      case 'customers':
-        return 'Customer Management';
-      case 'employees':
-        return 'Employee Management';
-      case 'transactions':
-        return 'Transaction History';
-       case 'pending-orders':
-        return 'Pending Orders';
-        case 'settings':
-        return 'Settings';
-      case 'challenges':
-        return 'Employee Challenges';
-      case 'promotions':
-        return 'Promotions';
-      case 'receipt-settings':
-        return 'Receipt Settings';
-      default:
-        return 'Dashboard Overview';
-    }
+    // This logic can be simplified as admin view is now also store-specific
+    const baseTitle = {
+      'overview': 'Dashboard Overview',
+      'pos': 'Point of Sale',
+      'products': 'Product Inventory',
+      'customers': 'Customer Management',
+      'employees': 'Employee Management',
+      'transactions': 'Transaction History',
+      'pending-orders': 'Pending Orders',
+      'settings': 'Settings',
+      'challenges': 'Employee Challenges',
+      'promotions': 'Promotions',
+      'receipt-settings': 'Receipt Settings',
+    }[view] || 'Dashboard Overview';
+
+    return `${baseTitle} - ${activeStore?.name}`;
   };
 
   return (
@@ -286,5 +266,3 @@ function DashboardSkeleton() {
         </div>
     )
 }
-
-    

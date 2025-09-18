@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,7 +21,7 @@ import type { Product, User, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2, Building } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -51,7 +52,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { collection, doc, deleteDoc, updateDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -59,9 +60,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
-    // For cashiers, products are passed down from parent. For admins, it's an empty array.
     products: Product[]; 
-    stores: Store[];
     onDataChange: () => void;
 };
 
@@ -93,15 +92,11 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products: cashierProducts, stores, onDataChange }: ProductsProps) {
-  const { currentUser } = useAuth();
+export default function Products({ products, onDataChange }: ProductsProps) {
+  const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
-
-  // Admin state for store selection and their products
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(isAdmin && stores.length > 0 ? stores[0].id : '');
-  const [adminProducts, setAdminProducts] = React.useState<Product[]>([]);
-  const [isLoading, setIsLoading] = React.useState(isAdmin); // Admins start loading, cashiers don't.
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -114,43 +109,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
   
-  const selectedStoreName = React.useMemo(() => {
-    return stores.find(s => s.id === adminSelectedStoreId)?.name || '...';
-  }, [stores, adminSelectedStoreId]);
-  
-  const currentStore = isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : null;
-  const currentStoreId = currentStore?.id;
-
-
-  const fetchProductsForStore = React.useCallback(async (storeId: string) => {
-    if (!storeId || !isAdmin) return;
-    setIsLoading(true);
-    setAdminProducts([]);
-    try {
-        const productCollectionName = `products_${storeId.replace('store_', '')}`;
-        const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
-        const fetchedProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setAdminProducts(fetchedProducts);
-    } catch (error) {
-        console.error(`Error fetching products for store ${storeId}:`, error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Memuat Produk',
-            description: `Tidak dapat mengambil data produk untuk toko ${stores.find(s => s.id === storeId)?.name}.`
-        });
-        setAdminProducts([]);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [isAdmin, stores, toast]);
-
-  React.useEffect(() => {
-    if (isAdmin && adminSelectedStoreId) {
-      fetchProductsForStore(adminSelectedStoreId);
-    } else if (!isAdmin) {
-        setIsLoading(false);
-    }
-  }, [isAdmin, adminSelectedStoreId, fetchProductsForStore]);
+  const currentStoreId = activeStore?.id;
 
 
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
@@ -165,11 +124,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
 
     try {
       await updateDoc(productRef, { stock: newStock });
-      if (isAdmin) {
-        fetchProductsForStore(currentStoreId); // Refetch for admin
-      } else {
-        onDataChange(); // Trigger parent refetch for cashier
-      }
+      onDataChange(); // Refresh data from parent
     } catch (error) {
       console.error("Error updating stock:", error);
       toast({
@@ -207,11 +162,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-         if (isAdmin) {
-            fetchProductsForStore(currentStoreId);
-        } else {
-            onDataChange();
-        }
+        onDataChange();
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -227,11 +178,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
 
 
   const handleDataUpdate = () => {
-    if (isAdmin && currentStoreId) {
-        fetchProductsForStore(currentStoreId);
-    } else {
-        onDataChange();
-    }
+    onDataChange();
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {
@@ -247,20 +194,17 @@ export default function Products({ products: cashierProducts, stores, onDataChan
   };
 
   const filteredProducts = React.useMemo(() => {
-    const productsToFilter = isAdmin ? adminProducts : cashierProducts;
-    
-    return productsToFilter.filter(product => {
+    return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
     });
-  }, [isAdmin, adminProducts, cashierProducts, searchTerm, selectedCategories]);
+  }, [products, searchTerm, selectedCategories]);
 
   const availableCategories = React.useMemo(() => {
-    const productsToGetCategoriesFrom = isAdmin ? adminProducts : cashierProducts;
-    const categories = new Set(productsToGetCategoriesFrom.map(p => p.category));
+    const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
-  }, [isAdmin, adminProducts, cashierProducts]);
+  }, [products]);
 
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
@@ -272,36 +216,15 @@ export default function Products({ products: cashierProducts, stores, onDataChan
 
   return (
     <div className="grid gap-6">
-      {isAdmin && stores.length > 0 && (
-          <Card>
-            <CardHeader>
-                <CardTitle className="font-headline tracking-wider">Pilih Toko</CardTitle>
-                <CardDescription>Pilih toko untuk melihat dan mengelola inventaris produk.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-                 {stores.map(store => (
-                    <Button
-                        key={store.id}
-                        variant={adminSelectedStoreId === store.id ? 'default' : 'outline'}
-                        onClick={() => setAdminSelectedStoreId(store.id)}
-                        className="gap-2"
-                    >
-                        <Building className="h-4 w-4"/>
-                        {store.name}
-                    </Button>
-                ))}
-            </CardContent>
-          </Card>
-      )}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Daftar Produk: {isAdmin ? selectedStoreName : ''}
+                Daftar Produk
               </CardTitle>
               <CardDescription>
-                Kelola inventaris produk di toko yang dipilih.
+                Kelola inventaris produk di toko yang aktif.
               </CardDescription>
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -345,7 +268,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
               {isAdmin && (
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
+                    <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
                       <PlusCircle className="h-3.5 w-3.5" />
                       <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                         Add Product
@@ -358,14 +281,14 @@ export default function Products({ products: cashierProducts, stores, onDataChan
                         Add New Product
                       </DialogTitle>
                       <DialogDescription>
-                        Menambahkan produk baru ke inventaris {currentStore?.name}.
+                        Menambahkan produk baru ke inventaris {activeStore?.name}.
                       </DialogDescription>
                     </DialogHeader>
-                    {currentStore && <AddProductForm 
+                    {activeStore && <AddProductForm 
                       setDialogOpen={setIsAddDialogOpen} 
                       userRole={userRole} 
                       onProductAdded={handleDataUpdate}
-                      activeStore={currentStore}
+                      activeStore={activeStore}
                     />}
                   </DialogContent>
                 </Dialog>
@@ -462,17 +385,17 @@ export default function Products({ products: cashierProducts, stores, onDataChan
         </CardContent>
       </Card>
 
-      {selectedProduct && currentStore && (
+      {selectedProduct && activeStore && (
         <ProductDetailsDialog
           product={selectedProduct}
           open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
-          storeName={currentStore.name}
+          storeName={activeStore.name}
         />
       )}
   
-      {selectedProduct && isEditDialogOpen && currentStore && (
+      {selectedProduct && isEditDialogOpen && activeStore && (
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogContent className="sm:max-w-md">
                   <DialogHeader>
@@ -483,7 +406,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
                   setDialogOpen={setIsEditDialogOpen} 
                   userRole={userRole} 
                   onProductUpdated={handleDataUpdate}
-                  activeStore={currentStore}
+                  activeStore={activeStore}
                   product={selectedProduct}
                   />
               </DialogContent>

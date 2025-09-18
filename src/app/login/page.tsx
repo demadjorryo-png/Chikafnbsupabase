@@ -16,16 +16,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { stores } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { User, Store } from '@/lib/types';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import type { Store } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function LoginPage() {
-  const [role, setRole] = React.useState<'admin' | 'cashier'>('cashier');
   const [userId, setUserId] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [storeId, setStoreId] = React.useState<string>(stores[0]?.id || '');
@@ -38,7 +34,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    if (role === 'cashier' && !storeId) {
+    if (!storeId) {
       toast({
         variant: "destructive",
         title: "Toko Belum Dipilih",
@@ -47,6 +43,9 @@ export default function LoginPage() {
       setIsLoading(false);
       return;
     }
+
+    // Admin now also logs in with a specific store context
+    const role = userId.toLowerCase().includes('admin') ? 'admin' : 'cashier';
 
     try {
       const activeStore = stores.find(s => s.id === storeId);
@@ -82,50 +81,32 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
             <CardDescription>
-              Pilih peran Anda untuk melanjutkan.
+              Pilih toko dan masukkan kredensial Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="grid gap-4">
                
-                <div className="grid gap-2">
-                  <Label>Login Sebagai</Label>
-                  <ToggleGroup 
-                    type="single"
-                    value={role}
-                    onValueChange={(value: 'admin' | 'cashier') => {
-                        if (value) setRole(value);
-                    }}
-                    className="grid grid-cols-2"
-                  >
-                    <ToggleGroupItem value="cashier">Kasir</ToggleGroupItem>
-                    <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-                
-                {role === 'cashier' && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="store">Pilih Toko</Label>
-                    <Select value={storeId} onValueChange={setStoreId} required>
-                      <SelectTrigger id="store">
-                        <SelectValue placeholder="Pilih toko..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map(store => (
-                          <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-
+              <div className="grid gap-2">
+                <Label htmlFor="store">Pilih Toko</Label>
+                <Select value={storeId} onValueChange={setStoreId} required>
+                  <SelectTrigger id="store">
+                    <SelectValue placeholder="Pilih toko..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map(store => (
+                      <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="grid gap-2">
                 <Label htmlFor="userId">User ID</Label>
                 <Input
                   id="userId"
                   type="text"
-                  placeholder='e.g., Bekupon...'
+                  placeholder='e.g., admin001 atau kasir_tpg'
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
