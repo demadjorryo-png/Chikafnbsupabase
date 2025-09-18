@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction, Table } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -70,7 +70,6 @@ import { Switch } from '@/components/ui/switch';
 type POSProps = {
     products: Product[];
     customers: Customer[];
-    tables: Table[];
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -100,7 +99,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -145,21 +144,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     value: c.id,
     label: c.name,
   }));
-
-  const availableTableOptions = tables
-    .filter(t => t.status === 'Tersedia')
-    .map((t) => ({
-        value: t.id,
-        label: t.name
-    }));
-
-  const handleTableSelect = (tableId: string) => {
-    const table = tables.find(t => t.id === tableId);
-    if (table) {
-        setSelectedTableId(table.id);
-        setSelectedTableName(table.name);
-    }
-  }
 
 
   const addToCart = (product: Product) => {
@@ -575,56 +559,42 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-             <div className="grid grid-cols-1 gap-2">
-                 <div className="flex items-center gap-2">
-                    <Combobox
-                        options={customerOptions}
-                        value={selectedCustomer?.id}
-                        onValueChange={(value) => {
-                        setSelectedCustomer(customers.find((c) => c.id === value));
-                        setPointsToRedeem(0); // Reset points when customer changes
-                        }}
-                        placeholder="Cari pelanggan..."
-                        searchPlaceholder="Cari nama pelanggan..."
-                        notFoundText="Pelanggan tidak ditemukan."
-                    />
-                    <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
-                        <DialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <UserPlus className="h-4 w-4" />
-                        </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                            <DialogTitle className="font-headline tracking-wider">
-                            Daftar Pelanggan Baru
-                            </DialogTitle>
-                            <DialogDescription>
-                            Tambahkan pelanggan baru ke dalam sistem.
-                            </DialogDescription>
-                        </DialogHeader>
-                        {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
-                        </DialogContent>
-                    </Dialog>
-                </div>
-                 <div className="grid">
-                    <Combobox
-                        options={availableTableOptions}
-                        value={selectedTableId || ''}
-                        onValueChange={handleTableSelect}
-                        placeholder="Pilih Meja (Opsional)"
-                        searchPlaceholder="Cari nama meja..."
-                        notFoundText="Meja tidak ditemukan/tersedia."
-                        disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
-                    />
-                </div>
+            <div className="flex items-center gap-2">
+                <Combobox
+                    options={customerOptions}
+                    value={selectedCustomer?.id}
+                    onValueChange={(value) => {
+                    setSelectedCustomer(customers.find((c) => c.id === value));
+                    setPointsToRedeem(0); // Reset points when customer changes
+                    }}
+                    placeholder="Cari pelanggan..."
+                    searchPlaceholder="Cari nama pelanggan..."
+                    notFoundText="Pelanggan tidak ditemukan."
+                />
+                <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+                    <DialogTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <UserPlus className="h-4 w-4" />
+                    </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="font-headline tracking-wider">
+                        Daftar Pelanggan Baru
+                        </DialogTitle>
+                        <DialogDescription>
+                        Tambahkan pelanggan baru ke dalam sistem.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
+                    </DialogContent>
+                </Dialog>
             </div>
 
-
-            {selectedTableId && !selectedCustomer && (
+            {selectedTableId && (
                 <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
                     <Armchair className="h-5 w-5 text-muted-foreground" />
-                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja</p>
+                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja: {selectedTableName}</p>
                 </div>
             )}
 
