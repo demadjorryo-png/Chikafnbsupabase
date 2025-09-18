@@ -8,7 +8,6 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { getPradanaTokenBalance } from '@/lib/app-settings';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -32,10 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
-    const storeDocRef = doc(db, 'stores', activeStore.id);
-    const storeDoc = await getDoc(storeDocRef);
-    if (storeDoc.exists()) {
-        setPradanaTokenBalance(storeDoc.data().pradanaTokenBalance || 0);
+    try {
+        const storeDocRef = doc(db, 'stores', activeStore.id);
+        const storeDoc = await getDoc(storeDocRef);
+        if (storeDoc.exists()) {
+            setPradanaTokenBalance(storeDoc.data().pradanaTokenBalance || 0);
+        }
+    } catch (error) {
+        console.error("Error refreshing token balance:", error);
     }
   }, [activeStore]);
 
@@ -43,13 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
       try {
+        // Try to get user document.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        let userDocSnap = await getDoc(userDocRef);
 
+        // Retry mechanism for registration lag
+        if (!userDocSnap.exists()) {
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+            userDocSnap = await getDoc(userDocRef);
+        }
+        
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
 
-          // Find the store associated with this user
           const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
           const storeSnapshot = await getDocs(storeQuery);
 
@@ -64,10 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
         } else {
-          throw new Error('Data pengguna tidak ditemukan di database.');
+          // If user doc still doesn't exist, it's a real issue.
+          throw new Error('Data pengguna tidak ditemukan di database setelah beberapa kali percobaan.');
         }
       } catch (error: any) {
-        console.error("Session handling error:", error);
+        console.error("Kesalahan saat menangani sesi:", error);
         toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
         await signOut(auth);
         setCurrentUser(null);
@@ -77,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setCurrentUser(null);
       setActiveStore(null);
+      sessionStorage.removeItem('activeStoreId');
     }
     setIsLoading(false);
   }, [toast]);
@@ -89,10 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
-    // Note: We now use email directly, not constructing it from userId
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
-    await handleUserSession(userCredential.user);
      toast({
         title: 'Login Berhasil!',
         description: `Selamat datang kembali.`,
@@ -100,15 +109,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
-    // 1. Create user in Firebase Auth
+    // 1. Create user in Firebase Auth. This will trigger onAuthStateChanged.
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
 
     // 2. Create the store document in Firestore
     const storeRef = await addDoc(collection(db, "stores"), {
         name: storeName,
-        location: 'Indonesia', // Default location
-        pradanaTokenBalance: 50.00, // Initial token balance
+        location: 'Indonesia',
+        pradanaTokenBalance: 50.00,
         adminUids: [firebaseUser.uid],
         createdAt: new Date().toISOString(),
     });
@@ -117,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userDocRef = doc(db, "users", firebaseUser.uid);
     await setDoc(userDocRef, {
         name: name,
-        userId: email, // Using email as userId for consistency
+        userId: email,
         email: email,
         whatsapp: whatsapp,
         role: 'admin',
@@ -156,31 +165,25 @@ Tim Kasir POS Chika`;
 
         const deviceId = '0fe2d894646b1e3111e0e40c809b5501';
 
-        // Send to admin group
         const adminWebhookUrl = `https://app.whacenter.com/api/sendGroup?device_id=${deviceId}&group=SPV%20ERA%20MMBP&message=${encodeURIComponent(adminMessage)}`;
         
-        // Send to new user
-        const userWebhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${whatsapp}&message=${encodeURIComponent(welcomeMessage)}`;
+        const formattedWhatsapp = whatsapp.startsWith('0') ? `62${whatsapp.substring(1)}` : whatsapp;
+        const userWebhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${formattedWhatsapp}&message=${encodeURIComponent(welcomeMessage)}`;
 
-        // Send both notifications in parallel
         await Promise.allSettled([
             fetch(adminWebhookUrl),
             fetch(userWebhookUrl)
         ]);
 
     } catch (webhookError) {
-        console.error("Failed to send webhook notification:", webhookError);
-        // Don't block the user registration for this, just log it.
+        console.error("Gagal mengirim notifikasi webhook:", webhookError);
     }
 
-
-    // 5. Set session for the new user
-    await handleUserSession(firebaseUser);
-    
     toast({
         title: 'Registrasi Berhasil!',
         description: `Selamat datang, ${name}! Toko Anda "${storeName}" telah dibuat dengan saldo 50 token.`,
     });
+    // The onAuthStateChanged listener will now handle setting the session.
   };
 
   const logout = async () => {
