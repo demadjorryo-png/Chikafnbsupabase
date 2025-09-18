@@ -29,6 +29,8 @@ type OrderReadyDialogProps = {
   onStatusUpdated: () => void;
 };
 
+const WHA_CENTER_DEVICE_ID = '0fe2d894646b1e3111e0e40c809b5501';
+
 export function OrderReadyDialog({
   transaction,
   customer,
@@ -37,33 +39,35 @@ export function OrderReadyDialog({
   onOpenChange,
   onStatusUpdated,
 }: OrderReadyDialogProps) {
-  const [message, setMessage] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
 
-  const handleGenerateAndSend = React.useCallback(async () => {
+  const handleAutomatedSend = React.useCallback(async () => {
     if (!customer) {
-        toast({ variant: 'destructive', title: 'Pelanggan tidak ditemukan.' });
-        return;
+      toast({ variant: 'destructive', title: 'Pelanggan tidak ditemukan.' });
+      return;
     }
-    
+
     setIsLoading(true);
-    setMessage('');
     try {
       // 1. Generate AI message
       const result = await getOrderReadyFollowUp({
         customerName: customer.name,
         storeName: store.name,
       });
-      setMessage(result.followUpMessage);
+      const message = result.followUpMessage;
 
-      // 2. Open WhatsApp link
+      // 2. Send notification via Webhook
       const formattedPhone = customer.phone.startsWith('0')
         ? `62${customer.phone.substring(1)}`
         : customer.phone;
-      const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(result.followUpMessage)}`;
-      window.open(whatsappUrl, '_blank');
+      const webhookUrl = `https://app.whacenter.com/api/send?device_id=${WHA_CENTER_DEVICE_ID}&number=${formattedPhone}&message=${encodeURIComponent(message)}`;
       
+      const response = await fetch(webhookUrl);
+      if (!response.ok) {
+        throw new Error('Webhook API request failed.');
+      }
+
       // 3. Update transaction status
       const transactionCollectionName = `transactions_${store.id}`;
       const transactionRef = doc(db, transactionCollectionName, transaction.id);
@@ -71,9 +75,9 @@ export function OrderReadyDialog({
 
       toast({
         title: 'Notifikasi Terkirim & Status Diperbarui!',
-        description: `Status transaksi ${transaction.id} telah diubah menjadi "Selesai".`,
+        description: `Status transaksi telah diubah menjadi "Selesai".`,
       });
-      
+
       onStatusUpdated();
       onOpenChange(false);
 
@@ -89,13 +93,6 @@ export function OrderReadyDialog({
     }
   }, [customer, store, transaction, onStatusUpdated, onOpenChange, toast]);
 
-  React.useEffect(() => {
-    if (open) {
-      // Reset state when dialog opens
-      setMessage('');
-    }
-  }, [open]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -106,17 +103,17 @@ export function OrderReadyDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-           <div className="rounded-lg border p-4">
-                <p className="text-sm font-semibold mb-2">Detail Transaksi:</p>
-                <div className="text-xs text-muted-foreground space-y-1">
-                    <p>ID: {transaction.id}</p>
-                    <p>Pelanggan: {transaction.customerName}</p>
-                    <p>Item: {transaction.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}</p>
-                </div>
-           </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-semibold mb-2">Detail Transaksi:</p>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>ID: {transaction.id}</p>
+              <p>Pelanggan: {transaction.customerName}</p>
+              <p>Item: {transaction.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}</p>
+            </div>
+          </div>
           <Button
             className="w-full"
-            onClick={handleGenerateAndSend}
+            onClick={handleAutomatedSend}
             disabled={isLoading || !customer}
           >
             {isLoading ? (
@@ -127,12 +124,12 @@ export function OrderReadyDialog({
             Kirim Notifikasi & Tandai Selesai
           </Button>
           {!customer && (
-              <Alert variant="destructive">
-                <AlertTitle>Tidak Ada Nomor Telepon</AlertTitle>
-                <AlertDescription>
-                    Pelanggan ini tidak memiliki nomor telepon yang terdaftar, sehingga notifikasi WhatsApp tidak dapat dikirim.
-                </AlertDescription>
-              </Alert>
+            <Alert variant="destructive">
+              <AlertTitle>Tidak Ada Nomor Telepon</AlertTitle>
+              <AlertDescription>
+                Pelanggan ini tidak memiliki nomor telepon yang terdaftar, sehingga notifikasi WhatsApp tidak dapat dikirim.
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </DialogContent>
