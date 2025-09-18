@@ -66,11 +66,11 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
-    if (!currentUser || !activeStore) return;
+    if (!currentUser) return;
     setIsDataLoading(true);
     
     try {
-        const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+        const productCollectionName = activeStore ? `products_${activeStore.id.replace('store_', '')}` : 'products';
 
         const [
             storesSnapshot,
@@ -84,14 +84,14 @@ function DashboardContent() {
             pendingOrdersSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
+            activeStore ? getDocs(query(collection(db, productCollectionName), orderBy('name'))) : Promise.resolve({ docs: [] }),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             getPradanaTokenBalance(),
-            getDocs(collection(db, 'transactions')), // Fetch all transactions
-            getDocs(collection(db, 'pendingOrders')), // Fetch all pending orders
+            getDocs(collection(db, 'transactions')),
+            getDocs(collection(db, 'pendingOrders')),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
@@ -128,17 +128,17 @@ function DashboardContent() {
   }, [currentUser, activeStore, toast]);
   
   React.useEffect(() => {
-    if (!isAuthLoading && currentUser && activeStore) {
+    if (!isAuthLoading && currentUser) {
         fetchAllData();
-    } else if (!isAuthLoading && (!currentUser || !activeStore)) {
+    } else if (!isAuthLoading && !currentUser) {
         setIsDataLoading(false);
     }
-  }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
+  }, [isAuthLoading, currentUser, fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
   const view = new URLSearchParams(window.location.search).get('view') || 'overview';
   
-  if (isAuthLoading || isDataLoading) {
+  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges')) {
     return <DashboardSkeleton />;
   }
 
@@ -160,12 +160,11 @@ function DashboardContent() {
     switch (view) {
       case 'overview':
         if (isAdmin) {
-          return <AdminOverview 
-                    pendingOrders={storePendingOrders} 
-                    stores={stores} 
-                    transactions={storeTransactions}
+          return <AdminOverview
+                    transactions={storeTransactions} 
                     products={products}
                     customers={customers}
+                    pendingOrders={storePendingOrders}
                     onDataChange={fetchAllData}
                  />;
         }
@@ -182,6 +181,8 @@ function DashboardContent() {
                     customers={customers}
                     onDataChange={fetchAllData} 
                     isLoading={isDataLoading}
+                    feeSettings={feeSettings}
+                    pradanaTokenBalance={pradanaTokenBalance}
                 />;
       case 'products':
         return <Products 

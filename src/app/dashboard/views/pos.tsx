@@ -24,6 +24,7 @@ import {
   Printer,
   Plus,
   Gift,
+  Coins,
 } from 'lucide-react';
 import {
   Table,
@@ -60,12 +61,16 @@ import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, getDoc, DocumentReference } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { updatePradanaTokenBalance } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
     onDataChange: () => void;
     isLoading: boolean;
+    feeSettings: TransactionFeeSettings;
+    pradanaTokenBalance: number;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -91,7 +96,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
   const { currentUser, activeStore } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -219,6 +224,13 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  const transactionFee = React.useMemo(() => {
+    const calculatedFee = totalAmount * feeSettings.feePercentage;
+    const finalFee = Math.max(calculatedFee, feeSettings.minFeeRp);
+    return finalFee / feeSettings.tokenValueRp; // Convert fee from Rp to Tokens
+  }, [totalAmount, feeSettings]);
+
+
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -246,12 +258,24 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
         toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
     }
+     if (currentUser.role === 'admin' && pradanaTokenBalance < transactionFee) {
+      toast({
+        variant: 'destructive',
+        title: 'Saldo Token Tidak Cukup',
+        description: `Saldo Pradana Token Anda (${pradanaTokenBalance.toFixed(2)}) tidak cukup untuk membayar biaya transaksi (${transactionFee.toFixed(2)}). Silakan top up.`,
+      });
+      return;
+    }
     
     setIsProcessingCheckout(true);
     
     const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
     
     try {
+      if (currentUser.role === 'admin') {
+        await updatePradanaTokenBalance(-transactionFee);
+      }
+
       await runTransaction(db, async (transaction) => {
         // --- Phase 1: READ ---
         const productReads = cart
@@ -333,6 +357,10 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
       onDataChange(); 
 
     } catch (error) {
+      // If the main transaction fails, we need to refund the token fee that was deducted.
+      if (currentUser.role === 'admin') {
+        await updatePradanaTokenBalance(transactionFee);
+      }
       console.error("Checkout failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.";
       toast({ variant: 'destructive', title: 'Checkout Gagal', description: errorMessage });
@@ -611,6 +639,12 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
+              {currentUser?.role === 'admin' && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span className="flex items-center gap-1"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
+                  <span className="font-mono">{transactionFee.toFixed(2)} token</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
@@ -660,5 +694,3 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
     </>
   );
 }
-
-    
