@@ -70,7 +70,6 @@ type POSProps = {
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
-    pradanaTokenBalance: number;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -96,7 +95,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -224,13 +223,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
-  const transactionFee = React.useMemo(() => {
-    const calculatedFee = totalAmount * feeSettings.feePercentage;
-    const finalFee = Math.max(calculatedFee, feeSettings.minFeeRp);
-    return finalFee / feeSettings.tokenValueRp; // Convert fee from Rp to Tokens
-  }, [totalAmount, feeSettings]);
-
-
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -257,14 +249,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     if (!currentUser || !activeStore) {
         toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
-    }
-     if (currentUser.role === 'admin' && pradanaTokenBalance < transactionFee) {
-      toast({
-        variant: 'destructive',
-        title: 'Saldo Token Tidak Cukup',
-        description: `Saldo Pradana Token Anda (${pradanaTokenBalance.toFixed(2)}) tidak cukup untuk membayar biaya transaksi (${transactionFee.toFixed(2)}). Silakan top up.`,
-      });
-      return;
     }
     
     setIsProcessingCheckout(true);
@@ -325,11 +309,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         // 3b. Update customer points
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
-        }
-
-        // 3c. Deduct Pradana Token for admin
-        if (currentUser.role === 'admin') {
-          transaction.update(tokenRef, { balance: increment(-transactionFee) });
         }
         
         // 3d. Create the transaction record
@@ -645,12 +624,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'admin' && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
-                  <span className="font-mono">{transactionFee.toFixed(2)} token</span>
-                </div>
-              )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
@@ -700,4 +673,3 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     </>
   );
 }
-

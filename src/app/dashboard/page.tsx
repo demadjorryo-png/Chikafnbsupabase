@@ -186,7 +186,6 @@ function DashboardContent() {
                     onDataChange={fetchAllData} 
                     isLoading={isDataLoading}
                     feeSettings={feeSettings}
-                    pradanaTokenBalance={pradanaTokenBalance}
                 />;
       case 'products':
         return <Products 
