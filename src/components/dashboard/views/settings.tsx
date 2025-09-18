@@ -31,12 +31,13 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
 import type { ReceiptSettings } from '@/lib/types';
+import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 
 
 const PasswordFormSchema = z
@@ -53,10 +54,10 @@ const PasswordFormSchema = z
   });
   
 const availableVoices = [
-    { name: 'Algenib', label: 'Pria 1', gender: 'Pria' },
-    { name: 'Achernar', label: 'Pria 2', gender: 'Pria' }, // Changed from Callisto
-    { name: 'Enceladus', label: 'Wanita 1', gender: 'Wanita' },
-    { name: 'Vindemiatrix', label: 'Wanita 2', gender: 'Wanita' }, // Changed from Ganymede
+    { name: 'Algenib', label: 'Algenib (Pria)' },
+    { name: 'Achernar', label: 'Achernar (Pria)' },
+    { name: 'Enceladus', label: 'Enceladus (Wanita)' },
+    { name: 'Vindemiatrix', label: 'Vindemiatrix (Wanita)' },
 ];
 
 function ProfileCardSkeleton() {
@@ -97,6 +98,7 @@ export default function Settings() {
   const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [isVoiceSettingLoading, setIsVoiceSettingLoading] = React.useState(false);
+  const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
   const [voiceSettings, setVoiceSettings] = React.useState<Pick<ReceiptSettings, 'voice'> | null>(null);
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
@@ -178,6 +180,24 @@ export default function Settings() {
     }
   };
   
+  const handlePlaySample = async () => {
+    if (!voiceSettings?.voice) return;
+    setIsSamplePlaying(true);
+    try {
+        const { audioDataUri } = await convertTextToSpeech({
+            text: "Ini adalah contoh suara saya. Terima kasih.",
+            voiceName: voiceSettings.voice,
+        });
+        const audio = new Audio(audioDataUri);
+        audio.play();
+    } catch (error) {
+        console.error("Error playing voice sample:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memutar Suara', description: 'Tidak dapat menghasilkan sampel suara saat ini.' });
+    } finally {
+        setIsSamplePlaying(false);
+    }
+  };
+  
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
       {isAuthLoading ? (
@@ -229,21 +249,32 @@ export default function Settings() {
                     <div className="max-w-md space-y-2">
                         <Label>Jenis Suara</Label>
                         {voiceSettings ? (
-                             <Select
-                                value={voiceSettings.voice}
-                                onValueChange={(value) => setVoiceSettings({ voice: value })}
-                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih suara..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableVoices.map(voice => (
-                                        <SelectItem key={voice.name} value={voice.name}>
-                                            {voice.label} ({voice.gender})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                                 <Select
+                                    value={voiceSettings.voice}
+                                    onValueChange={(value) => setVoiceSettings({ voice: value })}
+                                 >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih suara..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableVoices.map(voice => (
+                                            <SelectItem key={voice.name} value={voice.name}>
+                                                {voice.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handlePlaySample}
+                                    disabled={isSamplePlaying}
+                                    aria-label="Play voice sample"
+                                >
+                                    {isSamplePlaying ? <Loader className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
+                                </Button>
+                            </div>
                         ) : <Skeleton className="h-10 w-full" />}
                        
                     </div>
@@ -357,3 +388,5 @@ export default function Settings() {
     </div>
   );
 }
+
+    
