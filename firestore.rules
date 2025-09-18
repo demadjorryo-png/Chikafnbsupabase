@@ -1,0 +1,69 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Aturan Pengaturan Aplikasi (appSettings)
+    // Izinkan siapa saja untuk membaca (get) pengaturan aplikasi,
+    // karena ini dibutuhkan di halaman login sebelum pengguna terautentikasi.
+    // Hanya admin yang bisa mengubahnya.
+    match /appSettings/{setting} {
+      allow get: if true;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Aturan untuk Registrasi dan Manajemen Pengguna
+    // Izinkan siapa saja untuk membuat pengguna baru (register),
+    // tapi hanya pengguna itu sendiri atau admin yang bisa mengubah/melihat datanya.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null;
+    }
+
+    // Aturan untuk Toko
+    // Izinkan siapa saja untuk membuat toko baru (register).
+    // Hanya admin dari toko tersebut yang bisa mengubah/melihat datanya.
+    match /stores/{storeId} {
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.adminUids;
+      allow create: if request.auth != null;
+    }
+    
+    // Aturan untuk data spesifik per-toko (Produk, Transaksi, Pelanggan, Meja, dll.)
+    // Ini adalah aturan dinamis yang melindungi data setiap toko.
+    // Hanya pengguna yang terasosiasi dengan toko tersebut yang bisa mengakses datanya.
+    match /products_{storeId}/{productId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+    }
+    
+    match /customers_{storeId}/{customerId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+    }
+    
+    match /transactions_{storeId}/{transactionId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+    }
+
+    match /pendingOrders_{storeId}/{orderId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+    }
+    
+    match /tables_{storeId}/{tableId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+    }
+
+    match /challenges_{storeId}/{challengeId} {
+       allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /appliedStrategies_{storeId}/{strategyId} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Aturan untuk data global (Opsi Penukaran Poin)
+    // Izinkan semua pengguna yang terautentikasi untuk membaca, tapi hanya admin yang bisa menulis.
+    match /redemptionOptions/{optionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
