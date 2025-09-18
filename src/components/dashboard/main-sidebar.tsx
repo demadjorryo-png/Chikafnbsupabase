@@ -43,17 +43,12 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId');
-  const userId = searchParams.get('userId'); 
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
   const navigate = (view: string) => {
-    const newParams = new URLSearchParams();
+    const newParams = new URLSearchParams(searchParams.toString());
     newParams.set('view', view);
-    if (userId) newParams.set('userId', userId);
-    if (storeId) newParams.set('storeId', storeId);
-    
     router.push(`/dashboard?${newParams.toString()}`);
   };
 
@@ -169,18 +164,19 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
           {menuItems.map((item) => {
             const isDisabledForAdmin = isAdmin && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
             return (
-            <SidebarMenuItem key={item.view}>
-              <SidebarMenuButton
-                onClick={() => navigate(item.view)}
-                isActive={currentView === item.view}
-                tooltip={item.label}
-                disabled={isDisabledForAdmin}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )})}
+                <SidebarMenuItem key={item.view}>
+                <SidebarMenuButton
+                    onClick={() => navigate(item.view)}
+                    isActive={currentView === item.view}
+                    tooltip={item.label}
+                    disabled={isDisabledForAdmin}
+                >
+                    {item.icon}
+                    <span>{item.label}</span>
+                </SidebarMenuButton>
+                </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
