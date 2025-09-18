@@ -13,6 +13,7 @@ import {
 import { Loader, Send, Volume2 } from 'lucide-react';
 import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
+import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -31,8 +32,6 @@ type OrderReadyDialogProps = {
   onStatusUpdated: () => void;
 };
 
-const WHA_CENTER_DEVICE_ID = '0fe2d894646b1e3111e0e40c809b5501';
-
 export function OrderReadyDialog({
   transaction,
   customer,
@@ -42,6 +41,7 @@ export function OrderReadyDialog({
   onStatusUpdated,
 }: OrderReadyDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSendingWa, setIsSendingWa] = React.useState(false);
   const [announcementText, setAnnouncementText] = React.useState('');
   const [audioDataUri, setAudioDataUri] = React.useState('');
   const [receiptSettings, setReceiptSettings] = React.useState<ReceiptSettings | null>(null);
@@ -130,20 +130,31 @@ export function OrderReadyDialog({
     }
   }, [open, handleCallCustomer, receiptSettings]);
 
-  const sendWhatsApp = () => {
+  const sendWhatsApp = async () => {
      if (!customer || !announcementText) return;
+     setIsSendingWa(true);
+     
      const formattedPhone = customer.phone.startsWith('0')
         ? `62${customer.phone.substring(1)}`
         : customer.phone;
-     const webhookUrl = `https://app.whacenter.com/api/send?device_id=${WHA_CENTER_DEVICE_ID}&number=${formattedPhone}&message=${encodeURIComponent(announcementText)}`;
-     
-     fetch(webhookUrl).then(response => {
-        if (response.ok) {
+
+      try {
+        const result = await sendWhatsAppNotification({
+            phoneNumber: formattedPhone,
+            message: announcementText,
+        });
+
+        if (result.success) {
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
         } else {
-            toast({ variant: 'destructive', title: "Gagal Mengirim WhatsApp" });
+            throw new Error(result.message);
         }
-     }).catch(() => toast({ variant: 'destructive', title: "Gagal Mengirim WhatsApp" }));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        toast({ variant: 'destructive', title: "Gagal Mengirim WhatsApp", description: errorMessage });
+      } finally {
+        setIsSendingWa(false);
+      }
   }
 
 
@@ -188,9 +199,9 @@ export function OrderReadyDialog({
                 className="w-full"
                 variant="secondary"
                 onClick={sendWhatsApp}
-                disabled={!customer}
+                disabled={!customer || isSendingWa}
             >
-                <Send className="mr-2 h-4 w-4" />
+                {isSendingWa ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 Kirim juga via WhatsApp
             </Button>
             </>
