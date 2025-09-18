@@ -326,7 +326,7 @@ Mohon untuk segera ditindaklanjuti.`;
         {isBusinessAnalystMode && messages.length <= 1 && (
             <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Atau coba tanya:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                     {exampleQuestions.map((q, i) => (
                         <Button
                             key={i}
