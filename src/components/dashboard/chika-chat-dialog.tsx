@@ -85,15 +85,17 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
       if (isBusinessAnalystMode) {
         getTransactionFeeSettings().then(setFeeSettings);
       }
+      // Set initial message only if chat is empty
       if (messages.length === 0) {
         setMessages([{ id: 1, sender: 'ai', text: initialMessage }]);
       }
     } else {
-        // Reset chat when dialog is closed
+        // Reset chat when dialog is closed, ready for a new session
         setMessages([]);
         setInput('');
     }
-  }, [open, currentUser, activeStore, messages.length, isBusinessAnalystMode, initialMessage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isBusinessAnalystMode]);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
