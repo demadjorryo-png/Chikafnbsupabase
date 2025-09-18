@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -61,7 +59,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
-    // For cashiers, products are passed down. For admins, it's an empty array initially.
+    // For cashiers, products are passed down from parent. For admins, it's an empty array.
     products: Product[]; 
     stores: Store[];
     onDataChange: () => void;
@@ -116,14 +114,19 @@ export default function Products({ products: cashierProducts, stores, onDataChan
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
   
-  const currentStore = React.useMemo(() => {
-    return isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : activeStore;
-  }, [isAdmin, stores, adminSelectedStoreId, activeStore]);
+  const currentStoreForAdmin = React.useMemo(() => {
+    return stores.find(s => s.id === adminSelectedStoreId);
+  }, [stores, adminSelectedStoreId]);
   
+  const currentStore = isAdmin ? currentStoreForAdmin : activeStore;
   const currentStoreId = currentStore?.id;
+  const selectedStoreName = stores.find(s => s.id === adminSelectedStoreId)?.name || '...';
+
 
   const fetchProductsForStore = React.useCallback(async (storeId: string) => {
+    if (!storeId) return;
     setIsLoading(true);
+    setAdminProducts([]);
     try {
         const productCollectionName = `products_${storeId.replace('store_', '')}`;
         const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
@@ -296,7 +299,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Daftar Produk: {currentStore?.name || '...'}
+                Daftar Produk: {isAdmin ? selectedStoreName : activeStore?.name}
               </CardTitle>
               <CardDescription>
                 Kelola inventaris produk di toko yang dipilih.
@@ -511,5 +514,3 @@ export default function Products({ products: cashierProducts, stores, onDataChan
     </div>
   );
 }
-
-    
