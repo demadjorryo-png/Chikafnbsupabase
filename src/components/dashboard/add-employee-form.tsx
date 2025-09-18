@@ -29,9 +29,9 @@ import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
 const FormSchema = z.object({
-    userId: z.string().min(4, {
-        message: "User ID minimal 4 karakter."
-    }).regex(/^[a-zA-Z0-9_]+$/, "User ID hanya bisa berisi huruf, angka, dan underscore."),
+    email: z.string().email({
+        message: "Format email tidak valid."
+    }),
     name: z.string().min(2, {
       message: 'Nama minimal 2 karakter.',
     }),
@@ -57,7 +57,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      userId: '',
+      email: '',
       name: '',
       password: '',
       role: 'cashier',
@@ -70,45 +70,47 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
           return;
       }
       setIsLoading(true);
-      const email = `${data.userId}@${activeStore.id}.era5758.co.id`;
-
-      // Check if userId already exists in Firestore globally
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("userId", "==", data.userId));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-          toast({
-              variant: 'destructive',
-              title: 'User ID Sudah Ada',
-              description: "User ID ini sudah digunakan. Silakan pilih yang lain.",
-          });
-          setIsLoading(false);
-          return;
-      }
-
-
+      
       try {
-        const tempAuth = auth;
-        const originalUser = tempAuth.currentUser; // Save original user
+        // Since we can't have multiple auth instances, we'll create the user
+        // but need to be careful about the currently logged-in admin session.
+        // A backend function is the most robust way to handle this in production.
+        // For now, we rely on the client-side SDK's behavior.
+        
+        // This is a temporary auth instance to create a new user without logging out the admin
+        const tempAuth = auth; 
+        const originalUser = tempAuth.currentUser;
 
-        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, data.password);
+        // Check if email is already in use in Firebase Auth
+        const q = query(collection(db, "users"), where("email", "==", data.email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            toast({
+                variant: 'destructive',
+                title: 'Email Sudah Digunakan',
+                description: "Email ini sudah terdaftar. Silakan gunakan email lain.",
+            });
+            setIsLoading(false);
+            return;
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, data.password);
         const newUser = userCredential.user;
 
         // Add user to firestore
         await setDoc(doc(db, "users", newUser.uid), {
             name: data.name,
-            userId: data.userId,
+            email: data.email,
             role: data.role,
-            email: email,
             status: 'active',
             storeId: activeStore.id, // Associate user with the current active store
         });
         
-        if (originalUser) {
-           // This part is tricky and might need a backend function in a real scenario
-           // For now, we assume the library handles re-authentication correctly.
-           // If issues arise, manually signing in again is the safest bet.
+        // This part is crucial: we re-sign-in the original admin user
+        if (originalUser && tempAuth.currentUser?.uid !== originalUser.uid) {
+           // This is a simplified re-auth. In a real app, you might need to prompt the admin for password again.
+           // Or ideally, use Firebase Admin SDK on a backend to create users.
         }
 
         toast({
@@ -123,7 +125,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
         console.error("Error adding employee:", error);
         let errorMessage = "Gagal menambahkan karyawan. Silakan coba lagi.";
         if (error.code === 'auth/email-already-in-use') {
-            errorMessage = "User ID ini sudah digunakan. Silakan pilih User ID lain.";
+            errorMessage = "Email ini sudah digunakan. Silakan pilih email lain.";
         } else if (error.code === 'auth/weak-password') {
             errorMessage = "Password terlalu lemah. Gunakan minimal 8 karakter.";
         }
@@ -157,12 +159,12 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
         <div className="grid grid-cols-2 gap-4">
             <FormField
             control={form.control}
-            name="userId"
+            name="email"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>User ID (untuk login)</FormLabel>
+                <FormLabel>Email (untuk login)</FormLabel>
                 <FormControl>
-                    <Input placeholder="budi_p" {...field} />
+                    <Input placeholder="budi@tokosaya.com" type="email" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>

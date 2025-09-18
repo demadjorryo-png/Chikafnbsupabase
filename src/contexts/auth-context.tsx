@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Retry mechanism for registration lag
         if (!userDocSnap.exists()) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Increase wait time
+            await new Promise(resolve => setTimeout(resolve, 2000));
             userDocSnap = await getDoc(userDocRef);
         }
         
@@ -69,14 +69,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
             sessionStorage.setItem('activeStoreId', storeData.id);
           } else {
-             throw new Error('Toko untuk pengguna ini tidak ditemukan. Registrasi mungkin tidak lengkap.');
+             // For non-admin users (cashiers), find their assigned store
+             if (userData.role === 'cashier' && userData.storeId) {
+                const storeDocRef = doc(db, 'stores', userData.storeId);
+                const storeDoc = await getDoc(storeDocRef);
+                if (storeDoc.exists()) {
+                     const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
+                     setCurrentUser(userData);
+                     setActiveStore(storeData);
+                     setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+                     sessionStorage.setItem('activeStoreId', storeData.id);
+                } else {
+                    throw new Error(`Toko dengan ID ${userData.storeId} tidak ditemukan.`);
+                }
+             } else {
+                throw new Error('Toko untuk pengguna ini tidak dapat ditentukan.');
+             }
           }
 
         } else {
-           // If user doc still doesn't exist, it's a real issue.
-           // Don't throw an error, just log out the user so they can try again.
+           // If user doc still doesn't exist, log out the user so they can try again.
            console.error("User document not found in Firestore after retry for UID:", firebaseUser.uid);
-           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Silakan coba login kembali.' });
+           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri, silakan coba login kembali.' });
            await signOut(auth); // This will re-trigger onAuthStateChanged with null
         }
       } catch (error: any) {
@@ -129,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userDocRef = doc(db, "users", firebaseUser.uid);
     await setDoc(userDocRef, {
         name: name,
-        userId: email,
         email: email,
         whatsapp: whatsapp,
         role: 'admin',
