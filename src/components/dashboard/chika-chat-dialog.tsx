@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,7 +22,8 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { askChika, ChikaAnalystInputSchema } from '@/ai/flows/business-analyst';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, startOfMonth, endOfMonth, isWithinInterval } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import type { Transaction, Product } from '@/lib/types';
 
 type Message = {
