@@ -105,11 +105,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Use React.useState for local component state, initialized from searchParams once.
   const [selectedTableId, setSelectedTableId] = React.useState(() => searchParams.get('tableId'));
   const [selectedTableName, setSelectedTableName] = React.useState(() => searchParams.get('tableName'));
 
-  // Effect to clear table selection if the view is no longer POS or tableId is removed
   React.useEffect(() => {
     const currentView = searchParams.get('view');
     if (currentView !== 'pos' || !searchParams.has('tableId')) {
@@ -138,7 +136,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
-  const [isDineIn, setIsDineIn] = React.useState(false);
+  const [isDineIn, setIsDineIn] = React.useState(true); // Default to true for table orders
   const { toast } = useToast();
   
   const customerOptions = customers.map((c) => ({
@@ -391,7 +389,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        // If this is a table order, update the table status
         if (selectedTableId) {
             const tableRef = doc(db, tableCollectionName, selectedTableId);
             transaction.update(tableRef, {
@@ -417,7 +414,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       setSelectedCustomer(undefined);
       onDataChange();
       
-      // If it was a table order, redirect back to tables view
       if (selectedTableId) {
         const params = new URLSearchParams();
         params.set('view', 'tables');
@@ -537,7 +533,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     value={selectedCustomer?.id}
                     onValueChange={(value) => {
                     setSelectedCustomer(customers.find((c) => c.id === value));
-                    setPointsToRedeem(0); // Reset points when customer changes
+                    setPointsToRedeem(0);
                     }}
                     placeholder="Cari pelanggan..."
                     searchPlaceholder="Cari nama pelanggan..."
@@ -563,10 +559,10 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 </Dialog>
             </div>
 
-            {selectedTableId && (
+            {selectedTableId && !selectedCustomer && (
                 <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
                     <Armchair className="h-5 w-5 text-muted-foreground" />
-                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja: {selectedTableName}</p>
+                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja</p>
                 </div>
             )}
 
@@ -728,7 +724,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
-            {selectedTableId ? (
+            {selectedTableId && (
                 <div className="flex items-center justify-between rounded-md border p-3">
                     <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
                         <Bell className="h-4 w-4" />
@@ -736,15 +732,17 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     </Label>
                     <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
                 </div>
-            ) : (
-                <div className="grid grid-cols-3 gap-2">
-                    <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                    <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                    <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-                </div>
             )}
+            
+            <div className="grid grid-cols-3 gap-2">
+                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+            </div>
 
-             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
+             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
+                {selectedTableId ? 'Buat Pesanan & Bayar' : 'Checkout'}
+             </Button>
           </CardContent>
         </Card>
       </div>
