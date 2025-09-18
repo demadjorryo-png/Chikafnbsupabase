@@ -178,7 +178,7 @@ Mohon untuk segera ditindaklanjuti.`;
           setMessages(prev => [...prev, {
               id: Date.now() + 2,
               sender: 'ai',
-              text: "Terima kasih! Ringkasan kebutuhan Anda telah saya kirimkan ke tim kami. Silakan tunggu follow up dari kami ya!",
+              text: `Terima kasih! Saya sudah merangkum kebutuhan Anda dan mengirimkannya ke tim kami. Berikut adalah ringkasannya untuk konfirmasi:\n\n${result.summary}\n\nTim kami akan segera menghubungi Anda. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp 082140442252.`,
           }]);
         }
 
