@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-const ChikaAnalystInputSchema = z.object({
+export const ChikaAnalystInputSchema = z.object({
   question: z.string().describe('The business-related question from the admin.'),
   totalRevenueLastMonth: z.number().describe('Total revenue from the previous full month.'),
   topSellingProducts: z.array(z.string()).describe('A list of the current best-selling products.'),
@@ -20,8 +20,8 @@ const ChikaAnalystInputSchema = z.object({
 });
 export type ChikaAnalystInput = z.infer<typeof ChikaAnalystInputSchema>;
 
-const ChikaAnalystOutputSchema = z.object({
-  answer: z.string().describe('A concise, actionable, and data-driven answer in Indonesian.'),
+export const ChikaAnalystOutputSchema = z.object({
+  answer: z.string().describe('A concise, actionable, and data-driven answer in Indonesian, formatted with Markdown.'),
 });
 export type ChikaAnalystOutput = z.infer<typeof ChikaAnalystOutputSchema>;
 
@@ -47,6 +47,8 @@ Gunakan data berikut untuk mendukung analisis Anda:
 Pertanyaan Admin: "{{question}}"
 
 Berikan jawaban yang actionable (dapat ditindaklanjuti). Jika pertanyaan bersifat umum, berikan saran konkret berdasarkan data yang ada. Contoh: Jika admin bertanya cara menaikkan omset, sarankan untuk membuat promo bundling antara produk terlaris dan produk kurang laris.
+
+PENTING: Format jawaban Anda menggunakan Markdown untuk keterbacaan yang lebih baik. Gunakan poin-poin (dengan '-' atau '*') dan teks tebal ('**teks**') untuk menyorot informasi kunci.
 
 Jawaban Analisis Anda:`,
 });

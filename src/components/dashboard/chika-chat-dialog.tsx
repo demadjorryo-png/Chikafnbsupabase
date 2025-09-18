@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -24,6 +23,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import type { Transaction, Product } from '@/lib/types';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   id: number;
@@ -199,13 +199,15 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
                   </Avatar>
                 )}
                 <div
-                  className={`max-w-[75%] rounded-lg p-3 text-sm ${
+                  className={`max-w-[80%] rounded-lg p-3 text-sm ${
                     message.sender === 'user'
                       ? 'bg-secondary'
                       : 'bg-card border'
                   }`}
                 >
-                  <p>{message.text}</p>
+                  <article className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                  </article>
                 </div>
                  {message.sender === 'user' && (
                   <Avatar className="h-8 w-8">
