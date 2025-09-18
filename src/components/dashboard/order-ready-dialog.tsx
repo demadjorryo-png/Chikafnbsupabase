@@ -14,13 +14,14 @@ import { Loader, Send, Volume2 } from 'lucide-react';
 import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
-import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
+import type { Customer, Store, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Separator } from '../ui/separator';
 import { getReceiptSettings } from '@/lib/receipt-settings';
+import type { ReceiptSettings } from '@/lib/types';
 
 
 type OrderReadyDialogProps = {
@@ -55,10 +56,6 @@ export function OrderReadyDialog({
   }, [store]);
 
   const handleCallCustomer = React.useCallback(async () => {
-    if (!customer) {
-      toast({ variant: 'destructive', title: 'Pelanggan tidak ditemukan.' });
-      return;
-    }
     if (!receiptSettings) {
         toast({ variant: 'destructive', title: 'Pengaturan suara belum dimuat.' });
         return;
@@ -70,10 +67,12 @@ export function OrderReadyDialog({
 
     try {
       const batch = writeBatch(db);
+      
+      const nameToAnnounce = customer?.name || transaction.customerName;
 
       // 1. Generate announcement text
       const result = await getOrderReadyFollowUp({
-        customerName: customer.name,
+        customerName: nameToAnnounce,
         storeName: store.name,
       });
       const text = result.followUpMessage;
@@ -164,7 +163,7 @@ export function OrderReadyDialog({
         <DialogHeader>
           <DialogTitle>Panggil Pelanggan</DialogTitle>
           <DialogDescription>
-            Sistem akan mengumumkan bahwa pesanan untuk {customer?.name} telah siap.
+            Sistem akan mengumumkan bahwa pesanan untuk {customer?.name || transaction.customerName} telah siap.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -207,11 +206,11 @@ export function OrderReadyDialog({
             </>
           )}
 
-          {!isLoading && !customer && (
+          {!isLoading && !announcementText && !audioDataUri && (
             <Alert variant="destructive">
-              <AlertTitle>Tidak Ada Nomor Telepon</AlertTitle>
+              <AlertTitle>Gagal Memproses Panggilan</AlertTitle>
               <AlertDescription>
-                Pelanggan ini tidak memiliki nomor telepon yang terdaftar, sehingga notifikasi WhatsApp tidak dapat dikirim.
+                Terjadi kesalahan saat memproses panggilan. Silakan tutup dan coba lagi.
               </AlertDescription>
             </Alert>
           )}

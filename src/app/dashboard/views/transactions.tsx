@@ -201,7 +201,10 @@ export default function Transactions({ transactions, stores, users, customers, o
                         <TableCell className="text-center">
                           <Badge 
                             variant={transaction.status === 'Selesai' ? 'secondary' : 'default'}
-                            className={cn(transaction.status === 'Diproses' && 'bg-amber-500/20 text-amber-800 border-amber-500/50')}
+                            className={cn(
+                                transaction.status === 'Diproses' && 'bg-amber-500/20 text-amber-800 border-amber-500/50',
+                                transaction.status === 'Selesai Dibayar' && 'bg-slate-500/20 text-slate-800 border-slate-500/50'
+                            )}
                           >
                               {transaction.status}
                           </Badge>
@@ -217,7 +220,6 @@ export default function Transactions({ transactions, stores, users, customers, o
                                     size="sm"
                                     className="gap-2"
                                     onClick={() => setOrderReadyTransaction(transaction)}
-                                    disabled={!getCustomerForTransaction(transaction)}
                                 >
                                     <Volume2 className="h-3 w-3"/>
                                     Panggil
