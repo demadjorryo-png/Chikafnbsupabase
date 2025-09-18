@@ -57,9 +57,8 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference, DocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 
 type POSProps = {
@@ -67,7 +66,6 @@ type POSProps = {
     customers: Customer[];
     onDataChange: () => void;
     isLoading: boolean;
-    feeSettings: TransactionFeeSettings;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -93,7 +91,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading }: POSProps) {
   const { currentUser, activeStore } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -256,8 +254,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     try {
       await runTransaction(db, async (transaction) => {
         // --- Phase 1: READ ---
-        // Create references for all documents we need to read.
-        const productRefs = cart
+        const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
             ref: doc(db, productCollectionName, item.productId),
@@ -266,9 +263,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         
         const customerRef = selectedCustomer ? doc(db, "customers", selectedCustomer.id) : null;
   
-        // Read all documents.
         const productDocs = await Promise.all(
-          productRefs.map(p => transaction.get(p.ref))
+          productReads.map(p => transaction.get(p.ref))
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
 
@@ -277,7 +273,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         
         for (let i = 0; i < productDocs.length; i++) {
           const productDoc = productDocs[i];
-          const { item } = productRefs[i];
+          const { item } = productReads[i];
           
           if (!productDoc.exists()) {
             throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
@@ -300,19 +296,14 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         }
 
         // --- Phase 3: WRITE ---
-        // Perform all writes after all reads and validation are complete.
-        
-        // 1. Update product stocks.
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
         });
 
-        // 2. Update customer points.
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
-        // 3. Create the new transaction record.
         const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
@@ -331,11 +322,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        // Set transaction data for receipt dialog on success.
         setLastTransaction(finalTransactionData);
       });
 
-      // --- Post-Transaction Success Actions (runs only if transaction succeeds) ---
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       setCart([]);
       setDiscountValue(0);
@@ -671,3 +660,5 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     </>
   );
 }
+
+    

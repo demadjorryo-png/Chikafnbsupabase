@@ -6,6 +6,7 @@ import { MainSidebar } from '@/app/dashboard/main-sidebar';
 import { Header } from '@/components/dashboard/header';
 import { SidebarInset } from '@/components/ui/sidebar';
 import Overview from '@/app/dashboard/views/overview';
+import AdminOverview from '@/app/dashboard/views/admin-overview';
 import POS from '@/app/dashboard/views/pos';
 import Products from '@/app/dashboard/views/products';
 import Customers from '@/app/dashboard/views/customers';
@@ -161,6 +162,9 @@ function DashboardContent() {
 
     switch (view) {
       case 'overview':
+        if (isAdmin) {
+          return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
+        }
         return <Overview 
               transactions={storeTransactions} 
               users={users} 
@@ -173,19 +177,18 @@ function DashboardContent() {
                     products={products} 
                     customers={customers}
                     onDataChange={fetchAllData} 
-                    isLoading={isDataLoading} 
-                    feeSettings={feeSettings} 
+                    isLoading={isDataLoading}
                 />;
       case 'products':
         return <Products 
                   products={products}
+                  stores={stores}
                   onDataChange={fetchAllData}
+                  isLoading={isDataLoading}
                 />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'employees':
-        // Admins now operate within a store context, but employee management is global.
-        // For simplicity, we'll keep it as is, but a real-world app might need a separate "global admin" view.
         return <Employees />;
       case 'transactions':
         return <Transactions transactions={storeTransactions} stores={stores} users={users} isLoading={isDataLoading} />;
@@ -217,7 +220,7 @@ function DashboardContent() {
   const getTitle = () => {
     // This logic can be simplified as admin view is now also store-specific
     const baseTitle = {
-      'overview': 'Dashboard Overview',
+      'overview': isAdmin ? 'Global Admin Overview' : 'Dashboard Overview',
       'pos': 'Point of Sale',
       'products': 'Product Inventory',
       'customers': 'Customer Management',
@@ -266,3 +269,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    

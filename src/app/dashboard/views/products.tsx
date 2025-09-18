@@ -17,11 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, User, Store, ProductCategory } from '@/lib/types';
+import type { Product, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2, Building } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -60,11 +60,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
-    products: Product[]; 
+    products: Product[];
+    stores: Store[];
     onDataChange: () => void;
+    isLoading: boolean;
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; storeName: string; }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier'; storeName: string; }) {
     if (!product) return null;
 
     return (
@@ -92,11 +94,10 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products, onDataChange }: ProductsProps) {
+export default function Products({ products, stores, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
-  const [isLoading, setIsLoading] = React.useState(false);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -224,7 +225,7 @@ export default function Products({ products, onDataChange }: ProductsProps) {
                 Daftar Produk
               </CardTitle>
               <CardDescription>
-                Kelola inventaris produk di toko yang aktif.
+                Kelola inventaris produk di toko {activeStore?.name || 'Anda'}.
               </CardDescription>
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -305,7 +306,7 @@ export default function Products({ products, onDataChange }: ProductsProps) {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-center">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                {userRole === 'admin' && <TableHead className="w-[100px] text-right">Actions</TableHead>}
+                {isAdmin && <TableHead className="w-[100px] text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -316,7 +317,7 @@ export default function Products({ products, onDataChange }: ProductsProps) {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
-                    {userRole === 'admin' && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
+                    {isAdmin && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : (
@@ -327,7 +328,7 @@ export default function Products({ products, onDataChange }: ProductsProps) {
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                      {userRole === 'admin' ? (
+                      {isAdmin ? (
                         <div className="flex items-center justify-center gap-2">
                             <Button
                                 size="icon"
@@ -360,7 +361,7 @@ export default function Products({ products, onDataChange }: ProductsProps) {
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
                     </TableCell>
-                    {userRole === 'admin' && (
+                    {isAdmin && (
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -436,3 +437,5 @@ export default function Products({ products, onDataChange }: ProductsProps) {
     </div>
   );
 }
+
+    
