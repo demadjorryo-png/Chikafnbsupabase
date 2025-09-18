@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,9 +21,8 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { products as mockProducts, transactions as mockTransactions } from '@/lib/data';
-import { TrendingUp, DollarSign, Package, Sparkles, Loader, ShoppingBag, History, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, ClipboardList, Trash2, Send } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, addDays, startOfYesterday, formatDistanceToNow } from 'date-fns';
+import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, Trash2, Send } from 'lucide-react';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
@@ -37,11 +37,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { PendingOrder, Store } from '@/lib/types';
+import type { PendingOrder, Store, Transaction, Product, Customer } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
+import { useAuth } from '@/contexts/auth-context';
 
 
 const chartConfig = {
@@ -56,15 +57,20 @@ type AppliedStrategy = {
   type: 'weekly' | 'monthly';
   recommendation: string;
   appliedDate: string;
-  status: 'active'; // In a real app, this could be more complex
+  status: 'active';
 };
 
 type AdminOverviewProps = {
     pendingOrders: PendingOrder[];
     stores: Store[];
+    transactions: Transaction[];
+    products: Product[];
+    customers: Customer[];
+    onDataChange: () => void;
 };
 
-export default function AdminOverview({ pendingOrders: allPendingOrders, stores }: AdminOverviewProps) {
+export default function AdminOverview({ pendingOrders: initialPendingOrders, stores, transactions, products, customers, onDataChange }: AdminOverviewProps) {
+  const { activeStore } = useAuth();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -72,7 +78,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-  const [exportStore, setExportStore] = React.useState<string>('all');
+  
   const { toast } = useToast();
 
   const [dateFnsLocale, setDateFnsLocale] = React.useState<any | undefined>(undefined);
@@ -80,14 +86,13 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
 
-  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(allPendingOrders);
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(initialPendingOrders);
    React.useEffect(() => {
-    setPendingOrders(allPendingOrders);
-  }, [allPendingOrders]);
+    setPendingOrders(initialPendingOrders);
+  }, [initialPendingOrders]);
   
   const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
   const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
-
 
   React.useEffect(() => {
     const fetchStrategies = async () => {
@@ -110,7 +115,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
 
   const {
     monthlyGrowthData,
-    storeStats,
+    storeMetrics,
     topProductsThisMonth,
     worstProductsThisMonth,
     topProductsLastMonth,
@@ -123,7 +128,6 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
     const startOfLastMonth = startOfMonth(lastMonth);
     const endOfLastMonth = endOfMonth(lastMonth);
     
-    // Monthly Growth Data
     const monthlyData: { month: string; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const targetMonth = subMonths(now, i);
@@ -131,39 +135,28 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
       const end = endOfMonth(targetMonth);
       const monthName = format(targetMonth, 'MMM', { locale: idLocale });
       
-      const monthlyRevenue = mockTransactions
+      const monthlyRevenue = transactions
         .filter(t => isWithinInterval(new Date(t.createdAt), { start, end }))
         .reduce((sum, t) => sum + t.totalAmount, 0);
         
       monthlyData.push({ month: monthName, revenue: monthlyRevenue });
     }
 
-    // Store Stats (Overall)
-    const stats = stores.map(store => {
-      const storeTransactions = mockTransactions.filter(t => t.storeId === store.id);
-      const totalRevenue = storeTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
-      
-      const totalCost = storeTransactions.reduce((sum, t) => {
-        return sum + t.items.reduce((itemSum, item) => {
-          const product = mockProducts.find(p => p.id === item.productId);
-          return itemSum + ((product?.costPrice || 0) * item.quantity);
-        }, 0);
+    const totalRevenue = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+    
+    const totalCost = transactions.reduce((sum, t) => {
+      return sum + t.items.reduce((itemSum, item) => {
+        const product = products.find(p => p.id === item.productId);
+        return itemSum + ((product?.costPrice || 0) * item.quantity);
       }, 0);
+    }, 0);
 
-      const grossProfit = totalRevenue - totalCost;
+    const grossProfit = totalRevenue - totalCost;
 
-      return {
-        ...store,
-        totalRevenue,
-        grossProfit,
-      };
-    });
+    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
+    const lastMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
 
-    // Top and Worst Products
-    const thisMonthTransactions = mockTransactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
-    const lastMonthTransactions = mockTransactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
-
-    const calculateProductSales = (txs: typeof mockTransactions) => {
+    const calculateProductSales = (txs: Transaction[]) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
           t.items.forEach(item => {
@@ -179,28 +172,26 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
     const sortedProductsThisMonth = calculateProductSales(thisMonthTransactions);
     const sortedProductsLastMonth = calculateProductSales(lastMonthTransactions);
 
-    const topThisMonth = sortedProductsThisMonth.slice(0, 3);
-    const worstThisMonth = sortedProductsThisMonth.slice(-3).reverse();
-    const topLastMonth = sortedProductsLastMonth.slice(0, 3);
-    const worstLastMonth = sortedProductsLastMonth.slice(-3).reverse();
-
     return {
       monthlyGrowthData: monthlyData,
-      storeStats: stats,
-      topProductsThisMonth: topThisMonth,
-      worstProductsThisMonth: worstThisMonth,
-      topProductsLastMonth: topLastMonth,
-      worstProductsLastMonth: worstLastMonth
+      storeMetrics: { totalRevenue, grossProfit },
+      topProductsThisMonth: sortedProductsThisMonth.slice(0, 3),
+      worstProductsThisMonth: sortedProductsThisMonth.slice(-3).reverse(),
+      topProductsLastMonth: sortedProductsLastMonth.slice(0, 3),
+      worstProductsLastMonth: sortedProductsLastMonth.slice(-3).reverse()
     };
-  }, [stores]);
+  }, [transactions, products]);
 
   const handleGenerateRecommendations = async () => {
     setIsLoading(true);
     setRecommendations(null);
+    const thisMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 1]?.revenue || 0;
+    const lastMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 2]?.revenue || 0;
+
     try {
         const result = await getAdminRecommendations({
-            totalRevenueLastWeek: 5000000, // Dummy data for now
-            totalRevenueLastMonth: 20000000, // Dummy data for now
+            totalRevenueLastWeek: thisMonthRevenue / 4, 
+            totalRevenueLastMonth: lastMonthRevenue,
             topSellingProducts: topProductsThisMonth.map(([name]) => name),
             worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
         });
@@ -258,7 +249,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
   const handleExport = () => {
     toast({
         title: "Exporting Data (Simulation)",
-        description: `Preparing to export data for ${stores.find(s => s.id === exportStore)?.name || 'All Stores'} from ${format(exportDate?.from!, 'PPP')} to ${format(exportDate?.to!, 'PPP')}.`,
+        description: `Preparing to export data for ${activeStore?.name} from ${format(exportDate?.from!, 'PPP')} to ${format(exportDate?.to!, 'PPP')}.`,
     })
   }
 
@@ -267,7 +258,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
 
     try {
       await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
-      setPendingOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      onDataChange();
       toast({
         title: 'Pesanan Dihapus',
         description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
@@ -289,7 +280,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
       <Card>
         <CardHeader>
           <CardTitle className="font-headline tracking-wider">Pertumbuhan Pendapatan Bulanan</CardTitle>
-          <CardDescription>Total pendapatan dari semua toko selama 6 bulan terakhir.</CardDescription>
+          <CardDescription>Total pendapatan toko ini selama 6 bulan terakhir.</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -310,37 +301,75 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
         </CardContent>
       </Card>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {storeStats.map(store => (
-             <Card key={store.id}>
-                <CardHeader>
-                    <CardTitle className="font-headline tracking-wider">{store.name}</CardTitle>
-                    <CardDescription>{store.location}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4 rounded-md border p-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <DollarSign className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Omset</p>
-                            <p className="text-2xl font-bold">Rp {store.totalRevenue.toLocaleString('id-ID')}</p>
-                        </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline tracking-wider">Metrik Kinerja Toko</CardTitle>
+                <CardDescription>Ringkasan performa toko {activeStore?.name} secara keseluruhan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-4 rounded-md border p-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <DollarSign className="h-6 w-6" />
                     </div>
-                    <div className="flex items-center gap-4 rounded-md border p-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
-                            <TrendingUp className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Estimasi Laba Kotor</p>
-                            <p className="text-2xl font-bold">Rp {store.grossProfit.toLocaleString('id-ID')}</p>
-                        </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Total Omset (Semua Waktu)</p>
+                        <p className="text-2xl font-bold">Rp {storeMetrics.totalRevenue.toLocaleString('id-ID')}</p>
                     </div>
-                </CardContent>
-            </Card>
-        ))}
+                </div>
+                <div className="flex items-center gap-4 rounded-md border p-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                        <TrendingUp className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Estimasi Laba Kotor</p>
+                        <p className="text-2xl font-bold">Rp {storeMetrics.grossProfit.toLocaleString('id-ID')}</p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline tracking-wider">Rekomendasi Bisnis Chika AI</CardTitle>
+                <CardDescription>Dapatkan saran strategis mingguan dan bulanan untuk mendorong pertumbuhan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
+                    {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Buat Rekomendasi Baru
+                </Button>
+
+                {recommendations && (
+                    <div className="space-y-4 pt-2">
+                        <Card className="bg-background/50">
+                            <CardHeader className='pb-2'>
+                                <AlertTitle className="font-semibold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" />Rekomendasi Mingguan</AlertTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <AlertDescription>{recommendations.weeklyRecommendation}</AlertDescription>
+                            </CardContent>
+                            <CardFooter>
+                                <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('weekly', recommendations.weeklyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan</Button>
+                            </CardFooter>
+                        </Card>
+                        <Card className="bg-background/50">
+                            <CardHeader className='pb-2'>
+                                <AlertTitle className="font-semibold text-primary flex items-center gap-2"><ShoppingBag className="h-4 w-4" />Rekomendasi Bulanan</AlertTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <AlertDescription>{recommendations.monthlyRecommendation}</AlertDescription>
+                            </CardContent>
+                            <CardFooter>
+                                <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('monthly', recommendations.monthlyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan</Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
       </div>
-       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+
+       <div className="grid gap-6 md:grid-cols-2">
          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingUp className="text-primary"/>Produk Terlaris</CardTitle>
@@ -349,7 +378,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
             <CardContent>
                 <ul className="space-y-2">
                     {topProductsThisMonth.map(([name, quantity], index) => (
-                        <li key={index} className="flex justify-between text-sm font-medium">
+                        <li key={name} className="flex justify-between text-sm font-medium">
                             <span>{index + 1}. {name}</span>
                             <span className="font-mono">{quantity}x</span>
                         </li>
@@ -365,39 +394,7 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
             <CardContent>
                 <ul className="space-y-2">
                     {worstProductsThisMonth.map(([name, quantity], index) => (
-                        <li key={index} className="flex justify-between text-sm font-medium">
-                            <span>{index + 1}. {name}</span>
-                            <span className="font-mono">{quantity}x</span>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline tracking-wider text-muted-foreground"><TrendingUp className="text-primary/50"/>Produk Terlaris (Bulan Lalu)</CardTitle>
-                <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-2 text-muted-foreground">
-                    {topProductsLastMonth.map(([name, quantity], index) => (
-                        <li key={index} className="flex justify-between text-sm font-medium">
-                           <span>{index + 1}. {name}</span>
-                           <span className="font-mono">{quantity}x</span>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline tracking-wider text-muted-foreground"><TrendingDown className="text-destructive/50"/>Produk Kurang Laris (Bulan Lalu)</CardTitle>
-                <CardDescription>Bulan lalu, berdasarkan unit terjual</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-2 text-muted-foreground">
-                    {worstProductsLastMonth.map(([name, quantity], index) => (
-                        <li key={index} className="flex justify-between text-sm font-medium">
+                        <li key={name} className="flex justify-between text-sm font-medium">
                             <span>{index + 1}. {name}</span>
                             <span className="font-mono">{quantity}x</span>
                         </li>
@@ -407,50 +404,6 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
         </Card>
       </div>
 
-       <Card>
-        <CardHeader>
-          <CardTitle className="font-headline tracking-wider">Rekomendasi Bisnis Chika AI</CardTitle>
-          <CardDescription>Dapatkan saran strategis mingguan dan bulanan untuk mendorong pertumbuhan.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
-            {isLoading ? (
-              <Loader className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            Buat Rekomendasi Baru
-          </Button>
-
-          {recommendations && (
-             <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <AlertTitle className="font-semibold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" />Rekomendasi Mingguan</AlertTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <AlertDescription>{recommendations.weeklyRecommendation}</AlertDescription>
-                    </CardContent>
-                    <CardFooter>
-                        <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('weekly', recommendations.weeklyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan Strategi</Button>
-                    </CardFooter>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <AlertTitle className="font-semibold text-primary flex items-center gap-2"><ShoppingBag className="h-4 w-4" />Rekomendasi Bulanan</AlertTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <AlertDescription>{recommendations.monthlyRecommendation}</AlertDescription>
-                    </CardContent>
-                     <CardFooter>
-                        <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('monthly', recommendations.monthlyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan Strategi</Button>
-                    </CardFooter>
-                </Card>
-             </div>
-          )}
-        </CardContent>
-      </Card>
-      
        {appliedStrategies.length > 0 && (
          <Card>
             <CardHeader>
@@ -490,9 +443,9 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
 
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda Terbaru (Semua Toko)</CardTitle>
+            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda di Toko Ini</CardTitle>
             <CardDescription>
-              Produk yang ditunggu pelanggan di semua cabang.
+              Produk yang ditunggu pelanggan di toko {activeStore?.name}.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -501,7 +454,6 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
               <TableRow>
                 <TableHead>Pelanggan</TableHead>
                 <TableHead>Produk</TableHead>
-                <TableHead>Toko</TableHead>
                 <TableHead className="text-center">Qty</TableHead>
                 <TableHead>Tanggal</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -525,7 +477,6 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
                             </div>
                         </TableCell>
                         <TableCell>{order.productName}</TableCell>
-                        <TableCell>{stores.find(s => s.id === order.storeId)?.name || order.storeId}</TableCell>
                         <TableCell className="text-center font-mono">{order.quantity}</TableCell>
                         <TableCell>
                           {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
@@ -553,23 +504,9 @@ export default function AdminOverview({ pendingOrders: allPendingOrders, stores 
       <Card>
         <CardHeader>
             <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
-            <CardDescription>Unduh data transaksi dalam format CSV untuk analisis lebih lanjut.</CardDescription>
+            <CardDescription>Unduh data transaksi dari toko {activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="grid gap-2 w-full sm:w-auto">
-                <Label>Pilih Toko</Label>
-                <Select value={exportStore} onValueChange={setExportStore}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Pilih Toko" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Toko</SelectItem>
-                        {stores.map(store => (
-                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
             <div className="grid gap-2 w-full sm:w-auto">
                 <Label>Pilih Periode</Label>
                 <Popover>

@@ -128,11 +128,9 @@ function DashboardContent() {
   }, [currentUser, activeStore, toast]);
   
   React.useEffect(() => {
-    // Only fetch data if the session is valid
     if (!isAuthLoading && currentUser && activeStore) {
         fetchAllData();
     } else if (!isAuthLoading && (!currentUser || !activeStore)) {
-        // If auth is done loading and session is invalid, stop the data loader
         setIsDataLoading(false);
     }
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
@@ -145,7 +143,6 @@ function DashboardContent() {
   }
 
   const renderView = () => {
-    // Filter transactions and pending orders for the active store
     const storeTransactions = transactions.filter(t => t.storeId === activeStore?.id);
     const storePendingOrders = pendingOrders.filter(po => po.storeId === activeStore?.id);
 
@@ -163,7 +160,14 @@ function DashboardContent() {
     switch (view) {
       case 'overview':
         if (isAdmin) {
-          return <AdminOverview pendingOrders={pendingOrders} stores={stores} />;
+          return <AdminOverview 
+                    pendingOrders={storePendingOrders} 
+                    stores={stores} 
+                    transactions={storeTransactions}
+                    products={products}
+                    customers={customers}
+                    onDataChange={fetchAllData}
+                 />;
         }
         return <Overview 
               transactions={storeTransactions} 
@@ -202,7 +206,7 @@ function DashboardContent() {
         return <Promotions 
                     redemptionOptions={redemptionOptions} 
                     setRedemptionOptions={setRedemptionOptions} 
-                    transactions={transactions} // Pass all transactions for AI analysis
+                    transactions={transactions}
                 />;
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} />;
@@ -218,9 +222,8 @@ function DashboardContent() {
   };
 
   const getTitle = () => {
-    // This logic can be simplified as admin view is now also store-specific
     const baseTitle = {
-      'overview': isAdmin ? 'Global Admin Overview' : 'Dashboard Overview',
+      'overview': isAdmin ? 'Admin Overview' : 'Dashboard Overview',
       'pos': 'Point of Sale',
       'products': 'Product Inventory',
       'customers': 'Customer Management',
@@ -231,9 +234,9 @@ function DashboardContent() {
       'challenges': 'Employee Challenges',
       'promotions': 'Promotions',
       'receipt-settings': 'Receipt Settings',
-    }[view] || 'Dashboard Overview';
+    }[view] || 'Dashboard';
 
-    return `${baseTitle} - ${activeStore?.name}`;
+    return activeStore ? `${baseTitle} - ${activeStore.name}` : baseTitle;
   };
 
   return (
@@ -269,5 +272,3 @@ function DashboardSkeleton() {
         </div>
     )
 }
-
-    
