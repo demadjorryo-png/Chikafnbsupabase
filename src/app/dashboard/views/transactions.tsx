@@ -19,7 +19,7 @@ import {
 import type { Transaction, Store, User, Customer } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Volume2, Send, CheckCircle, Loader } from 'lucide-react';
+import { MoreHorizontal, Volume2, Send, CheckCircle, Loader, Calendar as CalendarIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +54,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 
 type TransactionsProps = {
     transactions: Transaction[];
@@ -153,6 +155,31 @@ export default function Transactions({ transactions, stores, users, customers, o
   const [transactionToComplete, setTransactionToComplete] = React.useState<Transaction | null>(null);
   const [sentWhatsappIds, setSentWhatsappIds] = React.useState<Set<string>>(new Set());
 
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 100;
+
+  const filteredTransactions = React.useMemo(() => {
+    if (!date?.from || !date?.to) {
+      return transactions;
+    }
+    // Set time to beginning and end of day to include full days
+    const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+    const toDate = new Date(date.to.setHours(23, 59, 59, 999));
+    return transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
+  }, [transactions, date]);
+
+  const paginatedTransactions = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredTransactions.slice(startIndex, endIndex);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
     setTimeout(() => {
@@ -214,12 +241,54 @@ export default function Transactions({ transactions, stores, users, customers, o
       <div className="non-printable">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline tracking-wider">
-              Riwayat Transaksi
-            </CardTitle>
-            <CardDescription>
-              Lihat semua penjualan yang lalu, status pesanan, dan detailnya.
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="font-headline tracking-wider">
+                    Riwayat Transaksi
+                    </CardTitle>
+                    <CardDescription>
+                    Lihat semua penjualan yang lalu, status pesanan, dan detailnya.
+                    </CardDescription>
+                </div>
+                <div className="w-full sm:w-auto">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                            "w-full sm:w-[300px] justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.from ? (
+                            date.to ? (
+                                <>
+                                {format(date.from, "LLL dd, y")} -{" "}
+                                {format(date.to, "LLL dd, y")}
+                                </>
+                            ) : (
+                                format(date.from, "LLL dd, y")
+                            )
+                            ) : (
+                            <span>Pilih tanggal</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={2}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -234,7 +303,7 @@ export default function Transactions({ transactions, stores, users, customers, o
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                    Array.from({length: 5}).map((_, i) => (
+                    Array.from({length: 10}).map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-5 w-24"/></TableCell>
                             <TableCell><Skeleton className="h-5 w-32"/></TableCell>
@@ -244,7 +313,7 @@ export default function Transactions({ transactions, stores, users, customers, o
                         </TableRow>
                     ))
                 ) : (
-                    transactions.map((transaction) => {
+                    paginatedTransactions.map((transaction) => {
                     return (
                     <TableRow key={transaction.id}>
                         <TableCell>
@@ -257,10 +326,10 @@ export default function Transactions({ transactions, stores, users, customers, o
                         <TableCell>{transaction.customerName}</TableCell>
                         <TableCell className="text-center">
                           <Badge 
-                            variant={transaction.status === 'Selesai' ? 'secondary' : 'default'}
+                            variant={transaction.status === 'Selesai' || transaction.status === 'Selesai Dibayar' ? 'secondary' : 'default'}
                             className={cn(
                                 transaction.status === 'Diproses' && 'bg-amber-500/20 text-amber-800 border-amber-500/50',
-                                transaction.status === 'Selesai Dibayar' && 'bg-slate-500/20 text-slate-800 border-slate-500/50'
+                                (transaction.status === 'Selesai' || transaction.status === 'Selesai Dibayar') && 'bg-green-500/20 text-green-800 border-green-500/50',
                             )}
                           >
                               {transaction.status}
@@ -332,6 +401,29 @@ export default function Transactions({ transactions, stores, users, customers, o
                 )}
               </TableBody>
             </Table>
+             <div className="flex items-center justify-between mt-4">
+                <span className="text-sm text-muted-foreground">
+                    Halaman {currentPage} dari {totalPages}
+                </span>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Sebelumnya
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Berikutnya
+                    </Button>
+                </div>
+            </div>
           </CardContent>
         </Card>
       </div>
