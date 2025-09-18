@@ -16,16 +16,11 @@ export async function seedDatabase() {
     const productCollectionRef = collection(db, productCollectionName);
     console.log(`Processing collection: ${productCollectionName}`);
 
-    // Use a batch to write all products for a store at once.
-    // This is more efficient than individual writes.
     const batch = writeBatch(db);
 
     products.forEach((product) => {
-      // Use the existing product ID for the new document ID
       const productDocRef = doc(productCollectionRef, product.id);
       
-      // We are creating a new object to avoid sending the `id` field
-      // inside the document data itself, as it's already the document ID.
       const { id, ...productData } = product; 
       
       batch.set(productDocRef, productData);
@@ -36,7 +31,6 @@ export async function seedDatabase() {
       console.log(`Successfully seeded ${products.length} products for ${store.name}.`);
     } catch (error) {
       console.error(`Error seeding products for ${store.name}:`, error);
-      // Re-throw the error to be caught by the calling function
       throw error;
     }
   }

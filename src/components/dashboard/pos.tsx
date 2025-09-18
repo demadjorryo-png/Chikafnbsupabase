@@ -407,7 +407,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products by name..."
+                placeholder="Cari produk..."
                 className="w-full rounded-lg bg-secondary pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -423,9 +423,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-center w-[120px]">Stock</TableHead>
+                    <TableHead>Produk</TableHead>
+                    <TableHead className="text-right">Harga</TableHead>
+                    <TableHead className="text-center w-[120px]">Stok</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -451,7 +451,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                         <TableCell className="text-right">Rp {product.price.toLocaleString('id-ID')}</TableCell>
                         <TableCell className="text-center">
                            {isOutOfStock ? (
-                            <Badge variant="destructive">Out of Stock</Badge>
+                            <Badge variant="destructive">Habis</Badge>
                            ) : (
                             stockInStore
                            )}
@@ -481,7 +481,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Current Order
+              Pesanan Saat Ini
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -493,9 +493,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                   setSelectedCustomer(customers.find((c) => c.id === value));
                   setPointsToRedeem(0); // Reset points when customer changes
                 }}
-                placeholder="Search customer..."
-                searchPlaceholder="Search by name..."
-                notFoundText="No customer found."
+                placeholder="Cari pelanggan..."
+                searchPlaceholder="Cari nama pelanggan..."
+                notFoundText="Pelanggan tidak ditemukan."
               />
               <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
                 <DialogTrigger asChild>
@@ -506,10 +506,10 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">
-                      Register New Member
+                      Daftar Pelanggan Baru
                     </DialogTitle>
                     <DialogDescription>
-                      Add a new customer to the community. Age will be verified.
+                      Tambahkan pelanggan baru ke dalam sistem.
                     </DialogDescription>
                   </DialogHeader>
                   {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
@@ -593,7 +593,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 ))
               ) : (
                 <div className="py-10 text-center text-sm text-muted-foreground">
-                  Your cart is empty.
+                  Keranjang Anda kosong.
                 </div>
               )}
               </div>
@@ -675,8 +675,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             )}
 
             <div className="grid grid-cols-3 gap-2">
-                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Cash</Button>
-                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Card</Button>
+                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
                 <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
@@ -694,7 +694,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           <DialogHeader>
             <DialogTitle className="font-headline tracking-wider">Scan Barcode</DialogTitle>
             <DialogDescription>
-              Point your camera at a product's barcode to add it to the cart.
+              Arahkan kamera ke barcode produk untuk menambahkannya ke keranjang.
             </DialogDescription>
           </DialogHeader>
           <BarcodeScanner onScan={handleBarcodeScanned} />

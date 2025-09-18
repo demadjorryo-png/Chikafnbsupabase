@@ -120,9 +120,9 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Product Name</FormLabel>
+                <FormLabel>Nama Produk</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Dark Luna Grape" {...field} />
+                  <Input placeholder="e.g., Kopi Susu" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -133,9 +133,9 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             name="brand"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Brand</FormLabel>
+                <FormLabel>Merek</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Emkay" {...field} />
+                  <Input placeholder="e.g., Chika Coffee" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -146,11 +146,11 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>Kategori</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder="Pilih Kategori" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -191,7 +191,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
                   name="costPrice"
                   render={({ field }) => (
                   <FormItem>
-                      <FormLabel>Cost Price (Rp)</FormLabel>
+                      <FormLabel>Harga Pokok (Rp)</FormLabel>
                       <FormControl>
                       <Input type="number" {...field} />
                       </FormControl>
@@ -206,7 +206,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
               name="price"
               render={({ field }) => (
                   <FormItem>
-                  <FormLabel>Selling Price (Rp)</FormLabel>
+                  <FormLabel>Harga Jual (Rp)</FormLabel>
                   <FormControl>
                       <Input type="number" {...field} />
                   </FormControl>
@@ -217,7 +217,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
           
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
+            Simpan Perubahan
           </Button>
         </form>
       </Form>
@@ -228,7 +228,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
           <DialogHeader>
             <DialogTitle className="font-headline tracking-wider">Scan Barcode</DialogTitle>
             <DialogDescription>
-              Point your camera at a product's barcode to capture the SKU.
+              Arahkan kamera ke barcode produk untuk mengambil SKU.
             </DialogDescription>
           </DialogHeader>
           <BarcodeScanner onScan={handleBarcodeScanned} />

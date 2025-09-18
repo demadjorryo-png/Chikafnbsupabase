@@ -30,7 +30,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) =>
-  (currentYear - 18 - i).toString()
+  (currentYear - 17 - i).toString()
 );
 const months = Array.from({ length: 12 }, (_, i) => ({
   value: (i + 1).toString().padStart(2, '0'),
@@ -48,51 +48,10 @@ const FormSchema = z
     phone: z.string().min(10, {
       message: 'Phone number must be at least 10 digits.',
     }),
-    birthDay: z.string({ required_error: 'Tanggal lahir harus diisi.' }),
-    birthMonth: z.string({ required_error: 'Bulan lahir harus diisi.' }),
-    birthYear: z.string({ required_error: 'Tahun lahir harus diisi.' }),
+    birthDay: z.string().optional(),
+    birthMonth: z.string().optional(),
+    birthYear: z.string().optional(),
   })
-  .superRefine((data, ctx) => {
-    const { birthYear, birthMonth, birthDay } = data;
-    if (!birthYear || !birthMonth || !birthDay) {
-        // Let required_error messages handle this
-        return;
-    }
-    
-    const year = parseInt(birthYear, 10);
-    const month = parseInt(birthMonth, 10);
-    const day = parseInt(birthDay, 10);
-
-    const d = new Date(year, month - 1, day);
-    if (
-      d.getFullYear() !== year ||
-      d.getMonth() !== month - 1 ||
-      d.getDate() !== day
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Tanggal tidak valid.',
-        path: ['birthDay'],
-      });
-      return;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of day
-    const birthDate = new Date(year, month - 1, day);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    if (age < 21) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Pelanggan harus berusia minimal 21 tahun.',
-        path: ['birthYear'],
-      });
-    }
-  });
 
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
@@ -114,7 +73,10 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
-    const birthDate = `${data.birthYear}-${data.birthMonth}-${data.birthDay}`;
+    const birthDate = (data.birthYear && data.birthMonth && data.birthDay) 
+        ? `${data.birthYear}-${data.birthMonth}-${data.birthDay}` 
+        : new Date(0).toISOString().split('T')[0]; // Default date if not provided
+        
     const avatarUrl = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
 
 
@@ -125,13 +87,13 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
             birthDate: birthDate,
             joinDate: new Date().toISOString(),
             loyaltyPoints: 0,
-            memberTier: 'Squab',
+            memberTier: 'Bronze',
             avatarUrl: avatarUrl,
         });
 
         toast({
-            title: 'Member Berhasil Didaftarkan!',
-            description: `${data.name} sekarang menjadi bagian dari komunitas.`,
+            title: 'Pelanggan Berhasil Didaftarkan!',
+            description: `${data.name} sekarang telah terdaftar.`,
         });
 
         onCustomerAdded?.();
@@ -141,7 +103,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
         console.error("Error adding customer:", error);
         toast({
             variant: 'destructive',
-            title: 'Gagal Mendaftarkan Member',
+            title: 'Gagal Mendaftarkan Pelanggan',
             description: 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.',
         });
     } finally {
@@ -157,7 +119,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nama Lengkap</FormLabel>
               <FormControl>
                 <Input placeholder="Budi Santoso" {...field} />
               </FormControl>
@@ -170,7 +132,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number (for Member ID)</FormLabel>
+              <FormLabel>Nomor Telepon</FormLabel>
               <FormControl>
                 <Input placeholder="081234567890" type="tel" {...field} />
               </FormControl>
@@ -179,7 +141,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
           )}
         />
         <div className="space-y-2">
-          <FormLabel>Date of Birth</FormLabel>
+          <FormLabel>Tanggal Lahir (Opsional)</FormLabel>
           <div className="grid grid-cols-3 gap-2">
             <FormField
               control={form.control}
@@ -265,7 +227,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
         </div>
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-          Register Member
+          Daftarkan Pelanggan
         </Button>
       </form>
     </Form>

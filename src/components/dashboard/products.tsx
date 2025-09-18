@@ -18,11 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, User, Store, ProductCategory } from '@/lib/types';
+import type { Product, Store, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { File, ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2, Building } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -67,7 +67,7 @@ type ProductsProps = {
     isLoading: boolean;
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; storeName: string; }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier'; storeName: string; }) {
     if (!product) return null;
 
     return (
@@ -80,15 +80,11 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 py-4 text-sm">
-                   <div><strong>Brand:</strong> {product.attributes.brand}</div>
-                   <div className="flex items-center gap-1"><strong>Category:</strong> <Badge variant="outline">{product.category}</Badge></div>
-                   {product.attributes.flavorProfile && <div><strong>Flavor:</strong> {product.attributes.flavorProfile}</div>}
-                   {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
-                   {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
-                   {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                   <div><strong>Stock di {storeName}:</strong> {product.stock}</div>
-                   {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
-                   <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
+                   <div><strong>Merek:</strong> {product.attributes.brand}</div>
+                   <div className="flex items-center gap-1"><strong>Kategori:</strong> <Badge variant="outline">{product.category}</Badge></div>
+                   <div><strong>Stok di {storeName}:</strong> {product.stock}</div>
+                   {userRole === 'admin' && <div><strong>Harga Pokok:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
+                   <div><strong>Harga Jual:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
                 </div>
             </DialogContent>
         </Dialog>
@@ -111,13 +107,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
   
-  const currentStore = activeStore;
-  const currentStoreId = currentStore?.id;
-
-
-  React.useEffect(() => {
-    // No-op, single store mode
-  }, []);
+  const currentStoreId = activeStore?.id;
 
 
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
@@ -170,7 +160,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-        onDataChange(); 
+        onDataChange();
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -209,7 +199,6 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     });
   }, [products, searchTerm, selectedCategories]);
 
-  // The categories available in the dropdown should be based on the products of the currently selected store
   const availableCategories = React.useMemo(() => {
     const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
@@ -224,202 +213,198 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
 
 
   return (
-    <>
-      <div>
-        <main>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardTitle className="font-headline tracking-wider">
-                  Products
-                </CardTitle>
-                <CardDescription>
-                  Kelola inventaris produk di {currentStore?.name || 'toko Anda'}.
-                </CardDescription>
+    <div className="grid gap-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="font-headline tracking-wider">
+                Daftar Produk
+              </CardTitle>
+              <CardDescription>
+                Kelola inventaris produk di toko {activeStore?.name || 'Anda'}.
+              </CardDescription>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Cari produk..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <div className="ml-auto flex items-center gap-2">
-                <div className="relative w-full max-w-xs">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search products..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-10 gap-1">
-                      <ListFilter className="h-3.5 w-3.5" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 gap-1">
+                    <ListFilter className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                      Filter
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filter berdasarkan kategori</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <ScrollArea className="h-48">
+                  {availableCategories.map(category => (
+                    <DropdownMenuCheckboxItem 
+                        key={category}
+                        checked={selectedCategories.has(category)}
+                        onSelect={(e) => e.preventDefault()} // prevent menu from closing
+                        onClick={() => handleCategoryFilterChange(category)}
+                    >
+                        {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  </ScrollArea>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {isAdmin && (
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
+                      <PlusCircle className="h-3.5 w-3.5" />
                       <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Filter
+                        Tambah Produk
                       </span>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Filter by category</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <ScrollArea className="h-48">
-                    {availableCategories.map(category => (
-                      <DropdownMenuCheckboxItem 
-                          key={category}
-                          checked={selectedCategories.has(category)}
-                          onSelect={(e) => e.preventDefault()} // prevent menu from closing
-                          onClick={() => handleCategoryFilterChange(category)}
-                      >
-                          {category}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                    </ScrollArea>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                
-                {isAdmin && (
-                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                          Add Product
-                        </span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="font-headline tracking-wider">
-                          Add New Product
-                        </DialogTitle>
-                        <DialogDescription>
-                          Menambahkan produk baru ke inventaris {currentStore?.name}.
-                        </DialogDescription>
-                      </DialogHeader>
-                      {currentStore && <AddProductForm 
-                        setDialogOpen={setIsAddDialogOpen} 
-                        userRole={userRole} 
-                        onProductAdded={handleDataUpdate}
-                        activeStore={currentStore}
-                      />}
-                    </DialogContent>
-                  </Dialog>
-                )}
-                
-              </div>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-headline tracking-wider">
+                        Tambah Produk Baru
+                      </DialogTitle>
+                      <DialogDescription>
+                        Menambahkan produk baru ke inventaris {activeStore?.name}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {activeStore && <AddProductForm 
+                      setDialogOpen={setIsAddDialogOpen} 
+                      userRole={userRole} 
+                      onProductAdded={handleDataUpdate}
+                      activeStore={activeStore}
+                    />}
+                  </DialogContent>
+                </Dialog>
+              )}
+              
             </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-center">Stock</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  {userRole === 'admin' && <TableHead className="w-[100px] text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
-                      {userRole === 'admin' && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
-                    </TableRow>
-                  ))
-                ) : (
-                  filteredProducts.map((product) => (
-                    <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{product.category}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                        {userRole === 'admin' ? (
-                          <div className="flex items-center justify-center gap-2">
-                              <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-6 w-6"
-                                  onClick={() => handleStockChange(product.id, product.stock, -1)}
-                                  disabled={updatingStock === product.id}
-                              >
-                                  <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
-                                  {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
-                              </span>
-                              <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-6 w-6"
-                                  onClick={() => handleStockChange(product.id, product.stock, 1)}
-                                  disabled={updatingStock === product.id}
-                              >
-                                  <Plus className="h-4 w-4" />
-                              </Button>
-                          </div>
-                        ) : (
-                          <span className={cn(getStockColorClass(product.stock))}>
-                              {product.stock}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        Rp {product.price.toLocaleString('id-ID')}
-                      </TableCell>
-                      {userRole === 'admin' && (
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Toggle menu</span>
-                              </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>
-                              </DropdownMenuContent>
-                          </DropdownMenu>
-                          </TableCell>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nama</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead className="text-center">Stok</TableHead>
+                <TableHead className="text-right">Harga</TableHead>
+                {isAdmin && <TableHead className="w-[100px] text-right">Aksi</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
+                    {isAdmin && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
+                  </TableRow>
+                ))
+              ) : (
+                filteredProducts.map((product) => (
+                  <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{product.category}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
+                      {isAdmin ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => handleStockChange(product.id, product.stock, -1)}
+                                disabled={updatingStock === product.id}
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
+                                {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
+                            </span>
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => handleStockChange(product.id, product.stock, 1)}
+                                disabled={updatingStock === product.id}
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                      ) : (
+                        <span className={cn(getStockColorClass(product.stock))}>
+                            {product.stock}
+                        </span>
                       )}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        </main>
-      </div>
-      
-      {selectedProduct && currentStore && (
+                    </TableCell>
+                    <TableCell className="text-right">
+                      Rp {product.price.toLocaleString('id-ID')}
+                    </TableCell>
+                    {isAdmin && (
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEditClick(product)}>Ubah</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Hapus</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {selectedProduct && activeStore && (
         <ProductDetailsDialog
           product={selectedProduct}
           open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
           onOpenChange={() => setSelectedProduct(null)}
           userRole={userRole}
-          storeName={currentStore.name}
+          storeName={activeStore.name}
         />
       )}
   
-      {selectedProduct && isEditDialogOpen && currentStore && (
+      {selectedProduct && isEditDialogOpen && activeStore && (
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                  <DialogTitle className="font-headline tracking-wider">Edit Product</DialogTitle>
-                  <DialogDescription>Update details for {selectedProduct.name}.</DialogDescription>
+                  <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
+                  <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
                   </DialogHeader>
                   <EditProductForm 
                   setDialogOpen={setIsEditDialogOpen} 
                   userRole={userRole} 
                   onProductUpdated={handleDataUpdate}
-                  activeStore={currentStore}
+                  activeStore={activeStore}
                   product={selectedProduct}
                   />
               </DialogContent>
@@ -429,23 +414,25 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
       <AlertDialogContent>
           <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
           <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product: <br />
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk secara permanen: <br />
               <span className="font-bold">"{selectedProduct?.name}"</span>.
           </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
           <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
           >
-              Yes, delete
+              Ya, Hapus
           </AlertDialogAction>
           </AlertDialogFooter>
       </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
+
+    

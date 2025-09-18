@@ -15,11 +15,11 @@ export type TransactionFeeSettings = {
 
 // Default settings in case the document doesn't exist in Firestore
 export const defaultFeeSettings: TransactionFeeSettings = {
-  tokenValueRp: 1000,    // 1 token = Rp 1.000
+  tokenValueRp: 10,    // 1 token = Rp 10
   feePercentage: 0.005,  // Biaya 0.5% per transaksi
-  minFeeRp: 500,         // Biaya minimum Rp 500
-  maxFeeRp: 2500,        // Biaya maksimum Rp 2.500
-  aiUsageFee: 0.1,       // Biaya 0.1 token per penggunaan AI
+  minFeeRp: 50,         // Biaya minimum Rp 50
+  maxFeeRp: 250,        // Biaya maksimum Rp 250
+  aiUsageFee: 1,       // Biaya 1 token per penggunaan AI
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {

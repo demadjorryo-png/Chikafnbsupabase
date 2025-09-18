@@ -4,8 +4,8 @@ import type { ReceiptSettings } from './types';
 
 // Default settings if a store doesn't have any defined.
 export const defaultReceiptSettings: ReceiptSettings = {
-    headerText: "Bekupon Vape Store\nJl. Raya No. 123, Kota\nTelp: 0812-3456-7890",
-    footerText: "Terima kasih atas kunjungan Anda!",
+    headerText: "Toko Chika\nJl. Jenderal Sudirman No. 1, Jakarta\nTelp: 0812-3456-7890",
+    footerText: "Terima kasih telah berbelanja!",
     promoText: "Kumpulkan poin dan dapatkan hadiah menarik!",
 };
 

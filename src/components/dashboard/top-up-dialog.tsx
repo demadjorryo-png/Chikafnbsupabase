@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Banknote, Info, Loader, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getTransactionFeeSettings, defaultFeeSettings, updatePradanaTokenBalance } from '@/lib/app-settings';
+import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 
@@ -24,7 +24,7 @@ type TopUpDialogProps = {
   setDialogOpen: (open: boolean) => void;
 };
 
-const topUpPackages = [50, 100, 200, 500, 1000];
+const topUpPackages = [5000, 10000, 20000, 50000, 100000];
 const ADMIN_PHONE = '6282140442252'; // Format internasional tanpa '+'
 const BANK_INFO = {
     name: 'BCA',
@@ -72,15 +72,7 @@ export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps)
         });
         return;
     }
-    if (finalAmount % 50 !== 0) {
-        toast({
-            variant: 'destructive',
-            title: 'Jumlah tidak valid',
-            description: 'Jumlah token harus dalam kelipatan 50.'
-        });
-        return;
-    }
-
+    
     setIsProcessing(true);
 
     const message = `Halo, saya ingin melakukan konfirmasi top-up Pradana Token.
@@ -93,8 +85,6 @@ Mohon segera diproses. Terima kasih.`;
 
     const whatsappUrl = `https://wa.me/${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
     
-    // This is now just a fire-and-forget for the user. 
-    // The admin will manually update the balance in Firestore.
     window.open(whatsappUrl, '_blank');
 
     toast({
@@ -141,13 +131,12 @@ Mohon segera diproses. Terima kasih.`;
         </div>
 
         <div className="space-y-2">
-          <Label>Atau Masukkan Jumlah Lain (kelipatan 50)</Label>
+          <Label>Atau Masukkan Jumlah Lain</Label>
           <Input
             type="number"
-            placeholder="e.g., 150"
+            placeholder="e.g., 15000"
             value={manualAmount}
             onChange={handleManualChange}
-            step="50"
           />
         </div>
 

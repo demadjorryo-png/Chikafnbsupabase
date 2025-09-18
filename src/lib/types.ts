@@ -2,20 +2,13 @@
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
 // Pastikan untuk mengapitnya dengan tanda kutip tunggal (') dan menambahkan koma di akhir.
-// Contoh: 'Liquid Freebase', 'Liquid Saltnic', 'Kategori Baru',
 export const productCategories = [
-  'Liquid Freebase',
-  'Liquid Saltnic',
-  'Pod',
-  'Mod',
-  'AIO',
-  'RDA',
-  'RTA',
-  'RDTA',
-  'Coil',
-  'Battery',
-  'Cotton',
-  'Drip Tip',
+  'Makanan',
+  'Minuman',
+  'Pakaian',
+  'Elektronik',
+  'Aksesoris',
+  'Buku',
   'Lainnya',
 ] as const;
 
@@ -41,7 +34,7 @@ export type User = {
   name: string;
   role: UserRole;
   userId?: string; // The login ID
-  password?: string; // NOTE: Storing plain text password is not secure. For temporary use only.
+  password?: string;
   email?: string;
   status: 'active' | 'inactive';
 };
@@ -50,7 +43,7 @@ export type Product = {
   id: string;
   name: string;
   category: ProductCategory;
-  stock: number; // Now a single number per product, as it's in a store-specific collection
+  stock: number;
   price: number;
   costPrice: number;
   supplierId: string;
@@ -59,13 +52,7 @@ export type Product = {
   attributes: {
     brand: string;
     barcode?: string;
-    flavorProfile?: string;
-    nicotine?: string;
-    size?: string;
-    pg_vg_ratio?: string;
-    type?: string;
-    powerOutput?: string;
-    resistance?: string;
+    [key: string]: any; // Allow other generic attributes
   };
 };
 
@@ -76,7 +63,7 @@ export type Customer = {
   birthDate: string; // YYYY-MM-DD
   joinDate: string; // ISO 8601
   loyaltyPoints: number;
-  memberTier: 'Squab' | 'Flyer' | 'Homer';
+  memberTier: 'Bronze' | 'Silver' | 'Gold';
   avatarUrl: string;
 };
 

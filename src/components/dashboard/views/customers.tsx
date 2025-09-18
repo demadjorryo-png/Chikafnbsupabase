@@ -56,7 +56,7 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
                 <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">{customer.name}</DialogTitle>
                     <DialogDescription>
-                        Member ID: {customer.id}
+                        ID Pelanggan: {customer.id}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex items-center gap-4 py-4">
@@ -65,11 +65,13 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
                         <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="space-y-1 text-sm">
-                        <div><strong>Phone:</strong> {customer.phone}</div>
-                        <div className="flex items-center gap-1"><strong>Tier:</strong> <Badge variant={customer.memberTier === 'Homer' ? 'default' : 'secondary'}>{customer.memberTier}</Badge></div>
-                        <div><strong>Points:</strong> {customer.loyaltyPoints.toLocaleString('id-ID')}</div>
-                        <div><strong>Joined:</strong> {new Date(customer.joinDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                        <div><strong>Birthday:</strong> {new Date(customer.birthDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long' })}</div>
+                        <div><strong>Telepon:</strong> {customer.phone}</div>
+                        <div className="flex items-center gap-1"><strong>Tier:</strong> <Badge variant={customer.memberTier === 'Gold' ? 'default' : 'secondary'}>{customer.memberTier}</Badge></div>
+                        <div><strong>Poin:</strong> {customer.loyaltyPoints.toLocaleString('id-ID')}</div>
+                        <div><strong>Bergabung:</strong> {new Date(customer.joinDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                        {new Date(customer.birthDate).getFullYear() > 1970 && (
+                             <div><strong>Ulang Tahun:</strong> {new Date(customer.birthDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long' })}</div>
+                        )}
                     </div>
                 </div>
             </DialogContent>
@@ -97,10 +99,10 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Customers
+                Pelanggan
               </CardTitle>
               <CardDescription>
-                Manage your member database and view their status.
+                Kelola data pelanggan dan lihat status loyalitas mereka.
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -108,17 +110,17 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                 <Button size="sm" className="gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Member
+                    Tambah Pelanggan
                   </span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle className="font-headline tracking-wider">
-                    Register New Member
+                    Daftar Pelanggan Baru
                   </DialogTitle>
                   <DialogDescription>
-                    Add a new customer. Age will be verified.
+                    Tambahkan pelanggan baru ke dalam sistem.
                   </DialogDescription>
                 </DialogHeader>
                 {currentUser && <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
@@ -130,11 +132,11 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Phone / ID</TableHead>
+                <TableHead>Pelanggan</TableHead>
+                <TableHead>Telepon</TableHead>
                 <TableHead>Tier</TableHead>
-                <TableHead className="text-right">Loyalty Points</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Poin Loyalitas</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -172,7 +174,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     <TableCell>
                         <Badge
                         variant={
-                            customer.memberTier === 'Homer'
+                            customer.memberTier === 'Gold'
                             ? 'default'
                             : 'secondary'
                         }
@@ -192,13 +194,13 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleViewDetails(customer)}>
-                                View Details
+                                Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem>Ubah</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">
-                            Delete
+                            Hapus
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>

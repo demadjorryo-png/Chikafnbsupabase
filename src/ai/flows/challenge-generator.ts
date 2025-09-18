@@ -52,7 +52,7 @@ const prompt = ai.definePrompt({
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
 Gunakan Bahasa Indonesia untuk semua output teks.
-Nama tingkatan (tier) harus kreatif dan memotivasi (contoh: "Vape Pemula", "Pemburu Awan", "Master Puff").
+Nama tingkatan (tier) harus kreatif dan memotivasi (contoh: "Penjual Gesit", "Bintang Penjualan", "Raja Omset").
 Deskripsi tantangan harus singkat, memotivasi, dan dalam Bahasa Indonesia.
 Target harus realistis namun menantang bagi karyawan toko, dimulai dari dasar yang wajar dan meningkat untuk setiap tingkatan. Pertimbangkan durasi tantangan saat menetapkan target. Periode yang lebih pendek harus memiliki target yang lebih rendah.
 Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi harus mendapatkan hadiah terbesar. Hadiahnya bisa berupa bonus tunai.

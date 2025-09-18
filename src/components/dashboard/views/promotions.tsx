@@ -58,15 +58,18 @@ import {
 } from '@/components/ui/dialog';
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
     setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
     transactions: Transaction[];
+    feeSettings: TransactionFeeSettings;
 }
 
-export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions }: PromotionsProps) {
-  const { currentUser } = useAuth();
+export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
+  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -146,6 +149,12 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleGenerateRecommendations = async () => {
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+    } catch (error) {
+      return; // Stop if not enough tokens
+    }
+
     setIsLoading(true);
     setRecommendations(null);
 
@@ -182,6 +191,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
         worstSellingProducts: worstProducts,
       });
       setRecommendations(result);
+      refreshPradanaTokenBalance();
     } catch (error) {
       console.error('Error generating promotion recommendations:', error);
       toast({
@@ -272,7 +282,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                     ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Buat Rekomendasi Baru
+                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
                 </Button>
                 {recommendations && (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -308,7 +318,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Promo Penukaran Poin Tetap
+                Promo Penukaran Poin
               </CardTitle>
               <CardDescription>
                 {isAdmin
@@ -343,11 +353,11 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Description</TableHead>
+                <TableHead>Deskripsi</TableHead>
                 <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Points Required</TableHead>
-                <TableHead className="text-right">Value (Rp)</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead className="text-right">Poin Dibutuhkan</TableHead>
+                <TableHead className="text-right">Nilai (Rp)</TableHead>
+                {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -356,7 +366,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                   <TableCell className="font-medium">{option.description}</TableCell>
                   <TableCell className="text-center">
                     <Badge variant={option.isActive ? 'default' : 'destructive'}>
-                      {option.isActive ? 'Active' : 'Inactive'}
+                      {option.isActive ? 'Aktif' : 'Non-Aktif'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
@@ -375,18 +385,18 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => toggleStatus(option.id)}>
                             {option.isActive ? (
                               <XCircle className="mr-2 h-4 w-4" />
                             ) : (
                               <CheckCircle className="mr-2 h-4 w-4" />
                             )}
-                            <span>{option.isActive ? 'Deactivate' : 'Activate'}</span>
+                            <span>{option.isActive ? 'Non-Aktifkan' : 'Aktifkan'}</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem>Ubah</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(option)}>
-                            Delete
+                            Hapus
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -402,19 +412,19 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the promotion: <br />
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus promosi secara permanen: <br />
               <span className="font-bold">"{promotionToDelete?.description}"</span>.
-            </AlertDialogDescription>
+            </AlexDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
             >
-              Yes, delete
+              Ya, Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

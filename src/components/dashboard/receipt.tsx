@@ -4,34 +4,11 @@ import * as React from 'react';
 import type { Transaction, ReceiptSettings } from '@/lib/types';
 import { users, stores } from '@/lib/data';
 import { getReceiptSettings, defaultReceiptSettings } from '@/lib/receipt-settings';
+import { ShoppingCart } from 'lucide-react';
 
 type ReceiptProps = {
     transaction: Transaction;
 };
-
-function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 20v-6h12v6H6z" />
-      <path d="M18 14V6" />
-      <path d="M6 14V9" />
-      <path d="M14 6h-4" />
-      <path d="M12 6V4" />
-    </svg>
-  );
-}
-
 
 export function Receipt({ transaction }: ReceiptProps) {
   const [settings, setSettings] = React.useState<ReceiptSettings>(defaultReceiptSettings);
@@ -51,7 +28,7 @@ export function Receipt({ transaction }: ReceiptProps) {
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">
       <div className="text-center space-y-1 mb-4">
         <div className="flex justify-center items-center gap-2">
-            <VapeIcon className="h-8 w-8" />
+            <ShoppingCart className="h-8 w-8" />
             <p className="font-headline text-2xl tracking-wider">CHIKA POS</p>
         </div>
         {headerText.split('\n').map((line, index) => (

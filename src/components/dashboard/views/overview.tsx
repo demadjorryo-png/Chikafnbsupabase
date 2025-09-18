@@ -62,6 +62,8 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 const chartConfig = {
   revenue: {
@@ -70,12 +72,22 @@ const chartConfig = {
   },
 };
 
-function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
+function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void, feeSettings: TransactionFeeSettings }) {
+    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser } = useAuth();
+    const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
+        if (currentUser?.role === 'admin') {
+            try {
+                await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+            } catch (error) {
+                return;
+            }
+        }
+        
         setIsLoading(true);
         setMessage('');
         try {
@@ -85,6 +97,9 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                 birthDate: customer.birthDate,
             });
             setMessage(result.followUpMessage);
+            if (currentUser?.role === 'admin') {
+                refreshPradanaTokenBalance();
+            }
         } catch (error) {
             console.error("Error generating birthday message:", error);
             setMessage("Gagal membuat pesan. Coba lagi.");
@@ -111,14 +126,14 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Generate Birthday Message for {customer.name}</DialogTitle>
+                    <DialogTitle>Buat Pesan Ulang Tahun untuk {customer.name}</DialogTitle>
                     <DialogDescription>
-                        Set a discount and let Chika AI create a personalized birthday message.
+                        Atur diskon dan biarkan Chika AI membuat pesan ulang tahun yang personal.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="discount">Discount Percentage (%)</Label>
+                        <Label htmlFor="discount">Persentase Diskon (%)</Label>
                         <Input 
                             id="discount"
                             type="number"
@@ -133,13 +148,13 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Generate with Chika AI
+                        Buat dengan Chika AI {currentUser?.role === 'admin' && `(${feeSettings.aiUsageFee} Token)`}
                     </Button>
                     {message && (
                         <div className="space-y-2">
                              <Alert className="border-accent bg-accent/10">
                                 <Sparkles className="h-4 w-4 !text-accent" />
-                                <AlertTitle className="font-semibold text-accent">Generated Message</AlertTitle>
+                                <AlertTitle className="font-semibold text-accent">Pesan Dihasilkan</AlertTitle>
                                 <AlertDescription>{message}</AlertDescription>
                             </Alert>
                              <Link href={whatsappUrl} target="_blank" className="w-full">
@@ -162,9 +177,10 @@ type OverviewProps = {
   customers: Customer[];
   pendingOrders: PendingOrder[];
   onDataChange: () => void;
+  feeSettings: TransactionFeeSettings;
 };
 
-export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange }: OverviewProps) {
+export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange, feeSettings }: OverviewProps) {
   const { currentUser, activeStore } = useAuth();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
@@ -187,7 +203,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
 
   const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
-    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth);
+    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth && new Date(c.birthDate).getFullYear() > 1970);
     
     const storePendingOrders = pendingOrders.slice(0, 5);
 
@@ -421,7 +437,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
+                <TableHead>Pelanggan</TableHead>
                 <TableHead>Tanggal Lahir</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -534,6 +550,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
                     setSelectedCustomer(null)
                 }
             }}
+            feeSettings={feeSettings}
         />
       )}
       
@@ -542,6 +559,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
           order={orderToFollowUp}
           open={!!orderToFollowUp}
           onOpenChange={() => setOrderToFollowUp(null)}
+          feeSettings={feeSettings}
         />
       )}
 
