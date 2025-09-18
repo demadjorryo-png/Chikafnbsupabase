@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -15,13 +16,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader } from 'lucide-react';
-import { auth, db } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { stores } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { User } from '@/lib/types';
+import type { User, Store } from '@/lib/types';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function LoginPage() {
   const [role, setRole] = React.useState<'admin' | 'cashier'>('cashier');
@@ -31,34 +32,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
-
-  const handleSuccessfulLogin = (userData: User) => {
-    if (userData.status === 'inactive') {
-      toast({
-        variant: 'destructive',
-        title: "Akun Tidak Aktif",
-        description: "Akun Anda saat ini nonaktif. Silakan hubungi admin.",
-      });
-      if (auth.currentUser) auth.signOut();
-      return;
-    }
-
-    toast({
-      title: 'Login Berhasil!',
-      description: `Selamat datang kembali, ${userData.name}.`,
-    });
-
-    const params = new URLSearchParams();
-    params.set('view', 'overview');
-    params.set('userId', userData.id);
-
-    // Hanya tambahkan storeId untuk kasir
-    if (userData.role === 'cashier' && storeId) {
-      params.set('storeId', storeId);
-    }
-      
-    router.push(`/dashboard?${params.toString()}`);
-  };
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,38 +49,15 @@ export default function LoginPage() {
     }
 
     try {
-      const email = `${userId}@era5758.co.id`;
-      await signInWithEmailAndPassword(auth, email, password);
+      const activeStore = stores.find(s => s.id === storeId);
+      await login(userId, password, role, activeStore);
       
-      const userQuery = query(collection(db, "users"), where("userId", "==", userId));
-      const userDoc = await getDocs(userQuery);
-      
-      if (userDoc.empty) {
-        throw new Error("User data not found in Firestore.");
-      }
-
-      const userData = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as User;
-      
-      // Validasi peran
-      if (userData.role !== role) {
-          toast({
-              variant: 'destructive',
-              title: 'Peran Tidak Sesuai',
-              description: `Anda mencoba login sebagai ${role}, tetapi akun Anda terdaftar sebagai ${userData.role}.`
-          });
-          setIsLoading(false);
-          auth.signOut();
-          return;
-      }
-      
-      handleSuccessfulLogin(userData);
+      router.push('/dashboard');
 
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes("Invalid")) {
         description = "Login Gagal: User ID atau Password yang Anda masukkan salah.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        description = "Metode login Email/Password belum diaktifkan di Firebase Console."
       } else {
         description = error.message;
       }

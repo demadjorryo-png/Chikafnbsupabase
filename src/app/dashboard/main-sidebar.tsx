@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -32,34 +33,29 @@ import type { User } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/contexts/auth-context';
 
 type MainSidebarProps = {
-  currentUser: User | null;
   pradanaTokenBalance: number;
 }
 
-export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarProps) {
+export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
+  const { currentUser, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentView = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId');
-  const userId = searchParams.get('userId'); 
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
   const navigate = (view: string) => {
     const newParams = new URLSearchParams();
     newParams.set('view', view);
-    if (userId) newParams.set('userId', userId);
-    // Only include storeId if it exists (for cashiers)
-    if (storeId) newParams.set('storeId', storeId);
-    
-    router.push(`/dashboard?${newParams.toString()}`);
+    router.push(`${pathname}?${newParams.toString()}`);
   };
 
   const handleLogout = async () => {
-    await auth.signOut();
+    await logout();
     router.push('/login');
   };
 
@@ -168,7 +164,6 @@ export function MainSidebar({ currentUser, pradanaTokenBalance }: MainSidebarPro
       <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => {
-            // Admins should not be able to go to cashier-specific views that require a storeId
             const isDisabledForAdmin = isAdmin && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
             return (
                 <SidebarMenuItem key={item.view}>

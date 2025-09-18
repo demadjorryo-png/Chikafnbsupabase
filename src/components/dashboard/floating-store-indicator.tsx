@@ -1,24 +1,15 @@
+
 'use client';
 
 import * as React from 'react';
-import { useSearchParams } from 'next/navigation';
-import { stores } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Building } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/auth-context';
 
 export function FloatingStoreIndicator() {
-  const searchParams = useSearchParams();
-  const storeId = searchParams.get('storeId');
+  const { activeStore } = useAuth();
   
-  // This component should only render if a storeId is present in the URL (i.e., for cashiers)
-  if (!storeId) {
-    return null;
-  }
-
-  const activeStore = stores.find(s => s.id === storeId);
-
+  // This component should only render if an activeStore is present in the context (i.e., for cashiers)
   if (!activeStore) {
     return null;
   }

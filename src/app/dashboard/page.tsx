@@ -22,11 +22,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder } from '@/lib/types';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getTransactionFeeSettings, defaultFeeSettings, getPradanaTokenBalance } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
-
+import { useAuth } from '@/contexts/auth-context';
 
 function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -51,15 +51,12 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-
 function DashboardContent() {
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'overview';
-  const storeId = searchParams.get('storeId'); // Can be null for admin
-  const userId = searchParams.get('userId');
   
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [activeStore, setActiveStore] = React.useState<Store | undefined>(undefined);
+  const { currentUser, activeStore } = useAuth();
+  
   const [stores, setStores] = React.useState<Store[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -74,17 +71,8 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
+    if (!currentUser) return;
     setIsLoading(true);
-
-    if (!userId) {
-      toast({
-          variant: 'destructive',
-          title: 'Sesi Tidak Ditemukan',
-          description: 'User ID tidak ada. Silakan login kembali.'
-      });
-      // Don't set loading to false, let the skeleton show until redirect or fix
-      return;
-    }
     
     try {
         const [
@@ -113,25 +101,8 @@ function DashboardContent() {
         const firestoreUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         setUsers(firestoreUsers);
         
-        const fetchedUser = firestoreUsers.find(u => u.id === userId) || null;
-        setCurrentUser(fetchedUser);
-
-        const foundStore = storeId ? allStores.find(s => s.id === storeId) : undefined;
-        setActiveStore(foundStore);
+        const isAdmin = currentUser?.role === 'admin';
         
-        const isAdmin = fetchedUser?.role === 'admin';
-        
-        // Final validation after all data is fetched and state is set
-        if (!fetchedUser || (!isAdmin && !foundStore)) {
-             toast({
-                variant: 'destructive',
-                title: 'Data Sesi Tidak Lengkap',
-                description: 'Data pengguna atau toko tidak valid. Silakan login kembali.'
-             });
-             // Keep loading to prevent rendering a broken page. A redirect might be better here.
-             return;
-        }
-
         let allProducts: Product[] = [];
         if (isAdmin) {
             // Admin: fetch products from all stores, adding a 'storeId' to each product.
@@ -148,9 +119,9 @@ function DashboardContent() {
                 products.map(product => ({ ...product, storeId }))
             );
 
-        } else if (storeId) {
+        } else if (activeStore?.id) {
             // Cashier: fetch products from their active store
-            const productCollectionName = `products_${storeId.replace('store_', '')}`;
+            const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
             const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
             allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         }
@@ -180,7 +151,7 @@ function DashboardContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [userId, storeId, toast]);
+  }, [currentUser, activeStore, toast]);
   
   React.useEffect(() => {
     fetchAllData();
@@ -197,7 +168,6 @@ function DashboardContent() {
     
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
         return <Overview 
-          storeId={storeId!} 
           transactions={transactions} 
           users={users} 
           customers={customers} 
@@ -211,7 +181,6 @@ function DashboardContent() {
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
           : <Overview 
-              storeId={storeId!} 
               transactions={transactions} 
               users={users} 
               customers={customers} 
@@ -221,9 +190,7 @@ function DashboardContent() {
       case 'pos':
         return activeStore && currentUser ? <POS 
                     products={products} 
-                    customers={customers} 
-                    currentUser={currentUser}
-                    activeStore={activeStore}
+                    customers={customers}
                     onDataChange={fetchAllData} 
                     isLoading={isLoading} 
                     feeSettings={feeSettings} 
@@ -232,10 +199,8 @@ function DashboardContent() {
         return currentUser ? <Products 
                   products={products}
                   stores={stores} 
-                  userRole={currentUser.role} 
                   onDataChange={fetchAllData} 
                   isLoading={isLoading} 
-                  activeStoreId={storeId}
                 /> : <DashboardSkeleton />;
       case 'customers':
         return <Customers customers={customers} onDataChange={fetchAllData} isLoading={isLoading} />;
@@ -261,7 +226,6 @@ function DashboardContent() {
         return isAdmin 
           ? <AdminOverview pendingOrders={pendingOrders} stores={stores} /> 
           : <Overview 
-              storeId={storeId!} 
               transactions={transactions} 
               users={users} 
               customers={customers} 
@@ -306,7 +270,7 @@ function DashboardContent() {
 
   return (
     <>
-      <MainSidebar currentUser={currentUser} pradanaTokenBalance={pradanaTokenBalance} />
+      <MainSidebar pradanaTokenBalance={pradanaTokenBalance} />
       <SidebarInset>
         <Header title={getTitle()} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
@@ -337,5 +301,3 @@ function DashboardSkeleton() {
         </div>
     )
 }
-
-    
