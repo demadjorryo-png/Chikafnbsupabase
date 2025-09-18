@@ -15,6 +15,7 @@ import { z } from 'genkit';
 const OrderReadyFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
   storeName: z.string().describe('The name of the store where the order was placed.'),
+  itemsOrdered: z.array(z.string()).describe('A list of product names included in the order.'),
 });
 export type OrderReadyFollowUpInput = z.infer<typeof OrderReadyFollowUpInputSchema>;
 
@@ -22,7 +23,7 @@ const OrderReadyFollowUpOutputSchema = z.object({
   followUpMessage: z
     .string()
     .describe(
-      'A friendly and concise message in Indonesian to inform the customer their order is ready.'
+      'A friendly and concise message in Indonesian to inform the customer their order is ready, including a fun fact about one of the items.'
     ),
 });
 export type OrderReadyFollowUpOutput = z.infer<typeof OrderReadyFollowUpOutputSchema>;
@@ -37,15 +38,20 @@ const prompt = ai.definePrompt({
   name: 'orderReadyFollowUpPrompt',
   input: { schema: OrderReadyFollowUpInputSchema },
   output: { schema: OrderReadyFollowUpOutputSchema },
-  prompt: `Anda adalah Chika AI, asisten virtual untuk Kasir POS Chika.
+  prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.
 
-Tugas Anda adalah membuat pesan singkat dan ramah dalam Bahasa Indonesia untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil di kasir.
+Tugas Anda adalah membuat pesan singkat untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil di kasir. Pesan harus dalam Bahasa Indonesia.
 
-Detail Pelanggan:
+Sebagai sentuhan kreatif, sertakan **satu fakta menarik, kutipan, atau trivia unik** yang berhubungan dengan SALAH SATU item yang dipesan. Buatlah terdengar natural dan tidak kaku.
+
+Detail Pesanan:
 - Nama Pelanggan: {{customerName}}
 - Nama Toko: {{storeName}}
+- Item yang Dipesan: {{#each itemsOrdered}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-Buat pesan yang jelas dan to-the-point.`,
+Contoh: Jika item adalah "Kopi", fakta menariknya bisa tentang sejarah kopi. Jika itemnya adalah "T-Shirt", bisa tentang kapas.
+
+Buat pesan yang jelas, to-the-point, dan sedikit menyenangkan.`,
 });
 
 const orderReadyFollowUpFlow = ai.defineFlow(

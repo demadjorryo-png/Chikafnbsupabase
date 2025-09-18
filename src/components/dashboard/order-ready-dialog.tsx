@@ -74,6 +74,7 @@ export function OrderReadyDialog({
       const result = await getOrderReadyFollowUp({
         customerName: nameToAnnounce,
         storeName: store.name,
+        itemsOrdered: transaction.items.map(item => item.productName),
       });
       const text = result.followUpMessage;
       setAnnouncementText(text);
