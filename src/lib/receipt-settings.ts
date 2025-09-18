@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ReceiptSettings } from './types';
 
@@ -35,16 +35,19 @@ export async function getReceiptSettings(storeId: string): Promise<ReceiptSettin
 }
 
 /**
- * Updates receipt settings for a specific store in Firestore.
+ * Updates or creates receipt settings for a specific store in Firestore.
  * @param storeId The ID of the store to update.
  * @param newSettings An object containing the settings to update.
  */
 export async function updateReceiptSettings(storeId: string, newSettings: Partial<ReceiptSettings>) {
     const storeDocRef = doc(db, 'stores', storeId);
     try {
-        await updateDoc(storeDocRef, {
+        // Use setDoc with merge: true. This will create the document if it doesn't exist,
+        // or update it without overwriting other fields if it does.
+        await setDoc(storeDocRef, {
             receiptSettings: newSettings
-        });
+        }, { merge: true });
+        
         console.log(`Receipt settings updated for store ${storeId}.`);
     } catch (error) {
         console.error(`Error updating receipt settings for store ${storeId}:`, error);
