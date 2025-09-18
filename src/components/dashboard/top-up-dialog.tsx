@@ -26,7 +26,7 @@ type TopUpDialogProps = {
   setDialogOpen: (open: boolean) => void;
 };
 
-const topUpPackages = [5000, 10000, 20000, 50000, 100000];
+const topUpPackages = [50, 100, 200, 500, 1000];
 const ADMIN_PHONE = '6282140442252'; // Format internasional tanpa '+'
 const BANK_INFO = {
     name: 'BCA',
@@ -125,7 +125,7 @@ Mohon segera diproses. Terima kasih.`;
             variant="outline"
             value={typeof selectedAmount === 'number' ? String(selectedAmount) : ''}
             onValueChange={handlePackageSelect}
-            className="grid grid-cols-3 gap-2"
+            className="grid grid-cols-5 gap-2"
           >
             {topUpPackages.map((pkg) => (
               <ToggleGroupItem key={pkg} value={String(pkg)} className="w-full">
@@ -139,7 +139,7 @@ Mohon segera diproses. Terima kasih.`;
           <Label>Atau Masukkan Jumlah Lain</Label>
           <Input
             type="number"
-            placeholder="e.g., 15000"
+            placeholder="e.g., 150"
             value={manualAmount}
             onChange={handleManualChange}
           />
