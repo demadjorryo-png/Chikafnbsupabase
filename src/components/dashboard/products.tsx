@@ -95,7 +95,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products: allProducts, stores, onDataChange, isLoading }: ProductsProps) {
+export default function Products({ products, stores, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
@@ -110,23 +110,14 @@ export default function Products({ products: allProducts, stores, onDataChange, 
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
-
-  // Admin state for store selection
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
   
-  // currentStore is either the cashier's active store, or the admin's selected store.
-  const currentStore = React.useMemo(() => {
-    return isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : activeStore;
-  }, [isAdmin, stores, adminSelectedStoreId, activeStore]);
-  
+  const currentStore = activeStore;
   const currentStoreId = currentStore?.id;
 
 
   React.useEffect(() => {
-    if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
-      setAdminSelectedStoreId(stores[0].id);
-    }
-  }, [isAdmin, adminSelectedStoreId, stores]);
+    // No-op, single store mode
+  }, []);
 
 
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
@@ -211,25 +202,18 @@ export default function Products({ products: allProducts, stores, onDataChange, 
   };
 
   const filteredProducts = React.useMemo(() => {
-    // If admin, filter allProducts by the selected storeId.
-    // If cashier, allProducts is already pre-filtered, so just use it.
-    const productsForCurrentStore = isAdmin
-      ? allProducts.filter(p => 'storeId' in p && p.storeId === currentStoreId)
-      : allProducts;
-
-    // Apply search and category filters to the determined list of products
-    return productsForCurrentStore.filter(product => {
+    return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
     });
-  }, [allProducts, currentStoreId, searchTerm, selectedCategories, isAdmin]);
+  }, [products, searchTerm, selectedCategories]);
 
   // The categories available in the dropdown should be based on the products of the currently selected store
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(filteredProducts.map(p => p.category));
+    const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
-  }, [filteredProducts]);
+  }, [products]);
 
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
@@ -241,23 +225,7 @@ export default function Products({ products: allProducts, stores, onDataChange, 
 
   return (
     <>
-      <div className={cn(isAdmin ? "grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-6" : "")}>
-        {isAdmin && (
-          <nav className="grid gap-2 text-sm text-muted-foreground">
-            <h3 className="font-semibold text-primary px-4">Pilih toko</h3>
-            {stores.map(store => (
-              <Button
-                key={store.id}
-                variant={adminSelectedStoreId === store.id ? 'secondary' : 'ghost'}
-                onClick={() => setAdminSelectedStoreId(store.id)}
-                className="justify-start gap-2"
-              >
-                <Building className="h-4 w-4"/>
-                {store.name}
-              </Button>
-            ))}
-          </nav>
-        )}
+      <div>
         <main>
         <Card>
           <CardHeader>
@@ -308,32 +276,34 @@ export default function Products({ products: allProducts, stores, onDataChange, 
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Add Product
-                      </span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">
-                        Add New Product
-                      </DialogTitle>
-                      <DialogDescription>
-                        Menambahkan produk baru ke inventaris {currentStore?.name}.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {currentStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
-                      onProductAdded={handleDataUpdate}
-                      activeStore={currentStore}
-                    />}
-                  </DialogContent>
-                </Dialog>
+                {isAdmin && (
+                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                          Add Product
+                        </span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="font-headline tracking-wider">
+                          Add New Product
+                        </DialogTitle>
+                        <DialogDescription>
+                          Menambahkan produk baru ke inventaris {currentStore?.name}.
+                        </DialogDescription>
+                      </DialogHeader>
+                      {currentStore && <AddProductForm 
+                        setDialogOpen={setIsAddDialogOpen} 
+                        userRole={userRole} 
+                        onProductAdded={handleDataUpdate}
+                        activeStore={currentStore}
+                      />}
+                    </DialogContent>
+                  </Dialog>
+                )}
                 
               </div>
             </div>

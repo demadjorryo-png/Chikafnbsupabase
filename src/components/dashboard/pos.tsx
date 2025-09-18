@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction, User, Store } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -58,10 +59,10 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
@@ -69,6 +70,7 @@ type POSProps = {
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
+    pradanaTokenBalance: number;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -94,8 +96,8 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings }: POSProps) {
-  const { currentUser, activeStore } = useAuth();
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+  const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -119,7 +121,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       toast({
         variant: 'destructive',
         title: 'Out of Stock',
-        description: `${product.name} is currently out of stock in this store.`,
+        description: `${product.name} is currently out of stock.`,
       });
       return;
     }
@@ -222,6 +224,14 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  const transactionFee = React.useMemo(() => {
+    if (currentUser?.role === 'admin') return 0; // Admin doesn't pay fee
+    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp);
+    return feeCappedAtMax / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings, currentUser]);
+  
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -249,6 +259,15 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
     }
+
+    if (currentUser.role === 'cashier' && pradanaTokenBalance < transactionFee) {
+        toast({
+            variant: 'destructive',
+            title: 'Saldo Token Global Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo global hanya ${pradanaTokenBalance.toFixed(2)}. Hubungi admin.`
+        });
+        return;
+    }
     
     setIsProcessingCheckout(true);
     
@@ -256,40 +275,76 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     
     try {
       await runTransaction(db, async (transaction) => {
-        // --- 1. Update Product Stock ---
-        for (const item of cart) {
-            // Skip stock check for manual items, as they don't exist in the DB
-            if (item.productId.startsWith('manual-')) {
-                continue;
-            }
+        // --- Phase 1: READ ---
+        const productReads = cart
+          .filter(item => !item.productId.startsWith('manual-'))
+          .map(item => ({
+            ref: doc(db, productCollectionName, item.productId),
+            item: item,
+          }));
+        
+        const customerRef = selectedCustomer ? doc(db, "customers", selectedCustomer.id) : null;
+  
+        const productDocs = await Promise.all(
+          productReads.map(p => transaction.get(p.ref))
+        );
+        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
+        
+        // Also read token balance for cashier transactions
+        const tokenRef = currentUser.role === 'cashier' ? doc(db, 'appSettings', 'pradanaToken') : null;
+        const tokenDoc = tokenRef ? await transaction.get(tokenRef) : null;
 
-            const productRef = doc(db, productCollectionName, item.productId);
-            const productDoc = await transaction.get(productRef);
-
-            if (!productDoc.exists()) {
-                throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
+        // --- Phase 2: VALIDATE & CALCULATE ---
+        if (currentUser.role === 'cashier') {
+            const currentTokenBalance = tokenDoc?.data()?.balance || 0;
+            if (currentTokenBalance < transactionFee) {
+                throw new Error(`Saldo Token Global Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
             }
-            const currentStock = productDoc.data().stock || 0;
-            const newStock = currentStock - item.quantity;
-            if (newStock < 0) {
-                throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-            }
-            transaction.update(productRef, { stock: newStock });
         }
         
-        // --- 2. Update Customer Points (if a customer is selected) ---
-        if (selectedCustomer) {
-            const customerRef = doc(db, "customers", selectedCustomer.id);
-            const customerDoc = await transaction.get(customerRef);
-             if (!customerDoc.exists()) {
-                throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
-            }
-            const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
-            const newPoints = currentPoints + pointsEarned - pointsToRedeem;
-            transaction.update(customerRef, { loyaltyPoints: newPoints });
+        const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
+        
+        for (let i = 0; i < productDocs.length; i++) {
+          const productDoc = productDocs[i];
+          const { item } = productReads[i];
+          
+          if (!productDoc.exists()) {
+            throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
+          }
+          const currentStock = productDoc.data().stock || 0;
+          const newStock = currentStock - item.quantity;
+          if (newStock < 0) {
+            throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
+          }
+          stockUpdates.push({ ref: productDoc.ref, newStock });
         }
 
-        // --- 3. Create Transaction Record ---
+        let newCustomerPoints: number | null = null;
+        if (selectedCustomer && customerDoc) {
+          if (!customerDoc.exists()) {
+            throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
+          }
+          const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
+          newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
+        }
+
+        // --- Phase 3: WRITE ---
+        // 3a. Deduct token balance if cashier
+        if (tokenRef) {
+            transaction.update(tokenRef, { balance: increment(-transactionFee) });
+        }
+        
+        // 3b. Update product stock
+        stockUpdates.forEach(update => {
+          transaction.update(update.ref, { stock: update.newStock });
+        });
+
+        // 3c. Update customer points
+        if (customerRef && newCustomerPoints !== null) {
+          transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
+        }
+        
+        // 3d. Create the transaction record
         const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
@@ -308,12 +363,15 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        // --- 4. Set transaction data for receipt dialog ---
         setLastTransaction(finalTransactionData);
       });
 
-      // --- 5. Post-Transaction Success Actions ---
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      
+      if (currentUser.role === 'cashier') {
+        refreshPradanaTokenBalance();
+      }
+      
       setCart([]);
       setDiscountValue(0);
       setPointsToRedeem(0);
@@ -451,7 +509,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                       Register New Member
                     </DialogTitle>
                     <DialogDescription>
-                      Add a new customer to the Bekupon community. Age will be verified.
+                      Add a new customer to the community. Age will be verified.
                     </DialogDescription>
                   </DialogHeader>
                   {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
@@ -599,6 +657,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
+              {currentUser?.role === 'cashier' && transactionFee > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
+                    <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
+                  </div>
+              )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
@@ -607,7 +671,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             </div>
             
             {selectedCustomer && cart.length > 0 && (
-              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} />
+              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
             <div className="grid grid-cols-3 gap-2">

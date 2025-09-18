@@ -66,11 +66,11 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser || !activeStore) return;
     setIsDataLoading(true);
     
     try {
-        const productCollectionName = activeStore ? `products_${activeStore.id.replace('store_', '')}` : 'products';
+        const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
 
         const [
             storesSnapshot,
@@ -83,7 +83,7 @@ function DashboardContent() {
             pendingOrdersSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            activeStore ? getDocs(query(collection(db, productCollectionName), orderBy('name'))) : Promise.resolve({ docs: [] }),
+            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
             getDocs(query(collection(db, 'customers'), orderBy('name'))),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
@@ -130,12 +130,12 @@ function DashboardContent() {
   }, [currentUser, activeStore, toast, refreshPradanaTokenBalance]);
   
   React.useEffect(() => {
-    if (!isAuthLoading && currentUser) {
+    if (!isAuthLoading && currentUser && activeStore) {
         fetchAllData();
-    } else if (!isAuthLoading && !currentUser) {
+    } else if (!isAuthLoading && (!currentUser || !activeStore)) {
         setIsDataLoading(false);
     }
-  }, [isAuthLoading, currentUser, fetchAllData]);
+  }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
   const view = new URLSearchParams(window.location.search).get('view') || 'overview';

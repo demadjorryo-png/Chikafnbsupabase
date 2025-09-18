@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -16,15 +17,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader } from 'lucide-react';
-import { stores } from '@/lib/data';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Store } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function LoginPage() {
   const [userId, setUserId] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [storeId, setStoreId] = React.useState<string>(stores[0]?.id || '');
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -34,25 +31,9 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!storeId) {
-      toast({
-        variant: "destructive",
-        title: "Toko Belum Dipilih",
-        description: "Silakan pilih toko terlebih dahulu.",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    // Admin now also logs in with a specific store context
-    const role = userId.toLowerCase().includes('admin') ? 'admin' : 'cashier';
-
     try {
-      const activeStore = stores.find(s => s.id === storeId);
-      await login(userId, password, role, activeStore);
-      
+      await login(userId, password);
       router.push('/dashboard');
-
     } catch (error: any) {
       let description = "Terjadi kesalahan. Silakan coba lagi.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message.includes("Invalid")) {
@@ -81,26 +62,11 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline tracking-wider">KASIR POS CHIKA LOGIN</CardTitle>
             <CardDescription>
-              Pilih toko dan masukkan kredensial Anda.
+              Masukkan kredensial Anda untuk masuk.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="grid gap-4">
-               
-              <div className="grid gap-2">
-                <Label htmlFor="store">Pilih Toko</Label>
-                <Select value={storeId} onValueChange={setStoreId} required>
-                  <SelectTrigger id="store">
-                    <SelectValue placeholder="Pilih toko..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stores.map(store => (
-                      <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
               <div className="grid gap-2">
                 <Label htmlFor="userId">User ID</Label>
                 <Input

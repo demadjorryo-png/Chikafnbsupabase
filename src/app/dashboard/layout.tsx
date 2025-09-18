@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { FloatingStoreIndicator } from "@/components/dashboard/floating-store-indicator";
@@ -61,7 +62,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           {children}
-          <FloatingStoreIndicator />
+          {currentUser.role === 'cashier' && <FloatingStoreIndicator />}
           <ChikaChatButton />
         </div>
       </SidebarProvider>

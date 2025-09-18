@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -13,9 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'next/navigation';
-import { stores } from '@/lib/data';
-import type { User } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -27,14 +25,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '@/contexts/auth-context';
 
 const PasswordFormSchema = z
@@ -140,8 +137,8 @@ export default function Settings() {
            <div className="flex items-center gap-3">
             <Building className="h-6 w-6 text-muted-foreground" />
              <div>
-                <p className='text-sm text-muted-foreground'>Toko Utama</p>
-                <p className="font-semibold">{activeStore?.name || (currentUser?.role === 'admin' ? 'Global' : 'Loading...')}</p>
+                <p className='text-sm text-muted-foreground'>Toko</p>
+                <p className="font-semibold">{activeStore?.name || 'Loading...'}</p>
             </div>
           </div>
         </CardContent>

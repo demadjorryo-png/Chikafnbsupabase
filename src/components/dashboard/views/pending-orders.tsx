@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -286,7 +287,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">Register New Member</DialogTitle>
-                    <DialogDescription>Add a new customer.</DialogDescription>
+                    <DialogDescription>Add a new customer to the community.</DialogDescription>
                   </DialogHeader>
                   {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
                 </DialogContent>

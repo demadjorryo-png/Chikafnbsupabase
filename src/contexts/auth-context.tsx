@@ -15,7 +15,7 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (userId: string, password: string, role: 'admin' | 'cashier', store: Store) => Promise<void>;
+  login: (userId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
 }
@@ -44,37 +44,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
           
-          // Always refresh token balance on session handling for both roles
           refreshPradanaTokenBalance();
+          
+          // In single-store mode, always use the first store from static data.
+          const singleStore = staticStores[0] || null;
 
-          const storeId = sessionStorage.getItem('activeStoreId');
-          if (storeId) {
-            const storeData = staticStores.find(s => s.id === storeId) || null;
-            if (storeData) {
-              setCurrentUser(userData);
-              setActiveStore(storeData);
-            } else {
-              await signOut(auth);
-              sessionStorage.removeItem('activeStoreId');
-              toast({
-                  variant: 'destructive',
-                  title: 'Sesi Tidak Valid',
-                  description: 'Data toko tidak ditemukan. Silakan login kembali.',
-              });
-            }
+          if (singleStore) {
+            setCurrentUser(userData);
+            setActiveStore(singleStore);
+            sessionStorage.setItem('activeStoreId', singleStore.id); // Still useful for reference
           } else {
-             await signOut(auth);
-             toast({
-                variant: 'destructive',
-                title: 'Sesi Berakhir',
-                description: 'Konteks toko tidak ditemukan. Silakan login kembali.',
-             });
+             throw new Error('No store configured in the application.');
           }
+
         } else {
           throw new Error('User data not found in database.');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Session handling error:", error);
+        toast({ variant: 'destructive', title: 'Session Error', description: error.message });
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
@@ -94,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleUserSession]);
 
 
-  const login = async (userId: string, password: string, role: 'admin' | 'cashier', store: Store) => {
+  const login = async (userId: string, password: string) => {
     const email = `${userId}@era5758.co.id`;
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
@@ -114,7 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Akun Anda saat ini nonaktif. Silakan hubungi admin.");
     }
     
-    // Always get token balance on login
+    // In single-store mode, we always use the first store.
+    const store = staticStores[0];
+    if (!store) {
+      throw new Error("Tidak ada toko yang dikonfigurasi dalam aplikasi.");
+    }
+    
     const balance = await getPradanaTokenBalance();
     setPradanaTokenBalance(balance);
     

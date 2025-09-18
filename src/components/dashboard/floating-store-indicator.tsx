@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/auth-context';
 export function FloatingStoreIndicator() {
   const { activeStore } = useAuth();
   
-  // This component should only render if an activeStore is present in the context (i.e., for cashiers)
   if (!activeStore) {
     return null;
   }
