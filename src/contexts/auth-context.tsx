@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Retry mechanism for registration lag
         if (!userDocSnap.exists()) {
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Increase wait time
             userDocSnap = await getDoc(userDocRef);
         }
         
@@ -69,12 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
             sessionStorage.setItem('activeStoreId', storeData.id);
           } else {
-             throw new Error('Toko untuk pengguna ini tidak ditemukan.');
+             throw new Error('Toko untuk pengguna ini tidak ditemukan. Registrasi mungkin tidak lengkap.');
           }
 
         } else {
-          // If user doc still doesn't exist, it's a real issue.
-          throw new Error('Data pengguna tidak ditemukan di database setelah beberapa kali percobaan.');
+           // If user doc still doesn't exist, it's a real issue.
+           // Don't throw an error, just log out the user so they can try again.
+           console.error("User document not found in Firestore after retry for UID:", firebaseUser.uid);
+           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Silakan coba login kembali.' });
+           await signOut(auth); // This will re-trigger onAuthStateChanged with null
         }
       } catch (error: any) {
         console.error("Kesalahan saat menangani sesi:", error);
