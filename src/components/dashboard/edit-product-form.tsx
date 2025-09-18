@@ -69,8 +69,8 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
     toast({
-      title: 'Barcode Scanned!',
-      description: `SKU ${barcode} has been filled.`,
+      title: 'Barcode Terbaca!',
+      description: `SKU ${barcode} telah diisi.`,
     });
     setIsScannerOpen(false);
   };

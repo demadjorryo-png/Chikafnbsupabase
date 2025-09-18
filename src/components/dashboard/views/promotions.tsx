@@ -196,8 +196,8 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
       console.error('Error generating promotion recommendations:', error);
       toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description: 'Could not generate recommendations. Please try again.',
+        title: 'Gagal Membuat Rekomendasi',
+        description: 'Tidak dapat membuat rekomendasi. Silakan coba lagi.',
       });
     } finally {
       setIsLoading(false);
@@ -416,7 +416,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
             <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus promosi secara permanen: <br />
               <span className="font-bold">"{promotionToDelete?.description}"</span>.
-            </AlexDialogDescription>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>

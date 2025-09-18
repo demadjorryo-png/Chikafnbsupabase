@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -73,14 +74,14 @@ const chartConfig = {
 };
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void, feeSettings: TransactionFeeSettings }) {
-    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser } = useAuth();
+    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser, activeStore } = useAuth();
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
-        if (currentUser?.role === 'admin') {
+        if (currentUser?.role === 'admin' && activeStore) {
             try {
                 await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
             } catch (error) {
@@ -126,14 +127,14 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Generate Birthday Message for {customer.name}</DialogTitle>
+                    <DialogTitle>Buat Pesan Ulang Tahun untuk {customer.name}</DialogTitle>
                     <DialogDescription>
-                        Set a discount and let Chika AI create a personalized birthday message.
+                        Atur diskon dan biarkan Chika AI membuat pesan ulang tahun yang personal.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="discount">Discount Percentage (%)</Label>
+                        <Label htmlFor="discount">Persentase Diskon (%)</Label>
                         <Input 
                             id="discount"
                             type="number"
@@ -148,13 +149,13 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Generate with Chika AI {currentUser?.role === 'admin' && `(${feeSettings.aiUsageFee} Token)`}
+                        Buat dengan Chika AI {currentUser?.role === 'admin' && `(${feeSettings.aiUsageFee} Token)`}
                     </Button>
                     {message && (
                         <div className="space-y-2">
                              <Alert className="border-accent bg-accent/10">
                                 <Sparkles className="h-4 w-4 !text-accent" />
-                                <AlertTitle className="font-semibold text-accent">Generated Message</AlertTitle>
+                                <AlertTitle className="font-semibold text-accent">Pesan Dihasilkan</AlertTitle>
                                 <AlertDescription>{message}</AlertDescription>
                             </Alert>
                              <Link href={whatsappUrl} target="_blank" className="w-full">
@@ -193,8 +194,8 @@ export default function Overview({ transactions, users, customers, pendingOrders
   const storeId = activeStore?.id;
   
   const pendingOrders = React.useMemo(() => 
-    isAdmin ? allPendingOrders : allPendingOrders.filter(po => po.storeId === storeId),
-    [allPendingOrders, storeId, isAdmin]
+    allPendingOrders.filter(po => po.storeId === storeId),
+    [allPendingOrders, storeId]
   );
 
   React.useEffect(() => {
@@ -203,7 +204,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
 
   const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
-    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth);
+    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth && new Date(c.birthDate).getFullYear() > 1970);
     
     const storePendingOrders = pendingOrders.slice(0, 5);
 
@@ -437,7 +438,7 @@ export default function Overview({ transactions, users, customers, pendingOrders
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
+                <TableHead>Pelanggan</TableHead>
                 <TableHead>Tanggal Lahir</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>

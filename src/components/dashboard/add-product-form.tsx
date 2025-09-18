@@ -72,8 +72,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
   const handleBarcodeScanned = (barcode: string) => {
     form.setValue('barcode', barcode);
     toast({
-      title: 'Barcode Scanned!',
-      description: `SKU ${barcode} has been filled.`,
+      title: 'Barcode Terbaca!',
+      description: `SKU ${barcode} telah diisi.`,
     });
     setIsScannerOpen(false);
   };
@@ -255,7 +255,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
           <DialogHeader>
             <DialogTitle className="font-headline tracking-wider">Scan Barcode</DialogTitle>
             <DialogDescription>
-              Point your camera at a product's barcode to capture the SKU.
+              Arahkan kamera ke barcode produk untuk mengambil SKU.
             </DialogDescription>
           </DialogHeader>
           <BarcodeScanner onScan={handleBarcodeScanned} />

@@ -113,7 +113,7 @@ Mohon segera diproses. Terima kasih.`;
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-muted-foreground" />
-            <p className="text-sm">Saldo Toko Saat Ini</p>
+            <p className="text-sm">Saldo Anda Saat Ini</p>
           </div>
           <p className="font-mono text-lg font-bold">{currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
         </div>
