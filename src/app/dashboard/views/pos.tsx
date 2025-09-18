@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -11,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction, Table } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -29,7 +28,7 @@ import {
   Armchair,
 } from 'lucide-react';
 import {
-  Table,
+  Table as ShadcnTable,
   TableBody,
   TableCell,
   TableHead,
@@ -60,15 +59,16 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference, increment } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference, increment, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
+    tables: Table[];
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -98,11 +98,32 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const tableId = searchParams.get('tableId');
-  const tableName = searchParams.get('tableName');
+  
+  // Use React.useState for local component state, initialized from searchParams once.
+  const [selectedTableId, setSelectedTableId] = React.useState(() => searchParams.get('tableId'));
+  const [selectedTableName, setSelectedTableName] = React.useState(() => searchParams.get('tableName'));
+
+  // Effect to clear table selection if the view is no longer POS or tableId is removed
+  React.useEffect(() => {
+    const currentView = searchParams.get('view');
+    if (currentView !== 'pos' || !searchParams.has('tableId')) {
+        if (selectedTableId) {
+            setSelectedTableId(null);
+            setSelectedTableName(null);
+        }
+    } else {
+        const tableIdFromParams = searchParams.get('tableId');
+        if (tableIdFromParams !== selectedTableId) {
+            setSelectedTableId(tableIdFromParams);
+            setSelectedTableName(searchParams.get('tableName'));
+        }
+    }
+  }, [searchParams, selectedTableId]);
+
 
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -121,6 +142,22 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     value: c.id,
     label: c.name,
   }));
+
+  const availableTableOptions = tables
+    .filter(t => t.status === 'Tersedia')
+    .map((t) => ({
+        value: t.id,
+        label: t.name
+    }));
+
+  const handleTableSelect = (tableId: string) => {
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+        setSelectedTableId(table.id);
+        setSelectedTableName(table.name);
+    }
+  }
+
 
   const addToCart = (product: Product) => {
     if (product.stock === 0) {
@@ -258,7 +295,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   );
 
   const handleTableOrder = async () => {
-    if (!tableId || !activeStore) return;
+    if (!selectedTableId || !activeStore) return;
     if (cart.length === 0) {
       toast({ variant: 'destructive', title: 'Keranjang Kosong' });
       return;
@@ -266,7 +303,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     
     setIsProcessingCheckout(true);
     const tableCollectionName = `tables_${activeStore.id}`;
-    const tableRef = doc(db, tableCollectionName, tableId);
+    const tableRef = doc(db, tableCollectionName, selectedTableId);
 
     try {
         await updateDoc(tableRef, {
@@ -277,7 +314,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 orderTime: new Date().toISOString(),
             },
         });
-        toast({ title: 'Pesanan Meja Dibuat!', description: `Pesanan untuk ${tableName} telah disimpan.`});
+        toast({ title: 'Pesanan Meja Dibuat!', description: `Pesanan untuk ${selectedTableName} telah disimpan.`});
         setCart([]);
         setDiscountValue(0);
         onDataChange();
@@ -295,7 +332,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   
   const handleCheckout = async () => {
     // If it's a table order, handle it separately
-    if (tableId) {
+    if (selectedTableId) {
         handleTableOrder();
         return;
     }
@@ -469,7 +506,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           </CardHeader>
           <ScrollArea className="h-[calc(100vh-220px)]">
             <CardContent className="p-0">
-               <Table>
+               <ShadcnTable>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Produk</TableHead>
@@ -521,7 +558,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     );
                   })}
                 </TableBody>
-              </Table>
+              </ShadcnTable>
             </CardContent>
           </ScrollArea>
         </Card>
@@ -530,17 +567,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              {tableId ? `Pesanan untuk Meja ${tableName}` : 'Pesanan Saat Ini'}
+              {selectedTableId ? `Pesanan untuk Meja ${selectedTableName}` : 'Pesanan Saat Ini'}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-             {tableId ? (
-                <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
-                    <Armchair className="h-5 w-5 text-muted-foreground" />
-                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja</p>
-                </div>
-            ) : (
-                <div className="flex items-center gap-2">
+             <div className="grid grid-cols-1 gap-2">
+                 <div className="flex items-center gap-2">
                     <Combobox
                         options={customerOptions}
                         value={selectedCustomer?.id}
@@ -570,6 +602,23 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                         {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
                         </DialogContent>
                     </Dialog>
+                </div>
+                 <Combobox
+                    options={availableTableOptions}
+                    value={selectedTableId || ''}
+                    onValueChange={handleTableSelect}
+                    placeholder="Pilih Meja (Opsional)"
+                    searchPlaceholder="Cari nama meja..."
+                    notFoundText="Meja tidak ditemukan/tersedia."
+                    disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
+                />
+            </div>
+
+
+            {selectedTableId && !selectedCustomer && (
+                <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
+                    <Armchair className="h-5 w-5 text-muted-foreground" />
+                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja</p>
                 </div>
             )}
 
@@ -698,7 +747,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     onChange={handlePointsRedeemChange}
                     className="h-9"
                     placeholder='0'
-                    disabled={!selectedCustomer || selectedCustomer.loyaltyPoints === 0 || tableId !== null}
+                    disabled={!selectedCustomer || selectedCustomer.loyaltyPoints === 0 || selectedTableId !== null}
                 />
               </div>
 
@@ -714,7 +763,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'admin' && transactionFee > 0 && !tableId &&(
+              {currentUser?.role === 'admin' && transactionFee > 0 && !selectedTableId &&(
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
@@ -727,11 +776,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               </div>
             </div>
             
-            {selectedCustomer && cart.length > 0 && !tableId && (
+            {selectedCustomer && cart.length > 0 && !selectedTableId && (
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
-            {!tableId && (
+            {!selectedTableId && (
                 <div className="grid grid-cols-3 gap-2">
                     <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
                     <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
@@ -739,7 +788,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 </div>
             )}
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
-                {tableId ? 'Buat Pesanan Meja' : 'Checkout'}
+                {selectedTableId ? 'Buat Pesanan Meja' : 'Checkout'}
              </Button>
           </CardContent>
         </Card>
