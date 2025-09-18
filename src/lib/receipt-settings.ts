@@ -1,26 +1,53 @@
-// This file acts as a mock database for receipt settings.
-// In a real application, this data would be stored in a database
-// and fetched dynamically.
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase';
+import type { ReceiptSettings } from './types';
 
-type ReceiptSettings = {
-    headerText: string;
-    footerText: string;
-    promoText: string;
-};
-
-export let receiptSettings: ReceiptSettings = {
-    headerText: "Bekupon Vape Store Tumpang\nJl. Raya Tumpang No. 123, Malang\nTelp: 0812-3456-7890",
+// Default settings if a store doesn't have any defined.
+export const defaultReceiptSettings: ReceiptSettings = {
+    headerText: "Bekupon Vape Store\nJl. Raya No. 123, Kota\nTelp: 0812-3456-7890",
     footerText: "Terima kasih atas kunjungan Anda!",
-    promoText: "Dapatkan Liquid Gratis setiap pembelian 500rb!",
+    promoText: "Kumpulkan poin dan dapatkan hadiah menarik!",
 };
 
-// In a real app, you'd have a function connected to a database.
-// This is a simulation for demonstration purposes.
-export function updateReceiptSettings(newSettings: Partial<ReceiptSettings>) {
-    receiptSettings = {
-        ...receiptSettings,
-        ...newSettings,
-    };
-    console.log("Receipt settings updated (simulation):", receiptSettings);
-    return receiptSettings;
+/**
+ * Fetches receipt settings for a specific store from Firestore.
+ * @param storeId The ID of the store.
+ * @returns The store's specific receipt settings, or default settings if not found.
+ */
+export async function getReceiptSettings(storeId: string): Promise<ReceiptSettings> {
+    try {
+        const storeDocRef = doc(db, 'stores', storeId);
+        const docSnap = await getDoc(storeDocRef);
+
+        if (docSnap.exists()) {
+            const storeData = docSnap.data();
+            // Merge store settings with defaults to ensure all fields are present
+            return { ...defaultReceiptSettings, ...storeData.receiptSettings };
+        } else {
+            console.warn(`Store with ID ${storeId} not found. Using default receipt settings.`);
+            return defaultReceiptSettings;
+        }
+    } catch (error) {
+        console.error("Error fetching receipt settings:", error);
+        // Return defaults in case of any error
+        return defaultReceiptSettings;
+    }
+}
+
+/**
+ * Updates receipt settings for a specific store in Firestore.
+ * @param storeId The ID of the store to update.
+ * @param newSettings An object containing the settings to update.
+ */
+export async function updateReceiptSettings(storeId: string, newSettings: Partial<ReceiptSettings>) {
+    const storeDocRef = doc(db, 'stores', storeId);
+    try {
+        await updateDoc(storeDocRef, {
+            receiptSettings: newSettings
+        });
+        console.log(`Receipt settings updated for store ${storeId}.`);
+    } catch (error) {
+        console.error(`Error updating receipt settings for store ${storeId}:`, error);
+        throw error; // Re-throw the error to be handled by the caller
+    }
 }

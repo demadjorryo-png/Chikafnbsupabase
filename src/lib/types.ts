@@ -21,10 +21,17 @@ export const productCategories = [
 
 export type ProductCategory = (typeof productCategories)[number];
 
+export type ReceiptSettings = {
+    headerText: string;
+    footerText: string;
+    promoText: string;
+};
+
 export type Store = {
   id: string;
   name: string;
   location: string;
+  receiptSettings?: ReceiptSettings;
 };
 
 export type UserRole = 'admin' | 'cashier';

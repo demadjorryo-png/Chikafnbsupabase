@@ -1,9 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import type { Transaction } from '@/lib/types';
-import { users } from '@/lib/data';
-import { receiptSettings } from '@/lib/receipt-settings';
+import type { Transaction, ReceiptSettings } from '@/lib/types';
+import { users, stores } from '@/lib/data';
+import { getReceiptSettings, defaultReceiptSettings } from '@/lib/receipt-settings';
 
 type ReceiptProps = {
     transaction: Transaction;
@@ -34,10 +34,18 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 
 
 export function Receipt({ transaction }: ReceiptProps) {
+  const [settings, setSettings] = React.useState<ReceiptSettings>(defaultReceiptSettings);
+  
+  React.useEffect(() => {
+    if (transaction?.storeId) {
+      getReceiptSettings(transaction.storeId).then(setSettings);
+    }
+  }, [transaction?.storeId]);
+
   if (!transaction) return null;
 
   const staff = users.find(u => u.id === transaction.staffId);
-  const { headerText, footerText, promoText } = receiptSettings;
+  const { headerText, footerText, promoText } = settings;
 
   return (
     <div className="bg-white text-black text-sm w-[300px] p-4 font-code mx-auto">

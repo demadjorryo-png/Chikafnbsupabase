@@ -4,8 +4,26 @@ import type { Product, Customer, Transaction, PendingOrder, Store, User, Redempt
 // The primary data source is now Firebase Firestore.
 
 export const stores: Store[] = [
-    { id: 'store_tpg', name: 'Bekupon Tumpang', location: 'Tumpang, Malang' },
-    { id: 'store_swj', name: 'Bekupon Sawojajar', location: 'Sawojajar, Malang' },
+    { 
+        id: 'store_tpg', 
+        name: 'Bekupon Tumpang', 
+        location: 'Tumpang, Malang',
+        receiptSettings: {
+            headerText: "Bekupon Vape Store Tumpang\nJl. Raya Tumpang No. 123, Malang\nTelp: 0812-3456-7890",
+            footerText: "Terima kasih, selamat nge-vape!",
+            promoText: "Dapatkan Liquid Gratis setiap pembelian 500rb!",
+        }
+    },
+    { 
+        id: 'store_swj', 
+        name: 'Bekupon Sawojajar', 
+        location: 'Sawojajar, Malang',
+        receiptSettings: {
+            headerText: "Bekupon Vape Store Sawojajar\nJl. Danau Toba No. 1, Malang\nTelp: 0898-7654-3210",
+            footerText: "Follow IG @bekuponvape untuk info terbaru!",
+            promoText: "Tukar 100 poin & dapatkan diskon Rp 25.000!",
+        }
+    },
 ];
 
 // Superadmin data is kept for login purposes. Other users are managed in Firebase.

@@ -7,48 +7,72 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
-  receiptSettings as initialSettings,
+  getReceiptSettings,
   updateReceiptSettings,
+  defaultReceiptSettings
 } from '@/lib/receipt-settings';
-import { Loader, Receipt, Sparkles, WandSparkles } from 'lucide-react';
+import { Loader, Receipt, Sparkles, WandSparkles, AlertCircle } from 'lucide-react';
 import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
 import type { RedemptionOption } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/auth-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ReceiptSettingsProps = {
   redemptionOptions: RedemptionOption[];
 };
 
 export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
-  const [headerText, setHeaderText] = React.useState(
-    initialSettings.headerText
-  );
-  const [footerText, setFooterText] = React.useState(
-    initialSettings.footerText
-  );
-  const [promoText, setPromoText] = React.useState(initialSettings.promoText);
-  const [generatedPromo, setGeneratedPromo] = React.useState('');
-  const [isGenerating, setIsGenerating] = React.useState(false);
+  const { activeStore } = useAuth();
   const { toast } = useToast();
 
-  const handleSaveChanges = () => {
-    updateReceiptSettings({
-      headerText,
-      footerText,
-      promoText,
-    });
-    toast({
-      title: 'Pengaturan Struk Disimpan!',
-      description:
-        'Perubahan Anda akan langsung diterapkan pada cetakan struk berikutnya.',
-    });
+  const [settings, setSettings] = React.useState(defaultReceiptSettings);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [generatedPromo, setGeneratedPromo] = React.useState('');
+
+  React.useEffect(() => {
+    if (activeStore) {
+      setIsLoading(true);
+      getReceiptSettings(activeStore.id)
+        .then(setSettings)
+        .catch(error => {
+          console.error("Failed to load receipt settings:", error);
+          toast({ variant: 'destructive', title: 'Gagal memuat pengaturan.' });
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [activeStore, toast]);
+
+  const handleInputChange = (field: keyof typeof settings, value: string) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!activeStore) return;
+    setIsSaving(true);
+    try {
+      await updateReceiptSettings(activeStore.id, settings);
+      toast({
+        title: 'Pengaturan Struk Disimpan!',
+        description: `Perubahan untuk toko ${activeStore.name} telah diterapkan.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menyimpan',
+        description: 'Terjadi kesalahan saat menyimpan pengaturan.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGeneratePromo = async () => {
@@ -75,8 +99,8 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
 
   const handleApplyPromo = () => {
     if (generatedPromo) {
-      setPromoText(generatedPromo);
-      setGeneratedPromo(''); // Clear after applying
+      handleInputChange('promoText', generatedPromo);
+      setGeneratedPromo('');
       toast({
         title: 'Teks Promo Diterapkan!',
         description: 'Jangan lupa simpan perubahan Anda.',
@@ -84,15 +108,38 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
     }
   };
 
+  if (isLoading) {
+    return <ReceiptSettingsSkeleton />;
+  }
+  
+  if (!activeStore) {
+      return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Receipt Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Toko Tidak Ditemukan</AlertTitle>
+                    <AlertDescription>
+                        Silakan pilih toko dari halaman login untuk mengelola pengaturan struk.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
+        </Card>
+      )
+  }
+
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="font-headline tracking-wider">
-            Pengaturan Struk (Receipt Settings)
+            Pengaturan Struk untuk {activeStore.name}
           </CardTitle>
           <CardDescription>
-            Sesuaikan konten yang muncul pada struk belanja pelanggan.
+            Sesuaikan konten yang muncul pada struk belanja pelanggan untuk toko ini.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -100,8 +147,8 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
             <Label htmlFor="header-text">Header Struk</Label>
             <Textarea
               id="header-text"
-              value={headerText}
-              onChange={(e) => setHeaderText(e.target.value)}
+              value={settings.headerText}
+              onChange={(e) => handleInputChange('headerText', e.target.value)}
               placeholder="Nama Toko&#10;Alamat Toko&#10;No. Telepon"
               rows={4}
             />
@@ -115,8 +162,8 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
             <Label htmlFor="promo-text">Info Promo Singkat</Label>
             <Textarea
               id="promo-text"
-              value={promoText}
-              onChange={(e) => setPromoText(e.target.value)}
+              value={settings.promoText}
+              onChange={(e) => handleInputChange('promoText', e.target.value)}
               placeholder="Contoh: Beli 2 Liquid Gratis 1!"
               rows={2}
             />
@@ -173,8 +220,8 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
             <Label htmlFor="footer-text">Footer Struk</Label>
             <Textarea
               id="footer-text"
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
+              value={settings.footerText}
+              onChange={(e) => handleInputChange('footerText', e.target.value)}
               placeholder="Contoh: Terima kasih, selamat nge-vape!"
               rows={3}
             />
@@ -182,12 +229,38 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
               Pesan penutup atau ucapan terima kasih untuk pelanggan.
             </p>
           </div>
-          <Button onClick={handleSaveChanges}>
-            <Receipt className="mr-2 h-4 w-4" />
+          <Button onClick={handleSaveChanges} disabled={isSaving}>
+            {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
             Simpan Perubahan
           </Button>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function ReceiptSettingsSkeleton() {
+    return (
+        <Card>
+            <CardHeader>
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-4 w-3/4" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid gap-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-24 w-full" />
+                </div>
+                <div className="grid gap-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+                <div className="grid gap-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+                <Skeleton className="h-10 w-40" />
+            </CardContent>
+        </Card>
+    )
 }
