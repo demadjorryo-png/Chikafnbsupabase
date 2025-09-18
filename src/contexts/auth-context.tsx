@@ -8,6 +8,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -151,6 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // 4. Send notifications
     try {
+        const whatsappSettings = await getWhatsappSettings();
+        const { deviceId, adminGroup } = whatsappSettings;
+
+        if (!deviceId || !adminGroup) {
+            console.warn("WhatsApp settings (deviceId or adminGroup) are not configured. Skipping notifications.");
+            return;
+        }
+
         const adminMessage = `Pendaftaran Baru Kasir POS Chika!
 ----------------------------------
 Nama: ${name}
@@ -178,10 +187,8 @@ Silakan login dan mulai kelola bisnis Anda dengan Kasir POS Chika.
 
 Terima kasih!
 Tim Kasir POS Chika`;
-
-        const deviceId = '0fe2d894646b1e3111e0e40c809b5501';
-
-        const adminWebhookUrl = `https://app.whacenter.com/api/sendGroup?device_id=${deviceId}&group=SPV%20ERA%20MMBP&message=${encodeURIComponent(adminMessage)}`;
+        
+        const adminWebhookUrl = `https://app.whacenter.com/api/sendGroup?device_id=${deviceId}&group=${encodeURIComponent(adminGroup)}&message=${encodeURIComponent(adminMessage)}`;
         
         const formattedWhatsapp = whatsapp.startsWith('0') ? `62${whatsapp.substring(1)}` : whatsapp;
         const userWebhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${formattedWhatsapp}&message=${encodeURIComponent(welcomeMessage)}`;

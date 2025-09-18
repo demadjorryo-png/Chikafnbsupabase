@@ -8,9 +8,8 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 import { z } from 'genkit';
-
-const WHA_CENTER_DEVICE_ID = '0fe2d894646b1e3111e0e40c809b5501';
 
 const WhatsAppNotificationInputSchema = z.object({
   phoneNumber: z.string().describe('The recipient\'s phone number in international format (e.g., 6281234567890).'),
@@ -31,11 +30,17 @@ const whatsAppNotificationFlow = ai.defineFlow(
     outputSchema: z.object({ success: z.boolean(), message: z.string() }),
   },
   async ({ phoneNumber, message }) => {
-    const webhookUrl = `https://app.whacenter.com/api/send?device_id=${WHA_CENTER_DEVICE_ID}&number=${phoneNumber}&message=${encodeURIComponent(
-      message
-    )}`;
-
     try {
+      const { deviceId } = await getWhatsappSettings();
+
+      if (!deviceId) {
+        throw new Error('WhatsApp Device ID is not configured in settings.');
+      }
+
+      const webhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${phoneNumber}&message=${encodeURIComponent(
+        message
+      )}`;
+
       const response = await fetch(webhookUrl);
 
       if (!response.ok) {
