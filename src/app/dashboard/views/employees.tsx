@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { User } from '@/lib/types';
+import type { Store, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, PlusCircle, CheckCircle, XCircle } from 'lucide-react';
@@ -38,7 +39,7 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -67,14 +68,36 @@ export default function Employees() {
     if (!activeStore) return;
     setIsLoading(true);
     try {
-        const usersRef = collection(db, 'users');
-        // Admins can be associated with multiple stores via adminUids, but cashiers have a single storeId
-        // For simplicity, we fetch all users from the store an admin is currently viewing.
-        const q = query(usersRef, where("storeId", "==", activeStore.id));
-        const querySnapshot = await getDocs(q);
-        const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        
-        setUsers(firestoreUsers);
+      const usersRef = collection(db, 'users');
+
+      // Get the store document to find all admins.
+      const storeDocRef = doc(db, 'stores', activeStore.id);
+      const storeDoc = await getDoc(storeDocRef);
+      const adminUids = storeDoc.exists() ? (storeDoc.data() as Store).adminUids || [] : [];
+      
+      // Query for cashiers assigned to this store.
+      const cashiersQuery = query(usersRef, where("storeId", "==", activeStore.id));
+      
+      // Query for admins of this store.
+      const adminsQuery = adminUids.length > 0
+        ? query(usersRef, where('__name__', 'in', adminUids))
+        : null;
+
+      const [cashiersSnapshot, adminsSnapshot] = await Promise.all([
+        getDocs(cashiersQuery),
+        adminsQuery ? getDocs(adminsQuery) : Promise.resolve(null)
+      ]);
+
+      const firestoreCashiers = cashiersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      const firestoreAdmins = adminsSnapshot ? adminsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)) : [];
+
+      // Combine and remove duplicates
+      const allUsersMap = new Map<string, User>();
+      firestoreCashiers.forEach(u => allUsersMap.set(u.id, u));
+      firestoreAdmins.forEach(u => allUsersMap.set(u.id, u));
+      
+      setUsers(Array.from(allUsersMap.values()));
+
     } catch (error) {
         console.error("Error fetching users:", error);
         toast({
