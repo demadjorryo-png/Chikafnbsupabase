@@ -433,7 +433,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
-            status: isDineIn ? 'Diproses' : 'Selesai',
+            status: selectedTableId && isDineIn ? 'Diproses' : 'Selesai',
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
@@ -756,22 +756,22 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
+            {selectedTableId && (
+                <div className="flex items-center justify-between rounded-md border p-3">
+                    <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
+                        <Bell className="h-4 w-4" />
+                        <span>Sajikan di Sini (Dine-in)</span>
+                    </Label>
+                    <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
+                </div>
+            )}
+            
             {!selectedTableId && (
-                <>
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                        <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
-                            <Bell className="h-4 w-4" />
-                            <span>Sajikan di Sini (Dine-in)</span>
-                        </Label>
-                        <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                        <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                        <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                        <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-                    </div>
-                </>
+                 <div className="grid grid-cols-3 gap-2">
+                    <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                    <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                    <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+                </div>
             )}
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
                 {selectedTableId ? 'Buat Pesanan Meja' : 'Checkout'}
