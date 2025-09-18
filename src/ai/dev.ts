@@ -13,3 +13,4 @@ import '@/ai/flows/business-analyst.ts';
 import '@/ai/flows/order-ready-follow-up.ts';
 import '@/ai/flows/text-to-speech.ts';
 import '@/ai/flows/whatsapp-notification.ts';
+import '@/ai/flows/app-consultant.ts';

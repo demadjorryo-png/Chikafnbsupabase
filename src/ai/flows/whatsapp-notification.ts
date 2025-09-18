@@ -12,7 +12,8 @@ import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 import { z } from 'genkit';
 
 const WhatsAppNotificationInputSchema = z.object({
-  phoneNumber: z.string().describe('The recipient\'s phone number in international format (e.g., 6281234567890).'),
+  isGroup: z.boolean().optional().describe('Set to true if sending to a group.'),
+  target: z.string().describe('The recipient\'s phone number (e.g., 6281234567890) or group name.'),
   message: z.string().describe('The text message to send.'),
 });
 export type WhatsAppNotificationInput = z.infer<typeof WhatsAppNotificationInputSchema>;
@@ -29,15 +30,20 @@ const whatsAppNotificationFlow = ai.defineFlow(
     inputSchema: WhatsAppNotificationInputSchema,
     outputSchema: z.object({ success: z.boolean(), message: z.string() }),
   },
-  async ({ phoneNumber, message }) => {
+  async ({ isGroup, target, message }) => {
     try {
       const { deviceId } = await getWhatsappSettings();
 
       if (!deviceId) {
         throw new Error('WhatsApp Device ID is not configured in settings.');
       }
+      
+      const endpoint = isGroup ? 'sendGroup' : 'send';
+      const targetParam = isGroup ? 'group' : 'number';
 
-      const webhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${phoneNumber}&message=${encodeURIComponent(
+      const webhookUrl = `https://app.whacenter.com/api/${endpoint}?device_id=${deviceId}&${targetParam}=${encodeURIComponent(
+        target
+      )}&message=${encodeURIComponent(
         message
       )}`;
 
