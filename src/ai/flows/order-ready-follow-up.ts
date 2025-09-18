@@ -16,6 +16,7 @@ const OrderReadyFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
   storeName: z.string().describe('The name of the store where the order was placed.'),
   itemsOrdered: z.array(z.string()).describe('A list of product names included in the order.'),
+  currentTime: z.string().describe('The current time in HH:mm format (e.g., "14:30").'),
 });
 export type OrderReadyFollowUpInput = z.infer<typeof OrderReadyFollowUpInputSchema>;
 
@@ -42,19 +43,21 @@ const prompt = ai.definePrompt({
 
 Tugas Anda adalah membuat pesan notifikasi WhatsApp yang terstruktur dan menarik untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil. Pesan harus dalam Bahasa Indonesia dan menggunakan format Markdown WhatsApp (misalnya, *teks tebal*).
 
-Struktur pesan harus rapi:
-1.  Sapa pelanggan dengan ramah (*Halo [Nama Pelanggan]!*).
-2.  Beritahu bahwa pesanan mereka di *[Nama Toko]* sudah siap.
-3.  Di bagian tengah, tambahkan sentuhan kreatif: **satu fakta menarik, kutipan, atau pantun unik** yang berhubungan dengan SALAH SATU item yang dipesan. Bungkus bagian ini dalam format kutipan (misalnya, dengan garis bawah atau tanda kutip) agar menonjol.
-4.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.
+Struktur pesan harus rapi dan sopan:
+1.  Mulailah dengan sapaan berdasarkan waktu. Gunakan {{currentTime}} sebagai acuan (Pagi: 05-10, Siang: 11-14, Sore: 15-18, Malam: 19-04).
+2.  Sapa pelanggan dengan ramah, gunakan panggilan "Kak" sebelum namanya. Contoh: *Selamat Pagi, Kak {{customerName}}!*
+3.  Beritahu bahwa pesanan mereka di *[Nama Toko]* sudah siap.
+4.  Di bagian tengah, tambahkan sentuhan kreatif: **satu fakta menarik, kutipan, atau pantun unik** yang berhubungan dengan SALAH SATU item yang dipesan. Bungkus bagian ini dalam format kutipan agar menonjol.
+5.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.
 
 Detail Pesanan:
+- Waktu Saat Ini: {{currentTime}}
 - Nama Pelanggan: {{customerName}}
 - Nama Toko: {{storeName}}
 - Item yang Dipesan: {{#each itemsOrdered}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-Contoh output yang baik:
-*Halo Budi!*
+Contoh output yang baik untuk waktu 14:30:
+*Selamat Siang, Kak Budi!*
 
 Pesanan Anda di *Toko Chika* sudah siap diambil di kasir.
 

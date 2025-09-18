@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -63,11 +64,14 @@ export function OrderReadyDialog({
 
     try {
         const nameToAnnounce = customer?.name || transaction.customerName;
+        const now = new Date();
+        const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         
         const generatedTextResult = await getOrderReadyFollowUp({
             customerName: nameToAnnounce,
             storeName: store.name,
             itemsOrdered: transaction.items.map(item => item.productName),
+            currentTime: currentTime,
         });
         
         const text = generatedTextResult.followUpMessage;
@@ -156,8 +160,8 @@ export function OrderReadyDialog({
             <Alert variant="default" className={actionType === 'call' ? 'bg-primary/10 border-primary/30' : 'bg-green-500/10 border-green-500/30'}>
               {actionType === 'call' ? <Volume2 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               <AlertTitle className="font-semibold">{actionType === 'call' ? 'Pengumuman Suara' : 'Pesan WhatsApp'}</AlertTitle>
-              <AlertDescription>
-                "{announcementText}"
+              <AlertDescription className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                {announcementText}
               </AlertDescription>
             </Alert>
             {actionType === 'call' && audioDataUri && (
