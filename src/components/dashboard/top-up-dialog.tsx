@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -17,6 +18,7 @@ import { Banknote, Info, Loader, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useAuth } from '@/contexts/auth-context';
 
 
 type TopUpDialogProps = {
@@ -33,6 +35,7 @@ const BANK_INFO = {
 };
 
 export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps) {
+  const { activeStore, currentUser } = useAuth();
   const [selectedAmount, setSelectedAmount] = React.useState<number | string>(topUpPackages[1]);
   const [manualAmount, setManualAmount] = React.useState('');
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
@@ -78,6 +81,8 @@ export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps)
     const message = `Halo, saya ingin melakukan konfirmasi top-up Pradana Token.
 
 Detail:
+- Toko: ${activeStore?.name} (ID: ${activeStore?.id})
+- Pengguna: ${currentUser?.name}
 - Jumlah Token: ${finalAmount} Token
 - Total Transfer: Rp ${totalRp.toLocaleString('id-ID')}
 
@@ -101,14 +106,14 @@ Mohon segera diproses. Terima kasih.`;
       <DialogHeader>
         <DialogTitle className="font-headline tracking-wider">Top Up Pradana Token</DialogTitle>
         <DialogDescription>
-          Isi ulang saldo token global untuk seluruh aplikasi.
+          Isi ulang saldo token untuk toko Anda.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4">
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-muted-foreground" />
-            <p className="text-sm">Saldo Anda Saat Ini</p>
+            <p className="text-sm">Saldo Toko Saat Ini</p>
           </div>
           <p className="font-mono text-lg font-bold">{currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
         </div>

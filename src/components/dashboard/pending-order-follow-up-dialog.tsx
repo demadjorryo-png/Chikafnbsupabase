@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -35,7 +36,7 @@ export function PendingOrderFollowUpDialog({
   onOpenChange,
   feeSettings
 }: PendingOrderFollowUpDialogProps) {
-  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const [message, setMessage] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
@@ -43,9 +44,9 @@ export function PendingOrderFollowUpDialog({
   const { toast } = useToast();
 
   const handleGenerate = React.useCallback(async () => {
-    if (isAdmin) {
+    if (isAdmin && activeStore) {
       try {
-        await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+        await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
       } catch (error) {
         onOpenChange(false); // Close dialog if not enough tokens
         return;
@@ -69,7 +70,7 @@ export function PendingOrderFollowUpDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast, feeSettings]);
+  }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast, feeSettings, activeStore]);
 
   React.useEffect(() => {
     if (open) {

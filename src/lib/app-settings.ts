@@ -2,7 +2,7 @@
 
 'use client';
 
-import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, increment, query, collection, where, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 
 export type TransactionFeeSettings = {
@@ -42,17 +42,15 @@ export async function getTransactionFeeSettings(): Promise<TransactionFeeSetting
   }
 }
 
-export async function getPradanaTokenBalance(): Promise<number> {
+export async function getPradanaTokenBalance(storeId: string): Promise<number> {
     try {
-        const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
-        const docSnap = await getDoc(tokenDocRef);
+        const storeDocRef = doc(db, 'stores', storeId);
+        const docSnap = await getDoc(storeDocRef);
 
         if (docSnap.exists()) {
-            return docSnap.data().balance || 0;
+            return docSnap.data().pradanaTokenBalance || 0;
         } else {
-            // If doc doesn't exist, create it with initial balance 0
-            await setDoc(tokenDocRef, { balance: 0 });
-            console.warn("Pradana Token balance document not found, created a new one with 0 balance.");
+            console.warn(`Store with ID ${storeId} not found.`);
             return 0;
         }
     } catch (error) {
@@ -61,7 +59,7 @@ export async function getPradanaTokenBalance(): Promise<number> {
     }
 }
 
-export async function deductAiUsageFee(currentBalance: number, feeSettings: TransactionFeeSettings, toast: Function) {
+export async function deductAiUsageFee(currentBalance: number, feeSettings: TransactionFeeSettings, storeId: string, toast: Function) {
   const fee = feeSettings.aiUsageFee;
   if (currentBalance < fee) {
     toast({
@@ -72,8 +70,8 @@ export async function deductAiUsageFee(currentBalance: number, feeSettings: Tran
     throw new Error('Insufficient token balance');
   }
   
-  const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
+  const tokenDocRef = doc(db, 'stores', storeId);
   await updateDoc(tokenDocRef, {
-    balance: increment(-fee)
+    pradanaTokenBalance: increment(-fee)
   });
 }

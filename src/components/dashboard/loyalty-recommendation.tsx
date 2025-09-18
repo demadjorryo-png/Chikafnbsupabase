@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -29,7 +30,7 @@ export function LoyaltyRecommendation({
   const [isLoading, setIsLoading] = React.useState(false);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const { toast } = useToast();
-  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
   React.useEffect(() => {
@@ -49,9 +50,9 @@ export function LoyaltyRecommendation({
 
 
   const handleGetRecommendation = async () => {
-    if (isAdmin) {
+    if (isAdmin && activeStore) {
       try {
-        await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+        await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
       } catch (error) {
         return; // Stop if not enough tokens
       }

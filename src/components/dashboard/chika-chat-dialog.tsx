@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -100,7 +101,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
     setIsLoading(true);
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
       refreshPradanaTokenBalance();
     } catch (error) {
       setMessages((prev) => [

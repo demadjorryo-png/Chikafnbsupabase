@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -73,16 +74,16 @@ const chartConfig = {
 };
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void, feeSettings: TransactionFeeSettings }) {
-    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser } = useAuth();
+    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser, activeStore } = useAuth();
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
-        if (currentUser?.role === 'admin') {
+        if (currentUser?.role === 'admin' && activeStore) {
             try {
-                await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+                await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
             } catch (error) {
                 return;
             }
@@ -193,8 +194,8 @@ export default function Overview({ transactions, users, customers, pendingOrders
   const storeId = activeStore?.id;
   
   const pendingOrders = React.useMemo(() => 
-    isAdmin ? allPendingOrders : allPendingOrders.filter(po => po.storeId === storeId),
-    [allPendingOrders, storeId, isAdmin]
+    allPendingOrders.filter(po => po.storeId === storeId),
+    [allPendingOrders, storeId]
   );
 
   React.useEffect(() => {

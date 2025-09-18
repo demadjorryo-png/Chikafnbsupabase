@@ -4,10 +4,9 @@
 import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { stores as staticStores } from '@/lib/data';
 import { getPradanaTokenBalance } from '@/lib/app-settings';
 
 interface AuthContextType {
@@ -15,7 +14,8 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (userId: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, storeName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
 }
@@ -30,9 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
-      const balance = await getPradanaTokenBalance();
-      setPradanaTokenBalance(balance);
-  }, []);
+    if (!currentUser) return;
+    const q = query(collection(db, "stores"), where("adminUids", "array-contains", currentUser.id));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        const storeDoc = querySnapshot.docs[0];
+        setPradanaTokenBalance(storeDoc.data().pradanaTokenBalance || 0);
+    }
+  }, [currentUser]);
 
 
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
@@ -43,26 +48,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-          
-          refreshPradanaTokenBalance();
-          
-          // In single-store mode, always use the first store from static data.
-          const singleStore = staticStores[0] || null;
 
-          if (singleStore) {
+          // Find the store associated with this user
+          const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
+          const storeSnapshot = await getDocs(storeQuery);
+
+          if (!storeSnapshot.empty) {
+            const storeData = { id: storeSnapshot.docs[0].id, ...storeSnapshot.docs[0].data() } as Store;
             setCurrentUser(userData);
-            setActiveStore(singleStore);
-            sessionStorage.setItem('activeStoreId', singleStore.id); // Still useful for reference
+            setActiveStore(storeData);
+            setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+            sessionStorage.setItem('activeStoreId', storeData.id);
           } else {
-             throw new Error('No store configured in the application.');
+             throw new Error('Toko untuk pengguna ini tidak ditemukan.');
           }
 
         } else {
-          throw new Error('User data not found in database.');
+          throw new Error('Data pengguna tidak ditemukan di database.');
         }
       } catch (error: any) {
         console.error("Session handling error:", error);
-        toast({ variant: 'destructive', title: 'Session Error', description: error.message });
+        toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
@@ -73,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveStore(null);
     }
     setIsLoading(false);
-  }, [toast, refreshPradanaTokenBalance]);
+  }, [toast]);
 
 
   React.useEffect(() => {
@@ -82,44 +88,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleUserSession]);
 
 
-  const login = async (userId: string, password: string) => {
-    const email = `${userId}@era5758.co.id`;
+  const login = async (email: string, password: string) => {
+    // Note: We now use email directly, not constructing it from userId
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-    
-    const userDocRef = doc(db, 'users', firebaseUser.uid);
-    const userDocSnap = await getDoc(userDocRef);
-    
-    if (!userDocSnap.exists()) {
-      await signOut(auth);
-      throw new Error("Data pengguna tidak ditemukan di database.");
-    }
-
-    const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-
-    if (userData.status === 'inactive') {
-      await signOut(auth);
-      throw new Error("Akun Anda saat ini nonaktif. Silakan hubungi admin.");
-    }
-    
-    // In single-store mode, we always use the first store.
-    const store = staticStores[0];
-    if (!store) {
-      throw new Error("Tidak ada toko yang dikonfigurasi dalam aplikasi.");
-    }
-    
-    const balance = await getPradanaTokenBalance();
-    setPradanaTokenBalance(balance);
-    
-    setCurrentUser(userData);
-    setActiveStore(store);
-    sessionStorage.setItem('activeStoreId', store.id);
-    
-    setIsLoading(false);
-
-    toast({
+    // onAuthStateChanged will handle the rest
+    await handleUserSession(userCredential.user);
+     toast({
         title: 'Login Berhasil!',
-        description: `Selamat datang, ${userData.name}.`,
+        description: `Selamat datang kembali.`,
+    });
+  };
+
+  const register = async (name: string, storeName: string, email: string, password: string) => {
+    // 1. Create user in Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+
+    // 2. Create the store document in Firestore
+    const storeRef = await addDoc(collection(db, "stores"), {
+        name: storeName,
+        location: 'Indonesia', // Default location
+        pradanaTokenBalance: 50.00, // Initial token balance
+        adminUids: [firebaseUser.uid],
+        createdAt: new Date().toISOString(),
+    });
+
+    // 3. Create the user document in Firestore
+    const userDocRef = doc(db, "users", firebaseUser.uid);
+    await setDoc(userDocRef, {
+        name: name,
+        userId: email, // Using email as userId for consistency
+        email: email,
+        role: 'admin',
+        status: 'active',
+    });
+    
+    // 4. Set session for the new user
+    await handleUserSession(firebaseUser);
+    
+    toast({
+        title: 'Registrasi Berhasil!',
+        description: `Selamat datang, ${name}! Toko Anda "${storeName}" telah dibuat dengan saldo 50 token.`,
     });
   };
 
@@ -135,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance };
+  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, register, logout, refreshPradanaTokenBalance };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

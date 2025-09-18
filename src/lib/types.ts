@@ -1,3 +1,4 @@
+
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -25,6 +26,9 @@ export type Store = {
   name: string;
   location: string;
   receiptSettings?: ReceiptSettings;
+  pradanaTokenBalance: number;
+  adminUids: string[];
+  createdAt: string;
 };
 
 export type UserRole = 'admin' | 'cashier';
