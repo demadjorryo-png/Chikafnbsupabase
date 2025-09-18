@@ -153,7 +153,7 @@ Mohon untuk segera ditindaklanjuti.`;
   const handleAppConsultant = async (userInput: string, currentMessages: Message[]) => {
      try {
         const result = await consultWithChika({
-            conversationHistory: currentMessages.map(m => `${m.isUser ? 'User' : 'AI'}: ${m.text}`).join('\n'),
+            conversationHistory: currentMessages.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n'),
             userInput: userInput,
         });
 
@@ -326,13 +326,13 @@ Mohon untuk segera ditindaklanjuti.`;
         {isBusinessAnalystMode && messages.length <= 1 && (
             <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Atau coba tanya:</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {exampleQuestions.map((q, i) => (
                         <Button
                             key={i}
                             variant="outline"
                             size="sm"
-                            className="text-xs h-auto py-2"
+                            className="text-xs h-auto py-2 text-left justify-start"
                             onClick={() => handleSendMessage(q)}
                             disabled={isLoading}
                         >
@@ -360,4 +360,3 @@ Mohon untuk segera ditindaklanjuti.`;
     </Dialog>
   );
 }
-
