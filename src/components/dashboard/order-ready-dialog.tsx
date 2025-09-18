@@ -70,7 +70,8 @@ export function OrderReadyDialog({
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const audioResult = await convertTextToSpeech({ text });
+            const { voice } = await import('@/lib/receipt-settings').then(m => m.getReceiptSettings(store.id));
+            const audioResult = await convertTextToSpeech({ text, voiceName: voice });
             setAudioDataUri(audioResult.audioDataUri);
             onSuccess?.();
         } else if (actionType === 'whatsapp') {
@@ -81,7 +82,7 @@ export function OrderReadyDialog({
                 : customer.phone;
 
             const waResult = await sendWhatsAppNotification({
-                phoneNumber: formattedPhone,
+                target: formattedPhone,
                 message: text,
             });
 

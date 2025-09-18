@@ -14,6 +14,7 @@ import wav from 'wav';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
+  voiceName: z.string().optional().describe('The name of the voice to use (e.g., "Algenib", "Enceladus"). Defaults to a standard female voice if not provided.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
@@ -61,14 +62,14 @@ const textToSpeechFlow = ai.defineFlow(
     inputSchema: TextToSpeechInputSchema,
     outputSchema: TextToSpeechOutputSchema,
   },
-  async ({ text }) => {
+  async ({ text, voiceName }) => {
     const { media } = await ai.generate({
       model: 'googleai/gemini-2.5-flash-preview-tts',
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Enceladus' }, // Default female voice
+            prebuiltVoiceConfig: { voiceName: voiceName || 'Enceladus' }, // Default female voice
           },
         },
       },
