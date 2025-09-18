@@ -236,7 +236,7 @@ function DashboardContent() {
       'receipt-settings': 'Receipt Settings',
     }[view] || 'Dashboard';
 
-    return activeStore ? `${baseTitle} - ${activeStore.name}` : baseTitle;
+    return baseTitle;
   };
 
   return (
