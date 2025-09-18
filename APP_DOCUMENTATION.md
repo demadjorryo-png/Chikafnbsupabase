@@ -20,29 +20,34 @@ Alur ini krusial untuk memahami bagaimana aplikasi mengidentifikasi pengguna dan
 - **Proses**:
   1. Pengguna **wajib** memilih **Toko** dari dropdown.
   2. Pengguna memasukkan **User ID** dan **Password**.
-  3. Saat tombol "Masuk" diklik, fungsi `handleLogin` dieksekusi.
-  4. **Login Kasir**: Menggunakan `signInWithEmailAndPassword` dari Firebase Auth. User ID diubah menjadi format email (`<userId>@era5758.co.id`).
-  5. **Login Admin (Offline)**: Untuk `Pradana01`, login divalidasi secara lokal terhadap data di `src/lib/data.ts` tanpa memanggil Firebase Auth.
-  6. **Penanganan Status**: Setelah login berhasil, aplikasi memeriksa status pengguna di Firestore. Jika statusnya `'inactive'`, login dibatalkan dan notifikasi muncul.
-  7. **Redirect ke Dashboard**: Jika berhasil, pengguna diarahkan ke `/dashboard` dengan membawa dua parameter URL krusial:
-     - `userId`: ID unik pengguna dari database (e.g., `admin001`, `Y1ps...`).
-     - `storeId`: ID toko yang **dipilih di halaman login** (e.g., `store_tpg`, `store_swj`).
+  3. Saat tombol "Masuk" diklik, fungsi `login` dari `AuthContext` dieksekusi.
+  4. **Login**: Menggunakan `signInWithEmailAndPassword` dari Firebase Auth. User ID diubah menjadi format email (`<userId>@era5758.co.id`).
+  5. **Penanganan Status**: Setelah login berhasil, aplikasi memeriksa status pengguna di Firestore. Jika statusnya `'inactive'`, login dibatalkan dan notifikasi muncul.
+  6. **Penyimpanan Sesi**: Jika berhasil, ID toko yang dipilih (`storeId`) disimpan di `sessionStorage` browser.
+  7. **Redirect ke Dashboard**: Pengguna diarahkan ke `/dashboard`.
 
-### b. Pengelolaan Sesi
-- Aplikasi ini **tidak menggunakan cookie sesi tradisional**. Status login dan konteks (pengguna dan toko aktif) dikelola sepenuhnya melalui **parameter URL (`userId` dan `storeId`)**.
-- Kehadiran `userId` dan `storeId` di URL adalah **satu-satunya sumber kebenaran (`single source of truth`)** yang menentukan data apa yang harus ditampilkan di seluruh aplikasi dashboard.
+### b. Pengelolaan Sesi (`AuthContext`)
+- Aplikasi mengelola sesi menggunakan kombinasi Firebase Auth dan `sessionStorage`.
+- **`AuthContext`**: Ini adalah "otak" dari sesi. Saat aplikasi dimuat, ia melakukan:
+  1. **Cek Firebase Auth**: Memeriksa apakah ada pengguna yang sudah terautentikasi di Firebase.
+  2. **Cek `sessionStorage`**: Jika ada pengguna, ia akan memeriksa `sessionStorage` untuk mengambil `storeId` yang terakhir kali dipilih.
+  3. **Validasi Sesi**:
+     - Jika pengguna terautentikasi **dan** `storeId` ditemukan, sesi dianggap valid. Data pengguna (`currentUser`) dan data toko (`activeStore`) dimuat, dan pengguna dapat mengakses dashboard.
+     - Jika pengguna terautentikasi tetapi `storeId` **tidak ditemukan** (misalnya, `sessionStorage` dihapus), sesi dianggap tidak konsisten. Pengguna akan secara otomatis di-logout dan diarahkan kembali ke halaman login untuk memilih toko lagi.
+  4. **Single Source of Truth**: Konteks dari `AuthContext` (`currentUser` dan `activeStore`) menjadi `single source of truth` yang menentukan data apa yang harus ditampilkan di seluruh aplikasi.
 
 ## 3. Struktur Dashboard
 
 ### a. `src/app/dashboard/page.tsx` (Komponen Inti)
 - **Fungsi**: Komponen ini adalah "otak" dari seluruh dashboard.
 - **Alur Kerja**:
-  1. **Membaca Parameter URL**: Mengambil `view`, `userId`, dan `storeId` dari URL menggunakan `useSearchParams`.
-  2. **Pengambilan Data (`fetchAllData`)**: Melakukan pemanggilan ke Firestore untuk mengambil semua data mentah yang diperlukan: `stores`, `products`, `customers`, `transactions`, `users`, `pendingOrders`, `redemptionOptions`, dan data pengaturan (`feeSettings`, `pradanaTokenBalance`).
-  3. **Menetapkan Konteks Pengguna**: Menemukan `currentUser` dan `activeStore` dari data yang sudah diambil berdasarkan `userId` dan `storeId` dari URL.
-  4. **Routing Tampilan (View)**: Berdasarkan nilai parameter `view` di URL, komponen ini akan merender "view" yang sesuai (misalnya, `Overview`, `POS`, `Products`, dll.).
-  5. **Meneruskan Data**: Meneruskan data yang relevan (misalnya, `products`, `customers`, `currentUser`, `activeStore`) sebagai *props* ke komponen "view" yang aktif.
-  6. **Manajemen Loading & Error**: Menampilkan `DashboardSkeleton` saat data sedang dimuat dan `toast` error jika pengambilan data gagal.
+  1. **Membaca Parameter URL**: Mengambil parameter `view` dari URL untuk menentukan tampilan mana yang harus dirender (misalnya, `overview`, `pos`, `products`).
+  2. **Menggunakan Konteks**: Mengambil `currentUser` dan `activeStore` dari `AuthContext`.
+  3. **Pengambilan Data (`fetchAllData`)**: Melakukan pemanggilan ke Firestore untuk mengambil semua data yang relevan dengan `activeStore` yang aktif, termasuk: `products`, `transactions`, `pendingOrders`, dll. Data global seperti `customers`, `users`, dan `stores` juga diambil.
+  4. **Pengambilan Pengaturan**: Mengambil pengaturan dinamis seperti `feeSettings` (biaya token) dan `pradanaTokenBalance` dari Firestore.
+  5. **Routing Tampilan (View)**: Berdasarkan nilai `view`, komponen ini akan merender "view" yang sesuai. Ia juga secara cerdas memilih antara `AdminOverview` dan `Overview` berdasarkan peran pengguna.
+  6. **Meneruskan Data**: Meneruskan data yang relevan (misalnya, `products`, `customers`, `feeSettings`) sebagai *props* ke komponen "view" yang aktif.
+  7. **Manajemen Loading & Error**: Menampilkan `DashboardSkeleton` saat data sedang dimuat dan `toast` error jika pengambilan data gagal.
 
 ### b. `src/app/dashboard/main-sidebar.tsx`
 - **Fungsi**: Menyediakan navigasi utama.
@@ -55,51 +60,63 @@ Alur ini krusial untuk memahami bagaimana aplikasi mengidentifikasi pengguna dan
 ### a. Point of Sale (`pos.tsx`)
 - **Fungsi**: Melakukan transaksi penjualan.
 - **Alur Checkout (`handleCheckout`)**:
-  1. **Validasi Awal**: Memastikan keranjang tidak kosong dan `currentUser` serta `activeStore` (diterima dari *props*) valid.
-  2. **Memulai Transaksi Firestore (`runTransaction`)**: Semua operasi database dibungkus dalam satu transaksi atomik untuk memastikan integritas data.
-  3. **Iterasi Keranjang**:
-     - **Untuk Produk Manual**: Jika `productId` diawali dengan `manual-`, logika pengecekan dan pengurangan stok **dilewati**.
-     - **Untuk Produk Asli**: Mengambil dokumen produk, memvalidasi stok di `activeStore`, dan mengurangi stok menggunakan `transaction.update`. Jika stok tidak cukup, seluruh transaksi dibatalkan.
-  4. **Update Poin Pelanggan**: Jika ada `selectedCustomer`, poin loyalitasnya diperbarui (poin didapat - poin ditukar).
-  5. **Membuat Catatan Transaksi**: Membuat dokumen baru di koleksi `transactions` dengan semua detail penjualan.
-  6. **Menampilkan Struk**: Jika berhasil, dialog struk (`CheckoutReceiptDialog`) akan muncul.
+  1. **Validasi Awal**: Memastikan keranjang tidak kosong dan `currentUser` serta `activeStore` valid.
+  2. **Cek & Potong Token (Admin)**: Jika yang melakukan checkout adalah `admin`, sistem akan memeriksa `pradanaTokenBalance`. Jika saldo tidak cukup untuk membayar biaya transaksi (`transactionFee`), checkout dibatalkan. Jika cukup, saldo akan dipotong.
+  3. **Memulai Transaksi Firestore (`runTransaction`)**: Semua operasi database dibungkus dalam satu transaksi atomik untuk memastikan integritas data.
+  4. **Iterasi Keranjang**:
+     - **Pengurangan Stok**: Mengambil dokumen produk, memvalidasi stok di `activeStore`, dan mengurangi stok menggunakan `transaction.update`. Jika stok tidak cukup, seluruh transaksi dibatalkan.
+  5. **Update Poin Pelanggan**: Jika ada `selectedCustomer`, poin loyalitasnya diperbarui (poin didapat - poin ditukar).
+  6. **Membuat Catatan Transaksi**: Membuat dokumen baru di koleksi `transactions`.
+  7. **Menampilkan Struk**: Jika berhasil, dialog struk (`CheckoutReceiptDialog`) akan muncul.
 
 ### b. Overview (`overview.tsx` & `admin-overview.tsx`)
-- **Fungsi**: Menampilkan ringkasan data dan metrik kinerja.
-- **`overview.tsx` (Kasir)**: Menampilkan data yang relevan untuk `storeId` yang sedang aktif, seperti penjualan harian/bulanan pribadi dan papan peringkat karyawan di toko tersebut.
-- **`admin-overview.tsx` (Admin)**: Menampilkan data agregat dari **semua toko**, termasuk total pendapatan, perbandingan produk terlaris/kurang laris, dan yang terpenting, memanggil *flow* AI `getAdminRecommendations` untuk memberikan saran bisnis mingguan dan bulanan.
+- **Fungsi**: Menampilkan ringkasan data dan metrik kinerja untuk `activeStore`.
+- **`overview.tsx` (Kasir)**: Menampilkan data relevan seperti penjualan harian/bulanan pribadi dan papan peringkat karyawan di toko tersebut.
+- **`admin-overview.tsx` (Admin)**: Menampilkan data yang lebih mendalam untuk toko yang dipilih, termasuk total pendapatan, laba kotor, dan yang terpenting, memanggil *flow* AI `getAdminRecommendations` untuk memberikan saran bisnis.
 
 ### c. Products (`products.tsx`)
-- **Fungsi**: Mengelola inventaris produk.
+- **Fungsi**: Mengelola inventaris produk di toko yang dipilih.
 - **Fitur**:
-  - Menampilkan daftar semua produk dengan stok di setiap toko.
+  - Menampilkan daftar semua produk dengan stok di `activeStore`.
   - Filter berdasarkan kategori dan pencarian berdasarkan nama.
-  - **Admin**: Dapat menambah, mengedit, dan menghapus produk.
-  - **Kasir**: Hanya dapat melihat produk.
-  - Stok ditampilkan sebagai angka saja (fungsi edit langsung telah dihapus untuk mencegah kesalahan).
+  - **Admin**: Dapat menambah, mengedit, menghapus, dan menyesuaikan stok produk secara langsung dari tabel.
+  - **Kasir**: Hanya dapat melihat produk dan stoknya.
 
-### d. Customers (`customers.tsx`)
-- **Fungsi**: Mengelola database pelanggan.
+### d. Promotions (`promotions.tsx`)
+- **Fungsi**: Mengelola promosi penukaran poin.
+- **Fitur Admin**:
+  - **Pengaturan Poin**: Mengatur berapa Rupiah belanja yang diperlukan untuk mendapatkan 1 poin.
+  - **Rekomendasi AI**: Memanggil AI untuk memberikan ide promosi baru berdasarkan data penjualan.
+  - **CRUD Promo**: Menambah, mengedit, menonaktifkan, dan menghapus opsi penukaran poin.
+- **Fitur Kasir**: Hanya dapat melihat promo yang sedang aktif.
+
+### e. Receipt Settings (`receipt-settings.tsx`)
+- **Fungsi**: Khusus admin untuk mengatur tampilan struk **per-toko**.
 - **Fitur**:
-  - Menampilkan daftar pelanggan.
-  - Menambah pelanggan baru dengan validasi umur (minimal 21 tahun).
-  - Melihat detail pelanggan.
+  - Mengubah header, footer, dan teks promo yang akan dicetak di struk.
+  - **Generator Promo AI**: Memanggil AI untuk membuat teks promo yang menarik untuk struk.
+  - Pengaturan disimpan di dokumen Firestore milik `activeStore`, memastikan setiap toko bisa memiliki template struk yang berbeda.
 
-### e. Pending Orders (`pending-orders.tsx`)
-- **Fungsi**: Mencatat permintaan produk yang stoknya habis.
-- **Fitur**:
-  - Menampilkan produk yang stoknya kosong di toko yang aktif.
-  - Memungkinkan penambahan "item manual" yang tidak ada di database.
-  - Memilih pelanggan dan membuat catatan "pesanan tertunda" (`pendingOrders`) di Firestore.
+## 5. Pradana Token & Pengaturan Dinamis
 
-## 5. Alur Fungsi AI (Genkit Flows)
+- **Dokumen Pengaturan**: Konfigurasi biaya disimpan di Firestore dalam dokumen `appSettings/transactionFees`. Ini mencakup:
+  - `tokenValueRp`: Nilai 1 token dalam Rupiah.
+  - `feePercentage`: Persentase biaya per transaksi penjualan.
+  - `minFeeRp`: Biaya minimum per transaksi.
+  - `aiUsageFee`: Biaya token untuk setiap penggunaan fitur AI.
+- **Alur Biaya**:
+  1. **Biaya Transaksi**: Hanya berlaku untuk `admin`. Setiap checkout di `pos.tsx` akan memotong saldo token.
+  2. **Biaya AI**: Berlaku untuk `admin`. Setiap kali tombol "Generate with Chika AI" diklik di mana pun, saldo token akan diperiksa dan dipotong. Kasir dapat menggunakan fitur AI gratis.
+- **Keuntungan**: Admin dapat mengubah aturan bisnis ini kapan saja langsung dari Firebase Console tanpa perlu mengubah kode aplikasi.
 
-Semua *flow* AI berada di `src/ai/flows/` dan diekspor sebagai fungsi asinkron yang dapat dipanggil dari komponen React.
+## 6. Alur Fungsi AI (Genkit Flows)
 
-- **`admin-recommendation.ts`**: Menganalisis data penjualan (produk terlaris/kurang laris, pendapatan) dan menghasilkan rekomendasi strategis mingguan & bulanan untuk admin. Digunakan di `admin-overview.tsx`.
-- **`birthday-follow-up.ts`**: Menerima nama pelanggan dan tanggal lahir, lalu membuat pesan ucapan selamat ulang tahun yang dipersonalisasi dengan fakta zodiak dan penawaran diskon. Digunakan di `overview.tsx`.
-- **`challenge-generator.ts`**: Membuat tantangan penjualan berjenjang untuk karyawan berdasarkan anggaran dan periode waktu yang ditentukan. Digunakan di `challenges.tsx`.
-- **`loyalty-point-recommendation.ts`**: Memberikan saran kepada kasir tentang cara terbaik bagi pelanggan untuk menukarkan poin mereka saat transaksi. Digunakan di komponen `LoyaltyRecommendation` di dalam `pos.tsx`.
-- **`pending-order-follow-up.ts`**: Membuat pesan notifikasi saat produk yang dipesan kembali tersedia. Digunakan di dialog "Follow Up" di `overview.tsx` dan `admin-overview.tsx`.
-- **`promotion-recommendation.ts`**: Menganalisis data promo saat ini dan data penjualan untuk menyarankan promo baru yang menarik. Digunakan di `promotions.tsx`.
-- **`receipt-promo-generator.ts`**: Membuat satu baris teks promo yang menarik untuk dicetak di bagian bawah struk belanja. Digunakan di `receipt-settings.tsx`.
+Semua *flow* AI berada di `src/ai/flows/` dan diekspor sebagai fungsi asinkron yang dapat dipanggil dari komponen React. Setiap pemanggilan oleh `admin` akan dikenakan biaya `aiUsageFee`.
+
+- **`admin-recommendation.ts`**: Menganalisis data penjualan toko yang aktif dan menghasilkan rekomendasi strategis untuk admin. Digunakan di `admin-overview.tsx`.
+- **`birthday-follow-up.ts`**: Membuat pesan ucapan selamat ulang tahun yang dipersonalisasi. Digunakan di `overview.tsx`.
+- **`challenge-generator.ts`**: Membuat tantangan penjualan berjenjang untuk karyawan. Digunakan di `challenges.tsx`.
+- **`loyalty-point-recommendation.ts`**: Memberikan saran penukaran poin terbaik kepada kasir saat transaksi. Digunakan di `pos.tsx`.
+- **`pending-order-follow-up.ts`**: Membuat pesan notifikasi saat produk yang dipesan kembali tersedia. Digunakan di dialog "Follow Up".
+- **`promotion-recommendation.ts`**: Menganalisis data promo dan penjualan untuk menyarankan promo baru. Digunakan di `promotions.tsx`.
+- **`receipt-promo-generator.ts`**: Membuat satu baris teks promo untuk struk. Digunakan di `receipt-settings.tsx`.
