@@ -607,15 +607,17 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         </DialogContent>
                     </Dialog>
                 </div>
-                 <Combobox
-                    options={availableTableOptions}
-                    value={selectedTableId || ''}
-                    onValueChange={handleTableSelect}
-                    placeholder="Pilih Meja (Opsional)"
-                    searchPlaceholder="Cari nama meja..."
-                    notFoundText="Meja tidak ditemukan/tersedia."
-                    disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
-                />
+                 <div className="grid">
+                    <Combobox
+                        options={availableTableOptions}
+                        value={selectedTableId || ''}
+                        onValueChange={handleTableSelect}
+                        placeholder="Pilih Meja (Opsional)"
+                        searchPlaceholder="Cari nama meja..."
+                        notFoundText="Meja tidak ditemukan/tersedia."
+                        disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
+                    />
+                </div>
             </div>
 
 
