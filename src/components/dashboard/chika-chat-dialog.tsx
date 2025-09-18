@@ -97,7 +97,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
         setInput('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]); 
+  }, [open, mode]); 
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -111,7 +111,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     }
   }, [messages]);
 
- const sendNotifications = async (summary: string, clientData?: { whatsappNumber?: string | undefined, fullName?: string | undefined }) => {
+ const sendNotifications = async (summary: string, firebasePrompt?: string, clientData?: { whatsappNumber?: string | undefined, fullName?: string | undefined }) => {
     try {
         const { deviceId, adminGroup } = await getWhatsappSettings();
         if (!deviceId || !adminGroup) {
@@ -120,12 +120,16 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
         }
         
         // 1. Send detailed summary to Admin Group
-        const adminMessage = `Konsultasi Pembuatan Aplikasi Baru
+        const adminMessage = `*Konsultasi Pembuatan Aplikasi Baru*
 ---------------------------------
 Chika AI telah menyelesaikan sesi konsultasi dengan calon klien. Berikut adalah ringkasannya:
 
 ${summary}
-
+---------------------------------
+*Firebase Prompt (disarankan):*
+\`\`\`
+${firebasePrompt || 'Tidak ada prompt yang dihasilkan.'}
+\`\`\`
 ---------------------------------
 Mohon untuk segera ditindaklanjuti.`;
 
@@ -143,7 +147,7 @@ Mohon untuk segera ditindaklanjuti.`;
 Terima kasih telah berkonsultasi dengan Chika AI. Berikut adalah ringkasan dari diskusi kita:
 ${summary}
 
-Tim kami akan segera menghubungi Anda untuk langkah selanjutnya. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp *082140442252*.
+Tim kami akan segera menghubungi Anda untuk langkah selanjutnya. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung *Rio Pradana* di WhatsApp *082140442252*.
 
 Terima kasih!`;
 
@@ -197,11 +201,11 @@ Terima kasih!`;
         setMessages(updatedMessages);
         
         if (result.isFinished && result.summary) {
-          await sendNotifications(result.summary, result.clientData);
+          await sendNotifications(result.summary, result.firebasePrompt, result.clientData);
           setMessages(prev => [...prev, {
               id: Date.now() + 2,
               sender: 'ai',
-              text: `Terima kasih! Saya sudah merangkum kebutuhan Anda dan mengirimkannya ke tim kami serta salinannya ke nomor WhatsApp Anda. Berikut adalah ringkasannya untuk konfirmasi:\n\n${result.summary}\n\nTim kami akan segera menghubungi Anda. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp *082140442252*.`,
+              text: `Terima kasih! Saya sudah merangkum kebutuhan Anda dan mengirimkannya ke tim kami serta salinannya ke nomor WhatsApp Anda. Berikut adalah ringkasannya untuk konfirmasi:\n\n${result.summary}\n\nTim kami akan segera menghubungi Anda. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung *Rio Pradana* di WhatsApp *082140442252*.`,
           }]);
         }
 
@@ -408,4 +412,3 @@ Terima kasih!`;
     </Dialog>
   );
 }
-`

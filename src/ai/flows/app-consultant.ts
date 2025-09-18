@@ -30,6 +30,7 @@ const AppConsultantOutputSchema = z.object({
   isFinished: z.boolean().describe('Set to true only when the AI has gathered enough information and is ready to summarize.'),
   summary: z.string().optional().describe('A detailed summary of the application requirements in Indonesian, formatted in Markdown. This is only provided when isFinished is true.'),
   clientData: ClientDataSchema.optional().describe('Structured data of the client, collected before finishing the conversation. This is only provided when isFinished is true.'),
+  firebasePrompt: z.string().optional().describe('A separate, developer-focused prompt for creating the app in Firebase. This is only provided when isFinished is true.'),
 });
 export type AppConsultantOutput = z.infer<typeof AppConsultantOutputSchema>;
 
@@ -72,6 +73,7 @@ Contoh transisi: "Baik, terima kasih atas informasinya. Saya sudah punya gambara
 - Saat \`isFinished\` disetel ke \`true\`, Anda WAJIB:
     1.  Membuat \`summary\` yang detail dan terstruktur menggunakan Markdown. Ringkasan ini harus mencakup semua 5 area kunci DAN semua data klien yang telah Anda kumpulkan.
     2.  Mengisi field \`clientData\` dengan data terstruktur yang telah Anda kumpulkan (nama aplikasi, nama lengkap, no whatsapp, alamat).
+    3.  Membuat \`firebasePrompt\`. Ini adalah sebuah perintah terpisah yang ditujukan untuk AI developer (seperti Gemini) untuk membuat aplikasi yang dirangkum. Prompt ini harus dalam Bahasa Inggris, jelas, dan berisi semua detail teknis yang relevan dari ringkasan. Contoh: "Create a Next.js application for 'TokoBudi' with Firebase integration. It needs user authentication (email/password), a product catalog, and a shopping cart feature. The target users are young adults. The main goal is to increase online sales."
 
 ---
 **Riwayat Percakapan Sejauh Ini:**
