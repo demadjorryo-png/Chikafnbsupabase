@@ -30,9 +30,13 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
+import type { ReceiptSettings } from '@/lib/types';
+
 
 const PasswordFormSchema = z
   .object({
@@ -46,6 +50,13 @@ const PasswordFormSchema = z
     message: 'Password baru tidak cocok.',
     path: ['confirmPassword'],
   });
+  
+const availableVoices = [
+    { name: 'Algenib', label: 'Pria 1', gender: 'Pria' },
+    { name: 'Callisto', label: 'Pria 2', gender: 'Pria' },
+    { name: 'Enceladus', label: 'Wanita 1', gender: 'Wanita' },
+    { name: 'Ganymede', label: 'Wanita 2', gender: 'Wanita' },
+];
 
 function ProfileCardSkeleton() {
     return (
@@ -84,12 +95,23 @@ function ProfileCardSkeleton() {
 export default function Settings() {
   const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
+  const [isVoiceSettingLoading, setIsVoiceSettingLoading] = React.useState(false);
+  const [voiceSettings, setVoiceSettings] = React.useState<Pick<ReceiptSettings, 'voice'> | null>(null);
+  
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const { toast } = useToast();
+  
+  React.useEffect(() => {
+    if (activeStore) {
+        getReceiptSettings(activeStore.id).then(settings => {
+            setVoiceSettings({ voice: settings.voice });
+        });
+    }
+  }, [activeStore]);
 
-  const form = useForm<z.infer<typeof PasswordFormSchema>>({
+  const passwordForm = useForm<z.infer<typeof PasswordFormSchema>>({
     resolver: zodResolver(PasswordFormSchema),
     defaultValues: {
       currentPassword: '',
@@ -126,7 +148,7 @@ export default function Settings() {
         title: 'Berhasil!',
         description: 'Password Anda telah berhasil diubah.',
       });
-      form.reset();
+      passwordForm.reset();
     } catch (error: any) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -139,6 +161,19 @@ export default function Settings() {
       });
     } finally {
       setIsPasswordChangeLoading(false);
+    }
+  };
+  
+  const handleVoiceSettingSave = async () => {
+    if (!activeStore || !voiceSettings) return;
+    setIsVoiceSettingLoading(true);
+    try {
+        await updateReceiptSettings(activeStore.id, { voice: voiceSettings.voice });
+        toast({ title: 'Pengaturan Suara Disimpan!' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Gagal Menyimpan' });
+    } finally {
+        setIsVoiceSettingLoading(false);
     }
   };
   
@@ -183,6 +218,42 @@ export default function Settings() {
       )}
 
       <div className="lg:col-span-2 grid gap-6">
+        {currentUser?.role === 'admin' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline tracking-wider">Pengaturan Suara Panggilan</CardTitle>
+                    <CardDescription>Pilih suara yang akan digunakan untuk memanggil pelanggan saat pesanan siap.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="max-w-md space-y-2">
+                        <Label>Jenis Suara</Label>
+                        {voiceSettings ? (
+                             <Select
+                                value={voiceSettings.voice}
+                                onValueChange={(value) => setVoiceSettings({ voice: value })}
+                             >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih suara..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableVoices.map(voice => (
+                                        <SelectItem key={voice.name} value={voice.name}>
+                                            {voice.label} ({voice.gender})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : <Skeleton className="h-10 w-full" />}
+                       
+                    </div>
+                     <Button onClick={handleVoiceSettingSave} disabled={isVoiceSettingLoading}>
+                        {isVoiceSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}
+                        <Save className="mr-2 h-4 w-4" />
+                        Simpan Suara
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
@@ -194,13 +265,13 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
+            <Form {...passwordForm}>
               <form
-                onSubmit={form.handleSubmit(handlePasswordChange)}
+                onSubmit={passwordForm.handleSubmit(handlePasswordChange)}
                 className="space-y-6 max-w-md"
               >
                 <FormField
-                  control={form.control}
+                  control={passwordForm.control}
                   name="currentPassword"
                   render={({ field }) => (
                     <FormItem>
@@ -224,7 +295,7 @@ export default function Settings() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={passwordForm.control}
                   name="newPassword"
                   render={({ field }) => (
                     <FormItem>
@@ -248,7 +319,7 @@ export default function Settings() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={passwordForm.control}
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>

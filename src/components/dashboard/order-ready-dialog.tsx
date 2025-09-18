@@ -13,12 +13,14 @@ import {
 import { Loader, Send, Volume2 } from 'lucide-react';
 import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
-import type { Customer, Store, Transaction } from '@/lib/types';
+import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Separator } from '../ui/separator';
+import { getReceiptSettings } from '@/lib/receipt-settings';
+
 
 type OrderReadyDialogProps = {
   transaction: Transaction;
@@ -42,13 +44,24 @@ export function OrderReadyDialog({
   const [isLoading, setIsLoading] = React.useState(false);
   const [announcementText, setAnnouncementText] = React.useState('');
   const [audioDataUri, setAudioDataUri] = React.useState('');
+  const [receiptSettings, setReceiptSettings] = React.useState<ReceiptSettings | null>(null);
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+  
+  React.useEffect(() => {
+    if(store?.id) {
+        getReceiptSettings(store.id).then(setReceiptSettings);
+    }
+  }, [store]);
 
   const handleCallCustomer = React.useCallback(async () => {
     if (!customer) {
       toast({ variant: 'destructive', title: 'Pelanggan tidak ditemukan.' });
       return;
+    }
+    if (!receiptSettings) {
+        toast({ variant: 'destructive', title: 'Pengaturan suara belum dimuat.' });
+        return;
     }
 
     setIsLoading(true);
@@ -64,8 +77,8 @@ export function OrderReadyDialog({
       const text = result.followUpMessage;
       setAnnouncementText(text);
 
-      // 2. Generate audio from text
-      const audioResult = await convertTextToSpeech({ text });
+      // 2. Generate audio from text using the stored voice setting
+      const audioResult = await convertTextToSpeech({ text, voiceName: receiptSettings.voice });
       setAudioDataUri(audioResult.audioDataUri);
 
       // 3. Update transaction status
@@ -90,7 +103,7 @@ export function OrderReadyDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [customer, store, transaction, onStatusUpdated, toast]);
+  }, [customer, store, transaction, onStatusUpdated, toast, receiptSettings]);
   
   // Effect to auto-play audio when URI is available
   React.useEffect(() => {
@@ -101,10 +114,10 @@ export function OrderReadyDialog({
 
   // Effect to reset state and call customer when dialog opens
    React.useEffect(() => {
-    if (open) {
+    if (open && receiptSettings) {
       handleCallCustomer();
     }
-  }, [open, handleCallCustomer]);
+  }, [open, handleCallCustomer, receiptSettings]);
 
   const sendWhatsApp = () => {
      if (!customer || !announcementText) return;

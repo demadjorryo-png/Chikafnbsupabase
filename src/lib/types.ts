@@ -18,6 +18,7 @@ export type ReceiptSettings = {
     headerText: string;
     footerText: string;
     promoText: string;
+    voice: string;
 };
 
 export type Store = {
@@ -39,7 +40,7 @@ export type User = {
   email?: string;
   whatsapp?: string;
   status: 'active' | 'inactive';
-  storeId: string;
+  storeId?: string; // Optional: Cashiers are tied to one store
 };
 
 export type Product = {
@@ -147,5 +148,5 @@ export type Table = {
   name: string;
   status: TableStatus;
   capacity: number;
-  currentOrder?: TableOrder;
+  currentOrder?: TableOrder | null;
 };
