@@ -38,7 +38,7 @@ import {
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -51,8 +51,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function Employees() {
+  const { activeStore } = useAuth();
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
@@ -62,10 +64,11 @@ export default function Employees() {
   const { toast } = useToast();
 
   const fetchUsers = React.useCallback(async () => {
+    if (!activeStore) return;
     setIsLoading(true);
     try {
         const usersRef = collection(db, 'users');
-        const q = query(usersRef);
+        const q = query(usersRef, where("storeId", "==", activeStore.id));
         const querySnapshot = await getDocs(q);
         const firestoreUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         
@@ -80,7 +83,7 @@ export default function Employees() {
     } finally {
         setIsLoading(false);
     }
-  }, [toast]);
+  }, [activeStore, toast]);
 
   React.useEffect(() => {
     fetchUsers();
@@ -147,10 +150,10 @@ export default function Employees() {
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="font-headline tracking-wider">
-                Employees
+                Manajemen Karyawan
               </CardTitle>
               <CardDescription>
-                Manage employee accounts and roles.
+                Kelola akun dan peran karyawan untuk toko Anda.
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -158,17 +161,17 @@ export default function Employees() {
                 <Button size="sm" className="gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Employee
+                    Tambah Karyawan
                   </span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle className="font-headline tracking-wider">
-                    Add New Employee
+                    Tambah Karyawan Baru
                   </DialogTitle>
                   <DialogDescription>
-                    Create a new user account for an employee.
+                    Buat akun pengguna baru untuk seorang karyawan.
                   </DialogDescription>
                 </DialogHeader>
                 <AddEmployeeForm setDialogOpen={setIsAddDialogOpen} onEmployeeAdded={handleUserAdded} />
@@ -180,11 +183,11 @@ export default function Employees() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Nama</TableHead>
                 <TableHead>User ID</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Peran</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -227,20 +230,20 @@ export default function Employees() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(user)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Reset Password</DropdownMenuItem>
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEditClick(user)}>Ubah</DropdownMenuItem>
+                          <DropdownMenuItem>Atur Ulang Password</DropdownMenuItem>
                           <DropdownMenuItem 
                             className={user.status === 'active' ? 'text-destructive' : 'text-green-600 focus:text-green-600'}
                             onClick={() => handleStatusChangeClick(user)}
                           >
                             {user.status === 'active' ? (
                                 <>
-                                 <XCircle className="mr-2 h-4 w-4"/> Deactivate
+                                 <XCircle className="mr-2 h-4 w-4"/> Nonaktifkan
                                 </>
                             ) : (
                                 <>
-                                 <CheckCircle className="mr-2 h-4 w-4"/> Activate
+                                 <CheckCircle className="mr-2 h-4 w-4"/> Aktifkan
                                 </>
                             )}
                           </DropdownMenuItem>
@@ -259,10 +262,10 @@ export default function Employees() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="font-headline tracking-wider">
-                Edit Employee
+                Ubah Karyawan
               </DialogTitle>
               <DialogDescription>
-                Update employee details for {selectedUser.name}.
+                Perbarui detail karyawan untuk {selectedUser.name}.
               </DialogDescription>
             </DialogHeader>
             <EditEmployeeForm 
@@ -277,22 +280,22 @@ export default function Employees() {
       <AlertDialog open={isStatusChangeDialogOpen} onOpenChange={setIsStatusChangeDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will {selectedUser?.status === 'active' ? 'deactivate' : 'activate'} the account for{' '}
+              Tindakan ini akan {selectedUser?.status === 'active' ? 'menonaktifkan' : 'mengaktifkan'} akun untuk{' '}
               <span className="font-bold">{selectedUser?.name}</span>. 
               {selectedUser?.status === 'active' 
-                ? ' They will no longer be able to log in.' 
-                : ' They will be able to log in again.'}
+                ? ' Mereka tidak akan bisa login lagi.' 
+                : ' Mereka akan bisa login kembali.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmStatusChange}
               className={selectedUser?.status === 'active' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
-              Yes, {selectedUser?.status === 'active' ? 'Deactivate' : 'Activate'}
+              Ya, {selectedUser?.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

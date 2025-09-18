@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -13,18 +12,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader, Sparkles, Trophy, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader, Sparkles, Trophy, Calendar as CalendarIcon, Save } from 'lucide-react';
 import { generateChallenges } from '@/ai/flows/challenge-generator';
 import type { ChallengeGeneratorOutput } from '@/ai/flows/challenge-generator';
 import { useToast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
-import { addDays, format } from 'date-fns';
+import { addDays, format, formatISO } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 
 type ChallengesProps = {
   feeSettings: TransactionFeeSettings;
@@ -37,6 +38,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
     to: addDays(new Date(), 7),
   });
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [generatedChallenges, setGeneratedChallenges] =
     React.useState<ChallengeGeneratorOutput | null>(null);
   const { toast } = useToast();
@@ -91,6 +93,43 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleSaveChanges = async () => {
+    if (!generatedChallenges || !date?.from || !date?.to || !activeStore) {
+        toast({
+            variant: 'destructive',
+            title: 'Data Tidak Lengkap',
+            description: 'Tidak ada tantangan yang dihasilkan untuk disimpan.'
+        });
+        return;
+    }
+    setIsSaving(true);
+    const challengeCollectionName = `challenges_${activeStore.id}`;
+    
+    try {
+        await addDoc(collection(db, challengeCollectionName), {
+            startDate: formatISO(date.from),
+            endDate: formatISO(date.to),
+            period: generatedChallenges.period,
+            challenges: generatedChallenges.challenges,
+            isActive: true, // Activate immediately
+        });
+        toast({
+            title: 'Tantangan Disimpan!',
+            description: 'Tantangan baru telah disimpan dan diaktifkan.'
+        });
+        setGeneratedChallenges(null); // Clear after saving
+    } catch(error) {
+        console.error("Error saving challenges:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menyimpan',
+            description: 'Terjadi kesalahan saat menyimpan tantangan ke database.'
+        });
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -179,10 +218,10 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Tantangan yang Dihasilkan
+              Draf Tantangan yang Dihasilkan
             </CardTitle>
             <CardDescription>
-              Tantangan aktif untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>
+              Tantangan untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>. Simpan untuk mengaktifkannya.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -219,12 +258,13 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
             ))}
           </CardContent>
           <CardFooter>
-            <Button>Simpan & Aktifkan Tantangan</Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+                {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                Simpan & Aktifkan Tantangan
+            </Button>
           </CardFooter>
         </Card>
       )}
     </div>
   );
 }
-
-    

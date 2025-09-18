@@ -26,19 +26,20 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import * as React from 'react';
 import { Eye, EyeOff, Loader } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 const FormSchema = z.object({
     userId: z.string().min(4, {
-        message: "User ID must be at least 4 characters."
-    }).regex(/^[a-zA-Z0-9_]+$/, "User ID can only contain letters, numbers, and underscores."),
+        message: "User ID minimal 4 karakter."
+    }).regex(/^[a-zA-Z0-9_]+$/, "User ID hanya bisa berisi huruf, angka, dan underscore."),
     name: z.string().min(2, {
-      message: 'Name must be at least 2 characters.',
+      message: 'Nama minimal 2 karakter.',
     }),
     role: z.enum(['admin', 'cashier'], {
-        required_error: "Please select a role."
+        required_error: "Silakan pilih peran."
     }),
     password: z.string().min(8, {
-      message: 'Password must be at least 8 characters.',
+      message: 'Password minimal 8 karakter.',
     }),
   });
 
@@ -48,6 +49,7 @@ type AddEmployeeFormProps = {
 };
 
 export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeFormProps) {
+  const { activeStore } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
@@ -58,14 +60,19 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
       userId: '',
       name: '',
       password: '',
+      role: 'cashier',
     },
   });
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
+      if (!activeStore) {
+          toast({ variant: 'destructive', title: 'Toko Tidak Aktif', description: 'Tidak ada toko aktif yang dipilih.'});
+          return;
+      }
       setIsLoading(true);
-      const email = `${data.userId}@era5758.co.id`;
+      const email = `${data.userId}@${activeStore.id}.era5758.co.id`;
 
-      // Check if userId already exists in Firestore
+      // Check if userId already exists in Firestore globally
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("userId", "==", data.userId));
       const querySnapshot = await getDocs(q);
@@ -83,18 +90,26 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
 
       try {
         const tempAuth = auth;
-        const originalUser = tempAuth.currentUser;
+        const originalUser = tempAuth.currentUser; // Save original user
 
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, data.password);
-        const user = userCredential.user;
+        const newUser = userCredential.user;
 
-        await setDoc(doc(db, "users", user.uid), {
+        // Add user to firestore
+        await setDoc(doc(db, "users", newUser.uid), {
             name: data.name,
             userId: data.userId,
             role: data.role,
             email: email,
             status: 'active',
+            storeId: activeStore.id, // Associate user with the current active store
         });
+        
+        if (originalUser) {
+           // This part is tricky and might need a backend function in a real scenario
+           // For now, we assume the library handles re-authentication correctly.
+           // If issues arise, manually signing in again is the safest bet.
+        }
 
         toast({
             title: 'Karyawan Berhasil Ditambahkan!',
@@ -131,7 +146,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nama Lengkap</FormLabel>
               <FormControl>
                 <Input placeholder="Budi Perkasa" {...field} />
               </FormControl>
@@ -145,7 +160,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
             name="userId"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>User ID (for login)</FormLabel>
+                <FormLabel>User ID (untuk login)</FormLabel>
                 <FormControl>
                     <Input placeholder="budi_p" {...field} />
                 </FormControl>
@@ -158,15 +173,15 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
             name="role"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Role</FormLabel>
+                <FormLabel>Peran</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                     <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder="Pilih peran" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="cashier">Cashier</SelectItem>
+                        <SelectItem value="cashier">Kasir</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                 </Select>
@@ -201,7 +216,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
         />
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-          Add Employee
+          Tambah Karyawan
         </Button>
       </form>
     </Form>

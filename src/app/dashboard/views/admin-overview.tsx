@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -434,7 +433,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
               {appliedStrategies.map(strategy => (
                 <Card key={strategy.id} className="border-l-4 border-primary">
                   <CardHeader>
-                    <CardTitle className="text-base capitalize">{strategy.type} Strategy</CardTitle>
+                    <CardTitle className="text-base capitalize">Strategi {strategy.type}</CardTitle>
                      <CardDescription>Diterapkan pada: {format(new Date(strategy.appliedDate), 'd MMMM yyyy')}</CardDescription>
                   </CardHeader>
                   <CardContent>

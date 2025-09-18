@@ -42,6 +42,7 @@ export type User = {
   email?: string;
   whatsapp?: string;
   status: 'active' | 'inactive';
+  storeId: string;
 };
 
 export type Product = {
@@ -112,5 +113,22 @@ export type RedemptionOption = {
   description: string;
   pointsRequired: number;
   value: number;
+  isActive: boolean;
+};
+
+export type Challenge = {
+  id: string;
+  tier: string;
+  description: string;
+  target: number;
+  reward: string;
+};
+
+export type ChallengePeriod = {
+  id?: string;
+  startDate: string;
+  endDate: string;
+  period: string;
+  challenges: Challenge[];
   isActive: boolean;
 };
