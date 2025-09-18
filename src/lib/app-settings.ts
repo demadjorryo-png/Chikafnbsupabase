@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
@@ -58,27 +59,6 @@ export async function getPradanaTokenBalance(): Promise<number> {
     }
 }
 
-export async function updatePradanaTokenBalance(amount: number) {
-    const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
-    try {
-        // Use increment to handle concurrent updates safely.
-        // `amount` should be negative for deductions.
-        await updateDoc(tokenDocRef, {
-            balance: increment(amount)
-        });
-    } catch (error: any) {
-        // If the document doesn't exist, create it with the new balance.
-        if (error.code === 'not-found') {
-             const initialBalance = await getPradanaTokenBalance();
-             const newBalance = initialBalance + amount;
-             await setDoc(tokenDocRef, { balance: newBalance > 0 ? newBalance : 0 });
-        } else {
-            // Re-throw other errors
-            throw error;
-        }
-    }
-}
-
 export async function deductAiUsageFee(currentBalance: number, feeSettings: TransactionFeeSettings, toast: Function) {
   const fee = feeSettings.aiUsageFee;
   if (currentBalance < fee) {
@@ -89,5 +69,9 @@ export async function deductAiUsageFee(currentBalance: number, feeSettings: Tran
     });
     throw new Error('Insufficient token balance');
   }
-  await updatePradanaTokenBalance(-fee);
+  
+  const tokenDocRef = doc(db, 'appSettings', 'pradanaToken');
+  await updateDoc(tokenDocRef, {
+    balance: increment(-fee)
+  });
 }

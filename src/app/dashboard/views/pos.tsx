@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -58,11 +59,10 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
-import { updatePradanaTokenBalance } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
@@ -272,12 +272,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
     
     try {
-      if (currentUser.role === 'admin') {
-        await updatePradanaTokenBalance(-transactionFee);
-      }
-
       await runTransaction(db, async (transaction) => {
         // --- Phase 1: READ ---
+        const tokenRef = doc(db, 'appSettings', 'pradanaToken');
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
@@ -320,14 +317,22 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         }
 
         // --- Phase 3: WRITE ---
+        // 3a. Update product stock
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
         });
 
+        // 3b. Update customer points
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
+
+        // 3c. Deduct Pradana Token for admin
+        if (currentUser.role === 'admin') {
+          transaction.update(tokenRef, { balance: increment(-transactionFee) });
+        }
         
+        // 3d. Create the transaction record
         const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
@@ -357,10 +362,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       onDataChange(); 
 
     } catch (error) {
-      // If the main transaction fails, we need to refund the token fee that was deducted.
-      if (currentUser.role === 'admin') {
-        await updatePradanaTokenBalance(transactionFee);
-      }
       console.error("Checkout failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.";
       toast({ variant: 'destructive', title: 'Checkout Gagal', description: errorMessage });
@@ -694,3 +695,4 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     </>
   );
 }
+
