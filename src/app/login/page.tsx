@@ -98,7 +98,7 @@ export default function LoginPage() {
 
         <Card className="text-center">
             <CardHeader>
-                <CardTitle className="text-lg font-headline tracking-wider">BUTUH BANTUAN PROFESIONAL?</CardTitle>
+                <CardTitle className="text-lg font-headline tracking-wider">BUTUH APLIKASI UNTUK BISNIS ANDA?</CardTitle>
                 <CardDescription>Konsultasikan kebutuhan aplikasi Anda secara gratis dengan asisten AI kami.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -121,7 +121,7 @@ export default function LoginPage() {
                 </div>
                  <Button variant="outline" className="w-full" onClick={() => setIsConsultDialogOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4 text-primary" />
-                    Mulai Konsultasi dengan Chika AI
+                    Konsultasi Pembuatan Aplikasi
                 </Button>
             </CardContent>
         </Card>
