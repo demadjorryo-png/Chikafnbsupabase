@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction, Table } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -255,13 +256,10 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (currentUser?.role === 'admin') {
-        const feeFromPercentage = totalAmount * feeSettings.feePercentage;
-        const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
-        return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
-    }
-    return 0; // Cashiers don't trigger direct token deduction at POS
-  }, [totalAmount, feeSettings, currentUser]);
+    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -291,11 +289,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         return;
     }
 
-    if (currentUser.role === 'admin' && pradanaTokenBalance < transactionFee) {
+    if (pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
-            title: 'Saldo Token Tidak Cukup',
-            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
+            title: 'Saldo Token Toko Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo toko Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
         });
         return;
     }
@@ -328,14 +326,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        const storeTokenDoc = currentUser.role === 'admin' ? await transaction.get(storeRef) : null;
+        const storeTokenDoc = await transaction.get(storeRef);
 
         // --- Phase 2: VALIDATE & CALCULATE ---
-        if (currentUser.role === 'admin') {
-            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-            if (currentTokenBalance < transactionFee) {
-                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-            }
+        const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
+        if (currentTokenBalance < transactionFee) {
+            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
         }
         
         const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
@@ -365,9 +361,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         }
 
         // --- Phase 3: WRITE ---
-        if (currentUser.role === 'admin') {
-            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
-        }
+        transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
         
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
@@ -415,9 +409,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       
-      if (currentUser.role === 'admin') {
-        refreshPradanaTokenBalance();
-      }
+      refreshPradanaTokenBalance();
       
       setCart([]);
       setDiscountValue(0);
@@ -719,7 +711,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'admin' && transactionFee > 0 && !selectedTableId &&(
+              {transactionFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
@@ -736,7 +728,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
-            {selectedTableId && (
+            {selectedTableId ? (
                 <div className="flex items-center justify-between rounded-md border p-3">
                     <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
                         <Bell className="h-4 w-4" />
@@ -744,13 +736,14 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     </Label>
                     <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
                 </div>
+            ) : (
+                <div className="grid grid-cols-3 gap-2">
+                    <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                    <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                    <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+                </div>
             )}
-            
-            <div className="grid grid-cols-3 gap-2">
-                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-            </div>
+
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
           </CardContent>
         </Card>

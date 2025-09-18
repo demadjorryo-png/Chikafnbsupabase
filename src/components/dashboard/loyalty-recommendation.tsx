@@ -50,12 +50,11 @@ export function LoyaltyRecommendation({
 
 
   const handleGetRecommendation = async () => {
-    if (isAdmin && activeStore) {
-      try {
-        await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-      } catch (error) {
-        return; // Stop if not enough tokens
-      }
+    if (!activeStore) return;
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
+    } catch (error) {
+      return; // Stop if not enough tokens
     }
 
     setIsLoading(true);
@@ -72,9 +71,7 @@ export function LoyaltyRecommendation({
         availableRedemptionOptions: redemptionOptions,
       });
       setRecommendation(result.recommendation);
-      if (isAdmin) {
-        refreshPradanaTokenBalance();
-      }
+      refreshPradanaTokenBalance();
     } catch (error) {
       console.error('Error getting loyalty recommendation:', error);
       setRecommendation('Maaf, terjadi kesalahan saat mengambil rekomendasi.');
@@ -96,7 +93,7 @@ export function LoyaltyRecommendation({
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        <span>Get AI Point Recommendation {isAdmin && `(${feeSettings.aiUsageFee} Token)`}</span>
+        <span>Get AI Point Recommendation ({feeSettings.aiUsageFee} Token)</span>
       </Button>
 
       {recommendation && (

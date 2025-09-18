@@ -80,8 +80,9 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
   };
 
   const handleGeneratePromo = async () => {
+    if (!activeStore) return;
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }

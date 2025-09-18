@@ -65,7 +65,7 @@ export async function deductAiUsageFee(currentBalance: number, feeSettings: Tran
     toast({
       variant: 'destructive',
       title: 'Saldo Token Tidak Cukup',
-      description: `Saldo Pradana Token Anda (${currentBalance.toFixed(2)}) tidak cukup untuk membayar biaya AI (${fee}). Silakan top up.`,
+      description: `Saldo Pradana Token toko (${currentBalance.toFixed(2)}) tidak cukup untuk membayar biaya AI (${fee}). Silakan top up.`,
     });
     throw new Error('Insufficient token balance');
   }
