@@ -74,6 +74,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
   
   const isBusinessAnalystMode = mode === 'analyst';
 
+  // Define content based on mode
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
     : "Halo! Saya Chika, asisten AI untuk Rio Pradana, konsultan aplikasi AI kami. Saya di sini untuk membantu Anda menggali ide-ide aplikasi Anda agar tim kami bisa memberikan solusi terbaik. Jangan sungkan untuk berbagi detail sebanyak-banyaknya ya!";
@@ -96,7 +97,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
         setInput('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, isBusinessAnalystMode]); // Rerun if mode changes (although it shouldn't while open)
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -276,7 +277,8 @@ Mohon untuk segera ditindaklanjuti.`;
 
   const getDescription = () => {
     if (isBusinessAnalystMode) {
-      return `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings?.aiUsageFee} Token/pesan)`;
+      if (!feeSettings) return 'Memuat pengaturan...';
+      return `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings.aiUsageFee} Token/pesan)`;
     }
     return "Jelaskan ide aplikasi Anda. Chika akan membantu Anda merangkum kebutuhan proyek.";
   }
