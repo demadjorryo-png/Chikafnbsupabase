@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction, User, Store } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -23,7 +24,6 @@ import {
   Printer,
   Plus,
   Gift,
-  Coins,
 } from 'lucide-react';
 import {
   Table,
@@ -55,18 +55,16 @@ import { Receipt } from '@/components/dashboard/receipt';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useSearchParams } from 'next/navigation';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useAuth } from '@/contexts/auth-context';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
-    currentUser: User | null;
-    activeStore: Store | undefined;
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -95,7 +93,8 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, currentUser, activeStore, onDataChange, isLoading, feeSettings }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings }: POSProps) {
+  const { currentUser, activeStore } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -454,7 +453,7 @@ export default function POS({ products, customers, currentUser, activeStore, onD
                       Add a new customer to the Bekupon community. Age will be verified.
                     </DialogDescription>
                   </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser?.role} />
+                  {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
                 </DialogContent>
               </Dialog>
             </div>
