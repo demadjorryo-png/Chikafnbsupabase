@@ -16,7 +16,7 @@ import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Separator } from '../ui/separator';
 import { getReceiptSettings } from '@/lib/receipt-settings';
@@ -69,6 +69,8 @@ export function OrderReadyDialog({
     setAudioDataUri('');
 
     try {
+      const batch = writeBatch(db);
+
       // 1. Generate announcement text
       const result = await getOrderReadyFollowUp({
         customerName: customer.name,
@@ -84,10 +86,19 @@ export function OrderReadyDialog({
       // 3. Update transaction status
       const transactionCollectionName = `transactions_${store.id}`;
       const transactionRef = doc(db, transactionCollectionName, transaction.id);
-      await updateDoc(transactionRef, { status: 'Selesai' });
+      batch.update(transactionRef, { status: 'Selesai' });
+      
+      // 4. Update table status if applicable
+      if (transaction.tableId) {
+        const tableCollectionName = `tables_${store.id}`;
+        const tableRef = doc(db, tableCollectionName, transaction.tableId);
+        batch.update(tableRef, { status: 'Selesai Dibayar' });
+      }
+
+      await batch.commit();
 
       toast({
-        title: 'Status Pesanan Diperbarui!',
+        title: 'Status Pesanan & Meja Diperbarui!',
         description: `Status transaksi telah diubah menjadi "Selesai".`,
       });
 

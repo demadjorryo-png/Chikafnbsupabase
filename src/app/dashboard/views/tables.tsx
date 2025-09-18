@@ -15,7 +15,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -41,7 +40,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked } from 'lucide-react';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan } from 'lucide-react';
 import type { Table, CartItem, TableStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
@@ -95,6 +94,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
           name: tableName,
           capacity: tableCapacity,
           status: 'Tersedia',
+          currentOrder: null,
         });
         toast({ title: 'Meja baru ditambahkan!' });
       }
@@ -127,52 +127,19 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
      const tableCollectionName = `tables_${activeStore.id}`;
      const tableRef = doc(db, tableCollectionName, selectedTable.id);
      
-     const transactionCollectionName = `transactions_${activeStore.id}`;
-     
      try {
-        await runTransaction(db, async (transaction) => {
-            const tableDoc = await transaction.get(tableRef);
-            if (!tableDoc.exists() || !tableDoc.data().currentOrder) {
-                throw new Error("Meja ini tidak memiliki pesanan aktif.");
-            }
-            
-            const order = tableDoc.data().currentOrder as Table['currentOrder'];
-
-            // Create a transaction record
-            const newTransactionRef = doc(collection(db, transactionCollectionName));
-            const finalTransactionData = {
-                id: newTransactionRef.id,
-                storeId: activeStore.id,
-                customerId: 'N/A',
-                customerName: `Meja ${selectedTable.name}`,
-                staffId: currentUser?.id || 'unknown',
-                createdAt: new Date().toISOString(),
-                subtotal: order!.totalAmount,
-                discountAmount: 0,
-                totalAmount: order!.totalAmount,
-                paymentMethod: 'Cash', // Default payment method for clearing table
-                pointsEarned: 0,
-                pointsRedeemed: 0,
-                items: order!.items,
-                tableId: selectedTable.id,
-                status: 'Selesai',
-            };
-            transaction.set(newTransactionRef, finalTransactionData);
-            
-            // Clear the table
-            transaction.update(tableRef, {
-                status: 'Tersedia',
-                currentOrder: null
-            });
+        await updateDoc(tableRef, {
+            status: 'Tersedia',
+            currentOrder: null
         });
 
-        toast({ title: `Meja ${selectedTable.name} telah diselesaikan dan dikosongkan.` });
+        toast({ title: `Meja ${selectedTable.name} telah dikosongkan.` });
         onDataChange();
         closeDialogs();
 
      } catch (error) {
         console.error("Error clearing table:", error);
-        toast({ variant: 'destructive', title: 'Gagal menyelesaikan meja', description: (error as Error).message });
+        toast({ variant: 'destructive', title: 'Gagal mengosongkan meja', description: (error as Error).message });
      }
   }
   
@@ -224,7 +191,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
       params.set('tableId', table.id);
       params.set('tableName', table.name);
       router.push(`/dashboard?${params.toString()}`);
-    } else { // Terisi
+    } else if (table.status === 'Selesai Dibayar') {
         openClearDialog(table);
     }
   }
@@ -237,6 +204,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
             return 'bg-amber-100/10 border-amber-500/30 hover:border-amber-500';
         case 'Dipesan':
             return 'bg-blue-100/10 border-blue-500/30 hover:border-blue-500';
+        case 'Selesai Dibayar':
+            return 'bg-slate-100/10 border-slate-500/30 hover:border-slate-500';
         default:
             return '';
     }
@@ -250,6 +219,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
             return 'bg-amber-500/20 text-amber-800 border-amber-500/50';
         case 'Dipesan':
             return 'bg-blue-500/20 text-blue-800 border-blue-500/50';
+        case 'Selesai Dibayar':
+            return 'bg-slate-500/20 text-slate-800 border-slate-500/50';
         default:
             return '';
     }
@@ -338,11 +309,11 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuLabel>Aksi Cepat</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Dipesan')} disabled={table.status === 'Dipesan' || table.status === 'Terisi'}>
+                        <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Dipesan')} disabled={table.status !== 'Tersedia'}>
                           <BookMarked className="mr-2 h-4 w-4" /> Tandai Dipesan
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Tersedia')} disabled={table.status === 'Tersedia'}>
-                          <Check className="mr-2 h-4 w-4" /> Tandai Tersedia
+                        <DropdownMenuItem onClick={() => openClearDialog(table)} disabled={table.status !== 'Selesai Dibayar'}>
+                          <SprayCan className="mr-2 h-4 w-4" /> Tandai Tersedia
                         </DropdownMenuItem>
                          <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEditDialog(table)}>
@@ -419,17 +390,15 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
        <AlertDialog open={isClearTableDialogOpen} onOpenChange={(open) => { if (!open) closeDialogs() }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Selesaikan & Kosongkan Meja?</AlertDialogTitle>
+            <AlertDialogTitle>Kosongkan Meja?</AlertDialogTitle>
             <AlertDialogDescription>
-                Tindakan ini akan menyelesaikan pesanan untuk meja <span className="font-bold">{selectedTable?.name}</span>
-                sebesar <span className="font-bold">Rp {selectedTable?.currentOrder?.totalAmount.toLocaleString('id-ID')}</span> dan mengosongkan meja.
-                Sebuah catatan transaksi akan dibuat. Lanjutkan?
+                Apakah Anda yakin ingin menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan siap untuk pelanggan berikutnya?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeDialogs}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearTable}>
-              <Check className="mr-2 h-4 w-4" /> Ya, Selesaikan
+              <Check className="mr-2 h-4 w-4" /> Ya, Kosongkan
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

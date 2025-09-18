@@ -280,50 +280,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleTableOrder = async () => {
-    if (!selectedTableId || !activeStore) return;
-    if (cart.length === 0) {
-      toast({ variant: 'destructive', title: 'Keranjang Kosong' });
-      return;
-    }
-    
-    setIsProcessingCheckout(true);
-    const tableCollectionName = `tables_${activeStore.id}`;
-    const tableRef = doc(db, tableCollectionName, selectedTableId);
-
-    try {
-        await updateDoc(tableRef, {
-            status: 'Terisi',
-            currentOrder: {
-                items: cart,
-                totalAmount: totalAmount,
-                orderTime: new Date().toISOString(),
-            },
-        });
-        toast({ title: 'Pesanan Meja Dibuat!', description: `Pesanan untuk ${selectedTableName} telah disimpan.`});
-        setCart([]);
-        setDiscountValue(0);
-        onDataChange();
-        // Redirect back to tables view
-        const params = new URLSearchParams();
-        params.set('view', 'tables');
-        router.push(`/dashboard?${params.toString()}`);
-    } catch(error) {
-        console.error("Error creating table order:", error);
-        toast({ variant: 'destructive', title: 'Gagal Membuat Pesanan Meja' });
-    } finally {
-        setIsProcessingCheckout(false);
-    }
-  };
   
   const handleCheckout = async () => {
-    // If it's a table order, handle it separately
-    if (selectedTableId) {
-        handleTableOrder();
-        return;
-    }
-
     if (cart.length === 0) {
       toast({ variant: 'destructive', title: 'Keranjang Kosong', description: 'Silakan tambahkan produk ke keranjang.' });
       return;
@@ -348,6 +306,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     const productCollectionName = `products_${storeId}`;
     const customerCollectionName = `customers_${storeId}`;
     const transactionCollectionName = `transactions_${storeId}`;
+    const tableCollectionName = `tables_${storeId}`;
     
     try {
       await runTransaction(db, async (transaction) => {
@@ -423,7 +382,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             id: newTransactionRef.id,
             storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
-            customerName: selectedCustomer?.name || 'Guest',
+            customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
             staffId: currentUser.id,
             createdAt: new Date().toISOString(),
             subtotal: subtotal,
@@ -434,8 +393,22 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             pointsRedeemed: pointsToRedeem,
             items: cart,
             status: selectedTableId && isDineIn ? 'Diproses' : 'Selesai',
+            ...(selectedTableId && { tableId: selectedTableId }),
         };
         transaction.set(newTransactionRef, finalTransactionData);
+        
+        // If this is a table order, update the table status
+        if (selectedTableId) {
+            const tableRef = doc(db, tableCollectionName, selectedTableId);
+            transaction.update(tableRef, {
+                status: 'Terisi',
+                currentOrder: {
+                    items: cart,
+                    totalAmount: totalAmount,
+                    orderTime: new Date().toISOString(),
+                }
+            });
+        }
         
         setLastTransaction(finalTransactionData);
       });
@@ -450,7 +423,14 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       setDiscountValue(0);
       setPointsToRedeem(0);
       setSelectedCustomer(undefined);
-      onDataChange(); 
+      onDataChange();
+      
+      // If it was a table order, redirect back to tables view
+      if (selectedTableId) {
+        const params = new URLSearchParams();
+        params.set('view', 'tables');
+        router.push(`/dashboard?${params.toString()}`);
+      }
 
     } catch (error) {
       console.error("Checkout failed:", error);
@@ -766,16 +746,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 </div>
             )}
             
-            {!selectedTableId && (
-                 <div className="grid grid-cols-3 gap-2">
-                    <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                    <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                    <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-                </div>
-            )}
-             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
-                {selectedTableId ? 'Buat Pesanan Meja' : 'Checkout'}
-             </Button>
+            <div className="grid grid-cols-3 gap-2">
+                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+            </div>
+             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
           </CardContent>
         </Card>
       </div>
