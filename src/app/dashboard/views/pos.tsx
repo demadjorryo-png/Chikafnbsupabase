@@ -226,8 +226,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   
   const transactionFee = React.useMemo(() => {
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
-    const feeInRp = Math.max(feeFromPercentage, feeSettings.minFeeRp);
-    return feeInRp / feeSettings.tokenValueRp;
+    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp); // Apply max cap
+    return feeCappedAtMax / feeSettings.tokenValueRp;
   }, [totalAmount, feeSettings]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -642,7 +643,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-               <div className="flex justify-between text-muted-foreground">
+              <div className="flex justify-between text-muted-foreground">
                  <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                 <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
               </div>

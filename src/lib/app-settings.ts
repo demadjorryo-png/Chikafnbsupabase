@@ -9,15 +9,17 @@ export type TransactionFeeSettings = {
   tokenValueRp: number;
   feePercentage: number;
   minFeeRp: number;
+  maxFeeRp: number; // Batas maksimal biaya transaksi dalam Rupiah
   aiUsageFee: number;
 };
 
 // Default settings in case the document doesn't exist in Firestore
 export const defaultFeeSettings: TransactionFeeSettings = {
-  tokenValueRp: 1000, // 1 token = Rp 1.000
-  feePercentage: 0.005, // Biaya 0.5% per transaksi
-  minFeeRp: 500, // Biaya minimum Rp 500
-  aiUsageFee: 0.1, // Biaya 0.1 token per penggunaan AI
+  tokenValueRp: 1000,    // 1 token = Rp 1.000
+  feePercentage: 0.005,  // Biaya 0.5% per transaksi
+  minFeeRp: 500,         // Biaya minimum Rp 500
+  maxFeeRp: 2500,        // Biaya maksimum Rp 2.500
+  aiUsageFee: 0.1,       // Biaya 0.1 token per penggunaan AI
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {
