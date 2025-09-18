@@ -96,7 +96,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
         setInput('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isBusinessAnalystMode]);
+  }, [open]);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -356,7 +356,7 @@ Mohon untuk segera ditindaklanjuti.`;
                             key={i}
                             variant="outline"
                             size="sm"
-                            className="text-xs h-auto py-2 text-left justify-start"
+                            className="text-xs h-auto py-2 text-left justify-start whitespace-normal"
                             onClick={() => handleSendMessage(q)}
                             disabled={isLoading}
                         >
