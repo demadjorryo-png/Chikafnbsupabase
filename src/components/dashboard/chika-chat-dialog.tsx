@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { BrainCircuit, Loader, Send, User } from 'lucide-react';
+import { BrainCircuit, Loader, Send, User, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -30,6 +30,13 @@ type Message = {
   sender: 'user' | 'ai';
   text: string;
 };
+
+const exampleQuestions = [
+    "Produk apa yang paling tidak laku bulan ini?",
+    "Bagaimana cara meningkatkan omset?",
+    "Beri saya ide promo untuk akhir pekan.",
+    "Berapa total pendapatan bulan lalu?",
+];
 
 type ChikaChatDialogProps = {
   open: boolean;
@@ -60,12 +67,12 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
           {
             id: 1,
             sender: 'ai',
-            text: `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda. Apa yang bisa saya bantu analisis hari ini?`,
+            text: `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`,
           },
         ]);
       }
     }
-  }, [open, currentUser, messages.length]);
+  }, [open, currentUser, activeStore, messages.length]);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -80,14 +87,13 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
   }, [messages]);
 
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading || !feeSettings || !activeStore) return;
+  const handleSendMessage = async (question: string) => {
+    if (!question.trim() || isLoading || !feeSettings || !activeStore) return;
 
     const userMessage: Message = {
       id: Date.now(),
       sender: 'user',
-      text: input,
+      text: question,
     };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
@@ -160,6 +166,11 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSendMessage(input);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg h-[80vh] flex flex-col">
@@ -222,15 +233,36 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
             )}
           </div>
         </ScrollArea>
+        
+        {messages.length <= 1 && (
+            <div className="border-t pt-4">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Atau coba tanya:</p>
+                <div className="grid grid-cols-2 gap-2">
+                    {exampleQuestions.map((q, i) => (
+                        <Button
+                            key={i}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-auto py-2"
+                            onClick={() => handleSendMessage(q)}
+                            disabled={isLoading}
+                        >
+                            {q}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+        )}
+
         <DialogFooter>
-          <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
+          <form onSubmit={handleFormSubmit} className="flex w-full items-center gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Contoh: Apa produk paling tidak laku bulan ini?"
               disabled={isLoading}
             />
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>
           </form>
