@@ -36,11 +36,18 @@ type Message = {
   text: string;
 };
 
-const exampleQuestions = [
+const businessAnalystExampleQuestions = [
     "Produk apa yang paling tidak laku bulan ini?",
     "Bagaimana cara meningkatkan omset?",
     "Beri saya ide promo untuk akhir pekan.",
     "Berapa total pendapatan bulan lalu?",
+];
+
+const appConsultantExampleQuestions = [
+    "Saya mau buat aplikasi kasir untuk coffee shop.",
+    "Bisa bantu saya bikin aplikasi untuk barbershop?",
+    "Apa saja yang perlu disiapkan untuk membuat aplikasi custom?",
+    "Berapa perkiraan biayanya?",
 ];
 
 type ChikaChatDialogProps = {
@@ -69,6 +76,9 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
     : "Halo! Saya Chika, konsultan AI Anda. Senang bisa membantu. Aplikasi seperti apa yang ada di pikiran Anda? Ceritakan saja ide besarnya.";
+    
+  const exampleQuestions = isBusinessAnalystMode ? businessAnalystExampleQuestions : appConsultantExampleQuestions;
+
 
   React.useEffect(() => {
     if (open) {
@@ -323,7 +333,7 @@ Mohon untuk segera ditindaklanjuti.`;
           </div>
         </ScrollArea>
         
-        {isBusinessAnalystMode && messages.length <= 1 && (
+        {messages.length <= 1 && (
             <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Atau coba tanya:</p>
                 <div className="grid grid-cols-1 gap-2">
