@@ -27,6 +27,7 @@ type OrderReadyDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actionType: 'call' | 'whatsapp';
+  onSuccess?: () => void;
 };
 
 export function OrderReadyDialog({
@@ -36,6 +37,7 @@ export function OrderReadyDialog({
   open,
   onOpenChange,
   actionType,
+  onSuccess
 }: OrderReadyDialogProps) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [announcementText, setAnnouncementText] = React.useState('');
@@ -61,17 +63,20 @@ export function OrderReadyDialog({
 
     try {
         const nameToAnnounce = customer?.name || transaction.customerName;
+        
         const generatedTextResult = await getOrderReadyFollowUp({
             customerName: nameToAnnounce,
             storeName: store.name,
             itemsOrdered: transaction.items.map(item => item.productName),
         });
+        
         const text = generatedTextResult.followUpMessage;
         setAnnouncementText(text);
 
         if (actionType === 'call') {
             const audioResult = await convertTextToSpeech({ text, voiceName: receiptSettings.voice });
             setAudioDataUri(audioResult.audioDataUri);
+            onSuccess?.(); // Indicate success for any action type
         } else if (actionType === 'whatsapp') {
             if (!customer?.phone) throw new Error("Nomor telepon pelanggan tidak ditemukan untuk mengirim WhatsApp.");
             
@@ -83,8 +88,11 @@ export function OrderReadyDialog({
                 phoneNumber: formattedPhone,
                 message: text,
             });
+
             if (!waResult.success) throw new Error(waResult.message);
+            
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
+            onSuccess?.(); // Indicate success only for WhatsApp
             onOpenChange(false); // Close dialog on successful send
         }
 
@@ -100,7 +108,7 @@ export function OrderReadyDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [actionType, customer, store, transaction, onOpenChange, toast, receiptSettings, open]);
+  }, [actionType, customer, store, transaction, onOpenChange, toast, receiptSettings, open, onSuccess]);
   
   React.useEffect(() => {
     if (audioDataUri && audioRef.current && actionType === 'call') {

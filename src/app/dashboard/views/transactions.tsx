@@ -151,6 +151,7 @@ export default function Transactions({ transactions, stores, users, customers, o
   const [actionInProgress, setActionInProgress] = React.useState<{ transaction: Transaction; type: 'call' | 'whatsapp' } | null>(null);
   const [completingTransactionId, setCompletingTransactionId] = React.useState<string | null>(null);
   const [transactionToComplete, setTransactionToComplete] = React.useState<Transaction | null>(null);
+  const [sentWhatsappIds, setSentWhatsappIds] = React.useState<Set<string>>(new Set());
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
@@ -169,6 +170,10 @@ export default function Transactions({ transactions, stores, users, customers, o
     setActionInProgress({ transaction, type });
   };
   
+  const handleWhatsappSent = (transactionId: string) => {
+    setSentWhatsappIds(prev => new Set(prev).add(transactionId));
+  }
+
   const handleCompleteTransaction = async () => {
     if (!transactionToComplete || !activeStore) return;
     
@@ -282,7 +287,7 @@ export default function Transactions({ transactions, stores, users, customers, o
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={() => handleActionClick(transaction, 'whatsapp')}
-                                        disabled={!getCustomerForTransaction(transaction)}
+                                        disabled={!getCustomerForTransaction(transaction) || sentWhatsappIds.has(transaction.id)}
                                     >
                                         <Send className="h-4 w-4"/>
                                         <span className="sr-only">Kirim WhatsApp</span>
@@ -347,6 +352,11 @@ export default function Transactions({ transactions, stores, users, customers, o
           open={!!actionInProgress}
           onOpenChange={() => setActionInProgress(null)}
           actionType={actionInProgress.type}
+          onSuccess={() => {
+            if (actionInProgress.type === 'whatsapp') {
+                handleWhatsappSent(actionInProgress.transaction.id);
+            }
+          }}
         />
       )}
       <AlertDialog open={!!transactionToComplete} onOpenChange={() => setTransactionToComplete(null)}>
