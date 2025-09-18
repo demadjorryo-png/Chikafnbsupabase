@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const ChikaAnalystInputSchema = z.object({
+const ChikaAnalystInputSchema = z.object({
   question: z.string().describe('The business-related question from the admin.'),
   totalRevenueLastMonth: z.number().describe('Total revenue from the previous full month.'),
   topSellingProducts: z.array(z.string()).describe('A list of the current best-selling products.'),
@@ -20,7 +20,7 @@ export const ChikaAnalystInputSchema = z.object({
 });
 export type ChikaAnalystInput = z.infer<typeof ChikaAnalystInputSchema>;
 
-export const ChikaAnalystOutputSchema = z.object({
+const ChikaAnalystOutputSchema = z.object({
   answer: z.string().describe('A concise, actionable, and data-driven answer in Indonesian.'),
 });
 export type ChikaAnalystOutput = z.infer<typeof ChikaAnalystOutputSchema>;

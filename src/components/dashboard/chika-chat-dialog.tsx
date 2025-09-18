@@ -19,8 +19,7 @@ import { deductAiUsageFee, getTransactionFeeSettings } from '@/lib/app-settings'
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { askChika, ChikaAnalystInputSchema } from '@/ai/flows/business-analyst';
-import { z } from 'zod';
+import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -135,7 +134,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
         });
         const sortedProducts = Object.entries(productSales).sort(([, a], [, b]) => b - a);
 
-        const aiInput: z.infer<typeof ChikaAnalystInputSchema> = {
+        const aiInput: ChikaAnalystInput = {
             question: userMessage.text,
             activeStoreName: activeStore.name,
             totalRevenueLastMonth,
