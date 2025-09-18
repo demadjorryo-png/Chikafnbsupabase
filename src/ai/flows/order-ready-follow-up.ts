@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -22,7 +23,7 @@ const OrderReadyFollowUpOutputSchema = z.object({
   followUpMessage: z
     .string()
     .describe(
-      'A friendly and concise message in Indonesian to inform the customer their order is ready, including a fun fact about one of the items.'
+      'A friendly and concise message in Indonesian to inform the customer their order is ready, including a fun fact, quote, or pantun about one of the items.'
     ),
 });
 export type OrderReadyFollowUpOutput = z.infer<typeof OrderReadyFollowUpOutputSchema>;
@@ -39,18 +40,29 @@ const prompt = ai.definePrompt({
   output: { schema: OrderReadyFollowUpOutputSchema },
   prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.
 
-Tugas Anda adalah membuat pesan singkat untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil di kasir. Pesan harus dalam Bahasa Indonesia.
+Tugas Anda adalah membuat pesan notifikasi WhatsApp yang terstruktur dan menarik untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil. Pesan harus dalam Bahasa Indonesia dan menggunakan format Markdown WhatsApp (misalnya, *teks tebal*).
 
-Sebagai sentuhan kreatif, sertakan **satu fakta menarik, kutipan, atau trivia unik** yang berhubungan dengan SALAH SATU item yang dipesan. Buatlah terdengar natural dan tidak kaku.
+Struktur pesan harus rapi:
+1.  Sapa pelanggan dengan ramah (*Halo [Nama Pelanggan]!*).
+2.  Beritahu bahwa pesanan mereka di *[Nama Toko]* sudah siap.
+3.  Di bagian tengah, tambahkan sentuhan kreatif: **satu fakta menarik, kutipan, atau pantun unik** yang berhubungan dengan SALAH SATU item yang dipesan. Bungkus bagian ini dalam format kutipan (misalnya, dengan garis bawah atau tanda kutip) agar menonjol.
+4.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.
 
 Detail Pesanan:
 - Nama Pelanggan: {{customerName}}
 - Nama Toko: {{storeName}}
 - Item yang Dipesan: {{#each itemsOrdered}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-Contoh: Jika item adalah "Kopi", fakta menariknya bisa tentang sejarah kopi. Jika itemnya adalah "T-Shirt", bisa tentang kapas.
+Contoh output yang baik:
+*Halo Budi!*
 
-Buat pesan yang jelas, to-the-point, dan sedikit menyenangkan.`,
+Pesanan Anda di *Toko Chika* sudah siap diambil di kasir.
+
+> _Tahukah Anda? Kopi adalah minuman kedua yang paling banyak dikonsumsi di dunia setelah air!_
+
+Silakan segera diambil ya. Terima kasih!
+
+Buat pesan yang jelas, menyenangkan, dan profesional.`,
 });
 
 const orderReadyFollowUpFlow = ai.defineFlow(
