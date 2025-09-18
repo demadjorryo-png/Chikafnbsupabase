@@ -17,8 +17,6 @@ import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import type { Customer, Store, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { getReceiptSettings } from '@/lib/receipt-settings';
-import type { ReceiptSettings } from '@/lib/types';
 
 
 type OrderReadyDialogProps = {
@@ -43,18 +41,12 @@ export function OrderReadyDialog({
   const [isLoading, setIsLoading] = React.useState(true);
   const [announcementText, setAnnouncementText] = React.useState('');
   const [audioDataUri, setAudioDataUri] = React.useState('');
-  const [receiptSettings, setReceiptSettings] = React.useState<ReceiptSettings | null>(null);
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   
-  React.useEffect(() => {
-    if(store?.id) {
-        getReceiptSettings(store.id).then(setReceiptSettings);
-    }
-  }, [store]);
 
   const processAction = React.useCallback(async () => {
-    if (!receiptSettings || !store.id) {
+    if (!store.id) {
         if(open) toast({ variant: 'destructive', title: 'Pengaturan belum dimuat. Coba lagi.' });
         setIsLoading(false);
         return;
@@ -78,9 +70,9 @@ export function OrderReadyDialog({
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const audioResult = await convertTextToSpeech({ text, voiceName: receiptSettings.voice });
+            const audioResult = await convertTextToSpeech({ text });
             setAudioDataUri(audioResult.audioDataUri);
-            onSuccess?.(); // Indicate success for any action type
+            onSuccess?.();
         } else if (actionType === 'whatsapp') {
             if (!customer?.phone) throw new Error("Nomor telepon pelanggan tidak ditemukan untuk mengirim WhatsApp.");
             
@@ -96,8 +88,8 @@ export function OrderReadyDialog({
             if (!waResult.success) throw new Error(waResult.message);
             
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
-            onSuccess?.(); // Indicate success only for WhatsApp
-            onOpenChange(false); // Close dialog on successful send
+            onSuccess?.();
+            onOpenChange(false);
         }
 
     } catch (error) {
@@ -107,12 +99,11 @@ export function OrderReadyDialog({
         title: `Gagal Melakukan Aksi: ${actionType}`,
         description: (error as Error).message,
       });
-      // Close dialog on error as well
       onOpenChange(false);
     } finally {
       setIsLoading(false);
     }
-  }, [actionType, customer, store, transaction, onOpenChange, toast, receiptSettings, open, onSuccess]);
+  }, [actionType, customer, store, transaction, onOpenChange, toast, open, onSuccess]);
   
   React.useEffect(() => {
     if (audioDataUri && audioRef.current && actionType === 'call') {
@@ -121,12 +112,12 @@ export function OrderReadyDialog({
   }, [audioDataUri, actionType]);
 
   React.useEffect(() => {
-    if (open && receiptSettings) {
+    if (open) {
         setAnnouncementText('');
         setAudioDataUri('');
         processAction();
     }
-  }, [open, receiptSettings, processAction]);
+  }, [open, processAction]);
 
 
   return (

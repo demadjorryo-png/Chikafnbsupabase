@@ -18,7 +18,6 @@ export type ReceiptSettings = {
     headerText: string;
     footerText: string;
     promoText: string;
-    voice: string;
 };
 
 export type Store = {
@@ -71,7 +70,7 @@ export type Customer = {
   avatarUrl: string;
 };
 
-export type TransactionStatus = 'Diproses' | 'Selesai';
+export type TransactionStatus = 'Diproses' | 'Selesai' | 'Selesai Dibayar';
 
 export type Transaction = {
   id: string;

@@ -7,7 +7,6 @@ export const defaultReceiptSettings: ReceiptSettings = {
     headerText: "Toko Chika\nJl. Jenderal Sudirman No. 1, Jakarta\nTelp: 0812-3456-7890",
     footerText: "Terima kasih telah berbelanja!",
     promoText: "Kumpulkan poin dan dapatkan hadiah menarik!",
-    voice: "Algenib", // Default male voice
 };
 
 /**
