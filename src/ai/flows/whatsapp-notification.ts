@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A utility flow for sending WhatsApp notifications via WhaCenter webhook.
@@ -11,7 +12,7 @@ import { z } from 'genkit';
 
 const WHA_CENTER_DEVICE_ID = '0fe2d894646b1e3111e0e40c809b5501';
 
-export const WhatsAppNotificationInputSchema = z.object({
+const WhatsAppNotificationInputSchema = z.object({
   phoneNumber: z.string().describe('The recipient\'s phone number in international format (e.g., 6281234567890).'),
   message: z.string().describe('The text message to send.'),
 });
