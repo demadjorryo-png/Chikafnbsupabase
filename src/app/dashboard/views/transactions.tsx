@@ -20,7 +20,7 @@ import {
 import type { Transaction, Store, User, Customer } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Volume2 } from 'lucide-react';
+import { MoreHorizontal, Volume2, Send } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,7 +134,8 @@ export default function Transactions({ transactions, stores, users, customers, o
   const { activeStore } = useAuth();
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
-  const [orderReadyTransaction, setOrderReadyTransaction] = React.useState<Transaction | null>(null);
+  
+  const [actionInProgress, setActionInProgress] = React.useState<{ transactionId: string; type: 'call' | 'whatsapp' } | null>(null);
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
@@ -148,6 +149,12 @@ export default function Transactions({ transactions, stores, users, customers, o
       if (!transaction.customerId || transaction.customerId === 'N/A') return undefined;
       return customers.find(c => c.id === transaction.customerId);
   }
+
+  const handleActionClick = (transaction: Transaction, type: 'call' | 'whatsapp') => {
+    if (transaction.customerId || type === 'call') {
+      setActionInProgress({ transactionId: transaction.id, type });
+    }
+  };
 
   return (
     <>
@@ -215,15 +222,27 @@ export default function Transactions({ transactions, stores, users, customers, o
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {transaction.status === 'Diproses' && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2"
-                                    onClick={() => setOrderReadyTransaction(transaction)}
-                                >
-                                    <Volume2 className="h-3 w-3"/>
-                                    Panggil
-                                </Button>
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => handleActionClick(transaction, 'call')}
+                                    >
+                                        <Volume2 className="h-4 w-4"/>
+                                        <span className="sr-only">Panggil Pelanggan</span>
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => handleActionClick(transaction, 'whatsapp')}
+                                        disabled={!transaction.customerId || transaction.customerId === 'N/A'}
+                                    >
+                                        <Send className="h-4 w-4"/>
+                                        <span className="sr-only">Kirim WhatsApp</span>
+                                    </Button>
+                                </>
                             )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -265,15 +284,16 @@ export default function Transactions({ transactions, stores, users, customers, o
               users={users}
           />
       )}
-      {orderReadyTransaction && activeStore && (
-          <OrderReadyDialog
-              transaction={orderReadyTransaction}
-              customer={getCustomerForTransaction(orderReadyTransaction)}
-              store={activeStore}
-              open={!!orderReadyTransaction}
-              onOpenChange={() => setOrderReadyTransaction(null)}
-              onStatusUpdated={onDataChange}
-          />
+      {actionInProgress && activeStore && (
+        <OrderReadyDialog
+          transaction={transactions.find(t => t.id === actionInProgress.transactionId)!}
+          customer={getCustomerForTransaction(transactions.find(t => t.id === actionInProgress.transactionId)!)}
+          store={activeStore}
+          open={!!actionInProgress}
+          onOpenChange={() => setActionInProgress(null)}
+          onStatusUpdated={onDataChange}
+          actionType={actionInProgress.type}
+        />
       )}
     </>
   );

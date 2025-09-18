@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,7 +17,7 @@ import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import type { Customer, Store, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Separator } from '../ui/separator';
 import { getReceiptSettings } from '@/lib/receipt-settings';
@@ -30,6 +31,7 @@ type OrderReadyDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusUpdated: () => void;
+  actionType: 'call' | 'whatsapp';
 };
 
 export function OrderReadyDialog({
@@ -39,8 +41,9 @@ export function OrderReadyDialog({
   open,
   onOpenChange,
   onStatusUpdated,
+  actionType,
 }: OrderReadyDialogProps) {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isSendingWa, setIsSendingWa] = React.useState(false);
   const [announcementText, setAnnouncementText] = React.useState('');
   const [audioDataUri, setAudioDataUri] = React.useState('');
@@ -54,116 +57,95 @@ export function OrderReadyDialog({
     }
   }, [store]);
 
-  const handleCallCustomer = React.useCallback(async () => {
-    if (!receiptSettings) {
-        toast({ variant: 'destructive', title: 'Pengaturan suara belum dimuat.' });
+  const processAction = React.useCallback(async () => {
+    if (!receiptSettings || !store.id) {
+        if(open) toast({ variant: 'destructive', title: 'Pengaturan belum dimuat. Coba lagi.' });
+        setIsLoading(false);
         return;
     }
 
     setIsLoading(true);
-    setAnnouncementText('');
-    setAudioDataUri('');
 
     try {
-      const batch = writeBatch(db);
-      
-      const nameToAnnounce = customer?.name || transaction.customerName;
+        const nameToAnnounce = customer?.name || transaction.customerName;
+        const generatedTextResult = await getOrderReadyFollowUp({
+            customerName: nameToAnnounce,
+            storeName: store.name,
+            itemsOrdered: transaction.items.map(item => item.productName),
+        });
+        const text = generatedTextResult.followUpMessage;
+        setAnnouncementText(text);
 
-      // 1. Generate announcement text
-      const result = await getOrderReadyFollowUp({
-        customerName: nameToAnnounce,
-        storeName: store.name,
-        itemsOrdered: transaction.items.map(item => item.productName),
-      });
-      const text = result.followUpMessage;
-      setAnnouncementText(text);
+        if (actionType === 'call') {
+            const audioResult = await convertTextToSpeech({ text, voiceName: receiptSettings.voice });
+            setAudioDataUri(audioResult.audioDataUri);
+        } else if (actionType === 'whatsapp') {
+            if (!customer?.phone) throw new Error("Nomor telepon pelanggan tidak ditemukan.");
+            
+            const formattedPhone = customer.phone.startsWith('0')
+                ? `62${customer.phone.substring(1)}`
+                : customer.phone;
 
-      // 2. Generate audio from text using the stored voice setting
-      const audioResult = await convertTextToSpeech({ text, voiceName: receiptSettings.voice });
-      setAudioDataUri(audioResult.audioDataUri);
+            const waResult = await sendWhatsAppNotification({
+                phoneNumber: formattedPhone,
+                message: text,
+            });
+            if (!waResult.success) throw new Error(waResult.message);
+            toast({ title: "Notifikasi WhatsApp Terkirim!" });
+        }
 
-      // 3. Update transaction status
-      const transactionCollectionName = `transactions_${store.id}`;
-      const transactionRef = doc(db, transactionCollectionName, transaction.id);
-      batch.update(transactionRef, { status: 'Selesai' });
-      
-      // 4. Update table status if applicable
-      if (transaction.tableId) {
-        const tableCollectionName = `tables_${store.id}`;
-        const tableRef = doc(db, tableCollectionName, transaction.tableId);
-        batch.update(tableRef, { status: 'Selesai Dibayar' });
-      }
-
-      await batch.commit();
-
-      toast({
-        title: 'Status Pesanan & Meja Diperbarui!',
-        description: `Status transaksi telah diubah menjadi "Selesai".`,
-      });
-
-      onStatusUpdated();
+        // --- Update Status (only if still 'Diproses') ---
+        const transactionCollectionName = `transactions_${store.id}`;
+        const transactionRef = doc(db, transactionCollectionName, transaction.id);
+        
+        const currentTransactionDoc = await getDoc(transactionRef);
+        if (currentTransactionDoc.exists() && currentTransactionDoc.data().status === 'Diproses') {
+            const batch = writeBatch(db);
+            batch.update(transactionRef, { status: 'Selesai' });
+            if (transaction.tableId) {
+                const tableCollectionName = `tables_${store.id}`;
+                const tableRef = doc(db, tableCollectionName, transaction.tableId);
+                batch.update(tableRef, { status: 'Selesai Dibayar' });
+            }
+            await batch.commit();
+            toast({ title: 'Status Pesanan Diperbarui Menjadi "Selesai"' });
+            onStatusUpdated();
+        }
 
     } catch (error) {
       console.error('Error in order ready flow:', error);
       toast({
         variant: 'destructive',
-        title: 'Gagal Memanggil Pelanggan',
-        description: 'Terjadi kesalahan saat memproses permintaan Anda. Coba lagi.',
+        title: `Gagal Melakukan Aksi: ${actionType}`,
+        description: (error as Error).message,
       });
     } finally {
       setIsLoading(false);
     }
-  }, [customer, store, transaction, onStatusUpdated, toast, receiptSettings]);
+  }, [actionType, customer, store, transaction, onStatusUpdated, toast, receiptSettings, open]);
   
-  // Effect to auto-play audio when URI is available
   React.useEffect(() => {
-    if (audioDataUri && audioRef.current) {
+    if (audioDataUri && audioRef.current && actionType === 'call') {
       audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
     }
-  }, [audioDataUri]);
+  }, [audioDataUri, actionType]);
 
-  // Effect to reset state and call customer when dialog opens
-   React.useEffect(() => {
+  React.useEffect(() => {
     if (open && receiptSettings) {
-      handleCallCustomer();
+        setAnnouncementText('');
+        setAudioDataUri('');
+        processAction();
     }
-  }, [open, handleCallCustomer, receiptSettings]);
-
-  const sendWhatsApp = async () => {
-     if (!customer || !announcementText) return;
-     setIsSendingWa(true);
-     
-     const formattedPhone = customer.phone.startsWith('0')
-        ? `62${customer.phone.substring(1)}`
-        : customer.phone;
-
-      try {
-        const result = await sendWhatsAppNotification({
-            phoneNumber: formattedPhone,
-            message: announcementText,
-        });
-
-        if (result.success) {
-            toast({ title: "Notifikasi WhatsApp Terkirim!" });
-        } else {
-            throw new Error(result.message);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        toast({ variant: 'destructive', title: "Gagal Mengirim WhatsApp", description: errorMessage });
-      } finally {
-        setIsSendingWa(false);
-      }
-  }
+  }, [open, receiptSettings, processAction]);
 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Panggil Pelanggan</DialogTitle>
+          <DialogTitle>Panggilan Tindakan Pesanan</DialogTitle>
           <DialogDescription>
-            Sistem akan mengumumkan bahwa pesanan untuk {customer?.name || transaction.customerName} telah siap.
+            Memproses tindakan untuk pesanan {customer?.name || transaction.customerName}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -179,38 +161,30 @@ export function OrderReadyDialog({
           {isLoading && (
             <div className="flex items-center justify-center gap-2 py-4">
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
-                <span>Memproses panggilan...</span>
+                <span>Memproses {actionType === 'call' ? 'panggilan suara' : 'pesan WhatsApp'}...</span>
             </div>
           )}
 
-          {!isLoading && announcementText && audioDataUri && (
+          {!isLoading && announcementText && (
             <>
-            <Alert variant="default" className="bg-primary/10 border-primary/30">
-              <Volume2 className="h-4 w-4" />
-              <AlertTitle className="font-semibold">Pengumuman Disiarkan</AlertTitle>
+            <Alert variant="default" className={actionType === 'call' ? 'bg-primary/10 border-primary/30' : 'bg-green-500/10 border-green-500/30'}>
+              {actionType === 'call' ? <Volume2 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+              <AlertTitle className="font-semibold">{actionType === 'call' ? 'Pengumuman Suara' : 'Pesan WhatsApp'}</AlertTitle>
               <AlertDescription>
                 "{announcementText}"
               </AlertDescription>
             </Alert>
-            <audio ref={audioRef} src={audioDataUri} className="w-full" controls />
-            <Separator />
-            <Button
-                className="w-full"
-                variant="secondary"
-                onClick={sendWhatsApp}
-                disabled={!customer || isSendingWa}
-            >
-                {isSendingWa ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Kirim juga via WhatsApp
-            </Button>
+            {actionType === 'call' && audioDataUri && (
+                <audio ref={audioRef} src={audioDataUri} className="w-full" controls autoPlay/>
+            )}
             </>
           )}
 
-          {!isLoading && !announcementText && !audioDataUri && (
+          {!isLoading && !announcementText && (
             <Alert variant="destructive">
-              <AlertTitle>Gagal Memproses Panggilan</AlertTitle>
+              <AlertTitle>Gagal Memproses</AlertTitle>
               <AlertDescription>
-                Terjadi kesalahan saat memproses panggilan. Silakan tutup dan coba lagi.
+                Terjadi kesalahan. Silakan tutup dan coba lagi.
               </AlertDescription>
             </Alert>
           )}
