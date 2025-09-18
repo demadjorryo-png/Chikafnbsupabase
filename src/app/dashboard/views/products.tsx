@@ -270,7 +270,7 @@ export default function Products({ products: cashierProducts, stores, onDataChan
 
   return (
     <>
-      <div className={cn(isAdmin ? "grid md:grid-cols-[220px_1fr] lg:grid-cols-[250px_1fr] gap-6" : "")}>
+      <div className={cn(isAdmin && "grid md:grid-cols-[250px_1fr] gap-6")}>
         {isAdmin && (
           <nav className="grid gap-2 text-sm text-muted-foreground">
             <h3 className="font-semibold text-primary px-4">Pilih toko</h3>
@@ -337,32 +337,34 @@ export default function Products({ products: cashierProducts, stores, onDataChan
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Add Product
-                      </span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">
-                        Add New Product
-                      </DialogTitle>
-                      <DialogDescription>
-                        Menambahkan produk baru ke inventaris {currentStore?.name}.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {currentStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
-                      onProductAdded={handleDataUpdate}
-                      activeStore={currentStore}
-                    />}
-                  </DialogContent>
-                </Dialog>
+                {isAdmin && (
+                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="h-10 gap-1" disabled={!currentStore}>
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                          Add Product
+                        </span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="font-headline tracking-wider">
+                          Add New Product
+                        </DialogTitle>
+                        <DialogDescription>
+                          Menambahkan produk baru ke inventaris {currentStore?.name}.
+                        </DialogDescription>
+                      </DialogHeader>
+                      {currentStore && <AddProductForm 
+                        setDialogOpen={setIsAddDialogOpen} 
+                        userRole={userRole} 
+                        onProductAdded={handleDataUpdate}
+                        activeStore={currentStore}
+                      />}
+                    </DialogContent>
+                  </Dialog>
+                )}
                 
               </div>
             </div>
