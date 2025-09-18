@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -28,6 +29,7 @@ import {
   Receipt,
   UserCircle,
   BarChart4,
+  Armchair,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
@@ -71,6 +73,12 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       view: 'pos',
       label: 'Point of Sale',
       icon: <ShoppingCart />,
+      roles: ['admin', 'cashier'],
+    },
+     {
+      view: 'tables',
+      label: 'Meja',
+      icon: <Armchair />,
       roles: ['admin', 'cashier'],
     },
     {

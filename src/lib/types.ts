@@ -1,4 +1,5 @@
 
+
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -87,6 +88,7 @@ export type Transaction = {
   pointsEarned: number;
   pointsRedeemed: number;
   items: CartItem[];
+  tableId?: string; // Optional table reference
 };
 
 export type CartItem = {
@@ -131,4 +133,20 @@ export type ChallengePeriod = {
   period: string;
   challenges: Challenge[];
   isActive: boolean;
+};
+
+export type TableStatus = 'Tersedia' | 'Terisi';
+
+export type TableOrder = {
+  items: CartItem[];
+  totalAmount: number;
+  orderTime: string; // ISO 8601
+};
+
+export type Table = {
+  id: string;
+  name: string;
+  status: TableStatus;
+  capacity: number;
+  currentOrder?: TableOrder;
 };

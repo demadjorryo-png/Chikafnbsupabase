@@ -19,8 +19,9 @@ import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
+import Tables from '@/app/dashboard/views/tables';
 import { Suspense } from 'react';
-import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder } from '@/lib/types';
+import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder, Table } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +40,7 @@ function DashboardContent() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
+  const [tables, setTables] = React.useState<Table[]>([]);
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
   
   const [isDataLoading, setIsDataLoading] = React.useState(true);
@@ -54,6 +56,7 @@ function DashboardContent() {
         const customerCollectionName = `customers_${storeId}`;
         const transactionCollectionName = `transactions_${storeId}`;
         const pendingOrderCollectionName = `pendingOrders_${storeId}`;
+        const tableCollectionName = `tables_${storeId}`;
 
         const [
             storesSnapshot,
@@ -64,6 +67,7 @@ function DashboardContent() {
             feeSettingsData,
             transactionsSnapshot,
             pendingOrdersSnapshot,
+            tablesSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             getDocs(query(collection(db, productCollectionName), orderBy('name'))),
@@ -73,6 +77,7 @@ function DashboardContent() {
             getTransactionFeeSettings(),
             getDocs(query(collection(db, transactionCollectionName), orderBy('createdAt', 'desc'))),
             getDocs(query(collection(db, pendingOrderCollectionName), orderBy('createdAt', 'desc'))),
+            getDocs(query(collection(db, tableCollectionName), orderBy('name'))),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
@@ -86,6 +91,7 @@ function DashboardContent() {
         
         setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
         setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
+        setTables(tablesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Table)));
         
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
@@ -161,6 +167,12 @@ function DashboardContent() {
                     feeSettings={feeSettings}
                     pradanaTokenBalance={pradanaTokenBalance}
                 />;
+      case 'tables':
+        return <Tables 
+                  tables={tables}
+                  onDataChange={fetchAllData}
+                  isLoading={isDataLoading}
+                />;
       case 'products':
         return <Products 
                   products={products}
@@ -206,6 +218,7 @@ function DashboardContent() {
     const baseTitle = {
       'overview': 'Dashboard Overview',
       'pos': 'Point of Sale',
+      'tables': 'Manajemen Meja',
       'products': 'Inventaris Produk',
       'customers': 'Manajemen Pelanggan',
       'customer-analytics': 'Analisis Pelanggan',
