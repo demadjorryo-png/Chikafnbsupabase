@@ -135,7 +135,7 @@ export type ChallengePeriod = {
   isActive: boolean;
 };
 
-export type TableStatus = 'Tersedia' | 'Terisi';
+export type TableStatus = 'Tersedia' | 'Terisi' | 'Dipesan';
 
 export type TableOrder = {
   items: CartItem[];

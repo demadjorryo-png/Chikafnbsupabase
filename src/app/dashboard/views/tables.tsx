@@ -41,8 +41,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart } from 'lucide-react';
-import type { Table, CartItem } from '@/lib/types';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked } from 'lucide-react';
+import type { Table, CartItem, TableStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction } from 'firebase/firestore';
@@ -190,6 +190,20 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
     setSelectedTable(table);
     setIsClearTableDialogOpen(true);
   }
+
+  const handleChangeStatus = async (table: Table, newStatus: TableStatus) => {
+    if (!activeStore) return;
+    const tableCollectionName = `tables_${activeStore.id}`;
+    const tableRef = doc(db, tableCollectionName, table.id);
+    try {
+        await updateDoc(tableRef, { status: newStatus });
+        toast({ title: `Status meja ${table.name} diubah menjadi ${newStatus}` });
+        onDataChange();
+    } catch(error) {
+        console.error("Error changing status:", error);
+        toast({ variant: 'destructive', title: 'Gagal mengubah status' });
+    }
+  }
   
   const closeDialogs = () => {
     setIsAddDialogOpen(false);
@@ -202,15 +216,40 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   }
   
   const handleTableClick = (table: Table) => {
-    if (table.status === 'Tersedia') {
+    if (table.status === 'Tersedia' || table.status === 'Dipesan') {
       const params = new URLSearchParams();
       params.set('view', 'pos');
       params.set('tableId', table.id);
       params.set('tableName', table.name);
       router.push(`/dashboard?${params.toString()}`);
-    } else {
-        // Can add a view order details dialog here later
+    } else { // Terisi
         openClearDialog(table);
+    }
+  }
+
+  const getStatusColor = (status: TableStatus) => {
+    switch(status) {
+        case 'Tersedia':
+            return 'bg-green-100/10 border-green-500/30 hover:border-green-500';
+        case 'Terisi':
+            return 'bg-amber-100/10 border-amber-500/30 hover:border-amber-500';
+        case 'Dipesan':
+            return 'bg-blue-100/10 border-blue-500/30 hover:border-blue-500';
+        default:
+            return '';
+    }
+  }
+
+  const getBadgeStyle = (status: TableStatus) => {
+      switch(status) {
+        case 'Tersedia':
+            return 'bg-green-500/20 text-green-700 border-green-500/50';
+        case 'Terisi':
+            return 'bg-amber-500/20 text-amber-800 border-amber-500/50';
+        case 'Dipesan':
+            return 'bg-blue-500/20 text-blue-800 border-blue-500/50';
+        default:
+            return '';
     }
   }
 
@@ -279,7 +318,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                 onClick={() => handleTableClick(table)}
                 className={cn(
                     "flex flex-col justify-between p-4 cursor-pointer transition-all hover:shadow-lg",
-                    table.status === 'Tersedia' ? 'bg-green-100/10 border-green-500/30 hover:border-green-500' : 'bg-amber-100/10 border-amber-500/30 hover:border-amber-500'
+                    getStatusColor(table.status)
                 )}
               >
                 <CardHeader className="p-0 flex-row items-start justify-between">
@@ -295,20 +334,27 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuLabel>Aksi Meja</DropdownMenuLabel>
+                        <DropdownMenuLabel>Aksi Cepat</DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Dipesan')} disabled={table.status === 'Dipesan' || table.status === 'Terisi'}>
+                          <BookMarked className="mr-2 h-4 w-4" /> Tandai Dipesan
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Tersedia')} disabled={table.status === 'Tersedia'}>
+                          <Check className="mr-2 h-4 w-4" /> Tandai Tersedia
+                        </DropdownMenuItem>
+                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEditDialog(table)}>
-                          <Edit className="mr-2 h-4 w-4" /> Ubah
+                          <Edit className="mr-2 h-4 w-4" /> Ubah Detail
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => openDeleteDialog(table)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                          <Trash2 className="mr-2 h-4 w-4" /> Hapus Meja
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
                 </CardHeader>
                 <CardContent className="p-0 mt-2">
-                    <Badge variant={table.status === 'Tersedia' ? 'secondary' : 'default'} className={cn(table.status === 'Tersedia' ? 'bg-green-500/20 text-green-700 border-green-500/50' : 'bg-amber-500/20 text-amber-800 border-amber-500/50')}>{table.status}</Badge>
+                    <Badge variant={'secondary'} className={cn('font-semibold', getBadgeStyle(table.status))}>{table.status}</Badge>
                 </CardContent>
                 <CardFooter className="p-0 mt-2 text-xs text-muted-foreground">
                     {table.status === 'Terisi' && table.currentOrder ? (
