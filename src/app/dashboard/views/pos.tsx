@@ -26,6 +26,7 @@ import {
   Gift,
   Coins,
   Armchair,
+  Bell,
 } from 'lucide-react';
 import {
   Table as ShadcnTable,
@@ -64,6 +65,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Switch } from '@/components/ui/switch';
 
 type POSProps = {
     products: Product[];
@@ -136,6 +138,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
+  const [isDineIn, setIsDineIn] = React.useState(false);
   const { toast } = useToast();
   
   const customerOptions = customers.map((c) => ({
@@ -446,6 +449,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
+            status: isDineIn ? 'Diproses' : 'Selesai',
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
@@ -781,11 +785,21 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             )}
 
             {!selectedTableId && (
-                <div className="grid grid-cols-3 gap-2">
-                    <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                    <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                    <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-                </div>
+                <>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                        <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
+                            <Bell className="h-4 w-4" />
+                            <span>Sajikan di Sini (Dine-in)</span>
+                        </Label>
+                        <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                        <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                        <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                        <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+                    </div>
+                </>
             )}
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
                 {selectedTableId ? 'Buat Pesanan Meja' : 'Checkout'}

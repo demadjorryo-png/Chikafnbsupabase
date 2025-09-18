@@ -1,5 +1,3 @@
-
-
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -38,8 +36,6 @@ export type User = {
   id: string;
   name: string;
   role: UserRole;
-  userId?: string; // The login ID
-  password?: string;
   email?: string;
   whatsapp?: string;
   status: 'active' | 'inactive';
@@ -74,6 +70,8 @@ export type Customer = {
   avatarUrl: string;
 };
 
+export type TransactionStatus = 'Diproses' | 'Selesai';
+
 export type Transaction = {
   id: string;
   storeId: string;
@@ -89,6 +87,7 @@ export type Transaction = {
   pointsRedeemed: number;
   items: CartItem[];
   tableId?: string; // Optional table reference
+  status: TransactionStatus;
 };
 
 export type CartItem = {

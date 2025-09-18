@@ -186,7 +186,7 @@ function DashboardContent() {
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={transactions} stores={stores} users={users} isLoading={isDataLoading} />;
+        return <Transactions transactions={transactions} stores={stores} users={users} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'pending-orders':
         return <PendingOrders products={products} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
       case 'settings':
