@@ -131,7 +131,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
 
         toast({
             title: 'Member Berhasil Didaftarkan!',
-            description: `${data.name} sekarang menjadi bagian dari komunitas Bekupon.`,
+            description: `${data.name} sekarang menjadi bagian dari komunitas.`,
         });
 
         onCustomerAdded?.();
@@ -271,5 +271,3 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole }: Ad
     </Form>
   );
 }
-
-    

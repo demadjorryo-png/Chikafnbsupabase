@@ -35,7 +35,7 @@ const prompt = ai.definePrompt({
   name: 'adminRecommendationPrompt',
   input: { schema: AdminRecommendationInputSchema },
   output: { schema: AdminRecommendationOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Bekupon Vape Store.
+  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika.
 
 Tugas Anda adalah memberikan rekomendasi strategis mingguan dan bulanan untuk admin toko berdasarkan data kinerja berikut. Rekomendasi harus singkat, dapat ditindaklanjuti, dan dalam Bahasa Indonesia.
 

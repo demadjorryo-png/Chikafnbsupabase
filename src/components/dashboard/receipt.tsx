@@ -52,7 +52,7 @@ export function Receipt({ transaction }: ReceiptProps) {
       <div className="text-center space-y-1 mb-4">
         <div className="flex justify-center items-center gap-2">
             <VapeIcon className="h-8 w-8" />
-            <p className="font-headline text-2xl tracking-wider">BEKUPON</p>
+            <p className="font-headline text-2xl tracking-wider">CHIKA POS</p>
         </div>
         {headerText.split('\n').map((line, index) => (
           <p key={index}>{line}</p>

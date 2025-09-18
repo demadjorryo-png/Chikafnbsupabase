@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context';
 
 export const metadata: Metadata = {
-  title: 'Bekupon Basecamp',
-  description: 'Aplikasi POS & CRM untuk "Bekupon Vape Store"',
+  title: 'Kasir POS Chika',
+  description: 'Aplikasi Kasir POS Chika',
 };
 
 export default function RootLayout({

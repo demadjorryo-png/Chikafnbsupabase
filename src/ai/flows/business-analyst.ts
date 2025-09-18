@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview A conversational AI business analyst for Bekupon Vape Store.
+ * @fileOverview A conversational AI business analyst for Kasir POS Chika.
  *
  * - askChika - A function that allows an admin to ask business questions.
  * - ChikaAnalystInput - The input type for the askChika function.
@@ -35,7 +35,7 @@ const prompt = ai.definePrompt({
   name: 'businessAnalystPrompt',
   input: { schema: ChikaAnalystInputSchema },
   output: { schema: ChikaAnalystOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Bekupon Vape Store. Anda sedang menganalisis data untuk toko: {{activeStoreName}}.
+  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika. Anda sedang menganalisis data untuk toko: {{activeStoreName}}.
 
 Tugas Anda adalah menjawab pertanyaan dari admin secara ringkas, cerdas, dan berdasarkan data yang diberikan. Selalu berikan jawaban dalam Bahasa Indonesia.
 

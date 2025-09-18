@@ -47,14 +47,14 @@ const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk toko vape bernama "Bekupon Vape Store".
+  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk aplikasi "Kasir POS Chika".
 
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
 Gunakan Bahasa Indonesia untuk semua output teks.
 Nama tingkatan (tier) harus kreatif dan memotivasi (contoh: "Vape Pemula", "Pemburu Awan", "Master Puff").
 Deskripsi tantangan harus singkat, memotivasi, dan dalam Bahasa Indonesia.
-Target harus realistis namun menantang bagi karyawan toko vape, dimulai dari dasar yang wajar dan meningkat untuk setiap tingkatan. Pertimbangkan durasi tantangan saat menetapkan target. Periode yang lebih pendek harus memiliki target yang lebih rendah.
+Target harus realistis namun menantang bagi karyawan toko, dimulai dari dasar yang wajar dan meningkat untuk setiap tingkatan. Pertimbangkan durasi tantangan saat menetapkan target. Periode yang lebih pendek harus memiliki target yang lebih rendah.
 Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi harus mendapatkan hadiah terbesar. Hadiahnya bisa berupa bonus tunai.
 
 Periode Tantangan: {{startDate}} hingga {{endDate}}

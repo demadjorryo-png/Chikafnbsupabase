@@ -49,7 +49,7 @@ const prompt = ai.definePrompt({
   name: 'promotionRecommendationPrompt',
   input: { schema: PromotionRecommendationInputSchema },
   output: { schema: PromotionRecommendationOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Bekupon Vape Store.
+  prompt: `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Kasir POS Chika.
 
 Tugas Anda adalah menganalisis data promo saat ini dan kinerja produk untuk menghasilkan 2-3 rekomendasi promosi loyalitas yang kreatif dan dapat ditindaklanjuti. Rekomendasi harus dalam Bahasa Indonesia.
 

@@ -40,7 +40,7 @@ const prompt = ai.definePrompt({
   name: 'pendingOrderFollowUpPrompt',
   input: {schema: PendingOrderFollowUpInputSchema},
   output: {schema: PendingOrderFollowUpOutputSchema},
-  prompt: `You are Chika AI, a friendly assistant for Bekupon Vape Store. 
+  prompt: `You are Chika AI, a friendly assistant for Kasir POS Chika. 
 
 Your task is to generate a follow-up message for a customer whose pending order item is now back in stock. The message should be friendly, concise, and in Indonesian.
 

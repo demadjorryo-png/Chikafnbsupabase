@@ -286,7 +286,7 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">Register New Member</DialogTitle>
-                    <DialogDescription>Add a new customer to the Bekupon community.</DialogDescription>
+                    <DialogDescription>Add a new customer.</DialogDescription>
                   </DialogHeader>
                   {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
                 </DialogContent>

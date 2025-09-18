@@ -79,7 +79,7 @@ export default function LoginPage() {
         </div>
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline tracking-wider">BEKUPON CREW LOGIN</CardTitle>
+            <CardTitle className="text-2xl font-headline tracking-wider">KASIR POS CHIKA LOGIN</CardTitle>
             <CardDescription>
               Pilih toko dan masukkan kredensial Anda.
             </CardDescription>

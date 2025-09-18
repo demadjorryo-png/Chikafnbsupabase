@@ -7,7 +7,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
       xmlns="http://www.w3.org/2000/svg"
       width="24"
       height="24"
-      viewBox="0 0 24 24"
+      viewBox="0 0 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -34,7 +34,7 @@ export function Logo({ storeName }: LogoProps) {
         <VapeIcon className="h-6 w-6" />
       </div>
       <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-        <span className="font-headline text-2xl leading-none tracking-wider text-sidebar-foreground">Bekupon</span>
+        <span className="font-headline text-2xl leading-none tracking-wider text-sidebar-foreground">Chika POS</span>
         {storeName && (
             <span className="text-xs font-medium text-sidebar-foreground/70">{storeName}</span>
         )}

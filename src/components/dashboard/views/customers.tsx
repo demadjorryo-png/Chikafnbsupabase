@@ -118,8 +118,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Register New Member
                   </DialogTitle>
                   <DialogDescription>
-                    Add a new customer to the Bekupon community. Age will be
-                    verified.
+                    Add a new customer. Age will be verified.
                   </DialogDescription>
                 </DialogHeader>
                 {currentUser && <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -24,6 +25,7 @@ import {
   Printer,
   Plus,
   Gift,
+  Coins,
 } from 'lucide-react';
 import {
   Table,
@@ -57,15 +59,18 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference } from 'firebase/firestore';
+import { collection, doc, runTransaction, getDoc, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
     onDataChange: () => void;
     isLoading: boolean;
+    feeSettings: TransactionFeeSettings;
+    pradanaTokenBalance: number;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -91,8 +96,8 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading }: POSProps) {
-  const { currentUser, activeStore } = useAuth();
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+  const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -219,6 +224,14 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  const transactionFee = React.useMemo(() => {
+    if (currentUser?.role === 'admin') return 0; // Admin doesn't pay fee
+    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp);
+    return feeCappedAtMax / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings, currentUser]);
+  
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -246,6 +259,15 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
         toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
     }
+
+    if (currentUser.role === 'cashier' && pradanaTokenBalance < transactionFee) {
+        toast({
+            variant: 'destructive',
+            title: 'Saldo Token Global Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo global hanya ${pradanaTokenBalance.toFixed(2)}. Hubungi admin.`
+        });
+        return;
+    }
     
     setIsProcessingCheckout(true);
     
@@ -267,8 +289,19 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
           productReads.map(p => transaction.get(p.ref))
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
+        
+        // Also read token balance for cashier transactions
+        const tokenRef = currentUser.role === 'cashier' ? doc(db, 'appSettings', 'pradanaToken') : null;
+        const tokenDoc = tokenRef ? await transaction.get(tokenRef) : null;
 
         // --- Phase 2: VALIDATE & CALCULATE ---
+        if (currentUser.role === 'cashier') {
+            const currentTokenBalance = tokenDoc?.data()?.balance || 0;
+            if (currentTokenBalance < transactionFee) {
+                throw new Error(`Saldo Token Global Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+            }
+        }
+        
         const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
         
         for (let i = 0; i < productDocs.length; i++) {
@@ -296,14 +329,22 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
         }
 
         // --- Phase 3: WRITE ---
+        // 3a. Deduct token balance if cashier
+        if (tokenRef) {
+            transaction.update(tokenRef, { balance: increment(-transactionFee) });
+        }
+        
+        // 3b. Update product stock
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
         });
 
+        // 3c. Update customer points
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
+        // 3d. Create the transaction record
         const newTransactionRef = doc(collection(db, 'transactions'));
         const finalTransactionData: Transaction = {
             id: newTransactionRef.id,
@@ -326,6 +367,11 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
       });
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      
+      if (currentUser.role === 'cashier') {
+        refreshPradanaTokenBalance();
+      }
+      
       setCart([]);
       setDiscountValue(0);
       setPointsToRedeem(0);
@@ -463,7 +509,7 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
                       Register New Member
                     </DialogTitle>
                     <DialogDescription>
-                      Add a new customer to the Bekupon community. Age will be verified.
+                      Add a new customer. Age will be verified.
                     </DialogDescription>
                   </DialogHeader>
                   {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
@@ -611,6 +657,12 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
+              {currentUser?.role === 'cashier' && transactionFee > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
+                    <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
+                  </div>
+              )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
@@ -619,7 +671,7 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
             </div>
             
             {selectedCustomer && cart.length > 0 && (
-              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} />
+              <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
             <div className="grid grid-cols-3 gap-2">
@@ -660,5 +712,3 @@ export default function POS({ products, customers, onDataChange, isLoading }: PO
     </>
   );
 }
-
-    

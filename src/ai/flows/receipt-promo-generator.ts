@@ -31,7 +31,7 @@ const prompt = ai.definePrompt({
   name: 'receiptPromoPrompt',
   input: { schema: ReceiptPromoInputSchema },
   output: { schema: ReceiptPromoOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang copywriter kreatif untuk "Bekupon Vape Store".
+  prompt: `Anda adalah Chika AI, seorang copywriter kreatif untuk "Kasir POS Chika".
 
 Tugas Anda adalah membuat satu kalimat promosi yang singkat, menarik, dan cocok untuk dicetak di bagian bawah struk belanja.
 

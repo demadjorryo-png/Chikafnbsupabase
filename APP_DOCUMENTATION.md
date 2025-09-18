@@ -1,10 +1,10 @@
-# Dokumentasi Alur dan Fungsi Aplikasi Bekupon Basecamp
+# Dokumentasi Alur dan Fungsi Aplikasi Kasir POS Chika
 
-Dokumen ini memberikan gambaran menyeluruh tentang arsitektur, alur data, dan fungsionalitas utama dari aplikasi POS & CRM "Bekupon Basecamp".
+Dokumen ini memberikan gambaran menyeluruh tentang arsitektur, alur data, dan fungsionalitas utama dari aplikasi POS & CRM "Kasir POS Chika".
 
 ## 1. Ikhtisar dan Tumpukan Teknologi
 
-- **Tujuan**: Aplikasi web internal untuk "Bekupon Vape Store" guna mengelola penjualan (Point of Sale), inventaris, pelanggan, karyawan, dan mendapatkan rekomendasi bisnis berbasis AI.
+- **Tujuan**: Aplikasi web internal untuk "Kasir POS Chika" guna mengelola penjualan (Point of Sale), inventaris, pelanggan, karyawan, dan mendapatkan rekomendasi bisnis berbasis AI.
 - **Tumpukan Teknologi**:
   - **Frontend**: Next.js (App Router), React, TypeScript
   - **UI**: shadcn/ui, Tailwind CSS, Lucide React (ikon), Recharts (grafik)
