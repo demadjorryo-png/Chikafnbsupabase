@@ -75,7 +75,7 @@ export function ChikaChatDialog({ open, onOpenChange }: ChikaChatDialogProps) {
 
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
-    : "Halo! Saya Chika, konsultan AI Anda. Senang bisa membantu. Aplikasi seperti apa yang ada di pikiran Anda? Ceritakan saja ide besarnya.";
+    : "Halo! Selamat datang. Saya Chika, asisten AI untuk Rio Pradana, konsultan aplikasi AI kami. Saya di sini untuk membantu Anda menggali ide-ide aplikasi Anda agar tim kami bisa memberikan solusi terbaik. Jangan sungkan untuk berbagi detail sebanyak-banyaknya ya!";
     
   const exampleQuestions = isBusinessAnalystMode ? businessAnalystExampleQuestions : appConsultantExampleQuestions;
 
@@ -271,12 +271,13 @@ Mohon untuk segera ditindaklanjuti.`;
       <DialogContent className="max-w-lg h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline tracking-wider flex items-center gap-2">
-            <BrainCircuit /> {isBusinessAnalystMode ? 'Chika AI Business Analyst' : 'Konsultasi Aplikasi dengan Chika'}
+            <Sparkles /> 
+            {isBusinessAnalystMode ? 'Chika AI Business Analyst' : 'Konsultasi Aplikasi dengan Chika AI'}
           </DialogTitle>
           <DialogDescription>
             {isBusinessAnalystMode
               ? `Tanyakan apapun terkait performa bisnis di toko ini. (Biaya: ${feeSettings?.aiUsageFee} Token/pesan)`
-              : "Jawab pertanyaan Chika untuk mendefinisikan kebutuhan aplikasi Anda."}
+              : "Jelaskan ide aplikasi Anda. Chika akan membantu Anda merangkum kebutuhan proyek."}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>

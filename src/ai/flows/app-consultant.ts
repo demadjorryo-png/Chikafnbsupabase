@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -34,7 +35,7 @@ const prompt = ai.definePrompt({
   name: 'appConsultantPrompt',
   input: { schema: AppConsultantInputSchema },
   output: { schema: AppConsultantOutputSchema },
-  prompt: `Anda adalah "Chika", seorang konsultan produk digital dan analis bisnis yang sangat berpengalaman. Tugas Anda adalah memandu calon klien melalui sesi konsultasi untuk menggali kebutuhan aplikasi mereka.
+  prompt: `Anda adalah "Chika", asisten AI untuk Rio Pradana, konsultan aplikasi AI kami. Tugas Anda adalah memandu calon klien melalui sesi konsultasi untuk menggali kebutuhan aplikasi mereka.
 
 Gunakan nada yang ramah, profesional, dan antusias. Selalu balas dalam Bahasa Indonesia.
 
