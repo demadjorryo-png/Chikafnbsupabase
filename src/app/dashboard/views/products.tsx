@@ -53,7 +53,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -61,10 +61,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
-    products: Product[];
+    // For cashiers, products are passed down. For admins, it's an empty array initially.
+    products: Product[]; 
     stores: Store[];
     onDataChange: () => void;
-    isLoading: boolean;
 };
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: User['role']; storeName: string; }) {
@@ -95,10 +95,15 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products: allProducts, stores, onDataChange, isLoading }: ProductsProps) {
+export default function Products({ products: cashierProducts, stores, onDataChange }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
+
+  // Admin state for store selection and their products
+  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
+  const [adminProducts, setAdminProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState(isAdmin); // Admins start loading, cashiers don't.
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -110,23 +115,40 @@ export default function Products({ products: allProducts, stores, onDataChange, 
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
-
-  // Admin state for store selection
-  const [adminSelectedStoreId, setAdminSelectedStoreId] = React.useState<string>(stores[0]?.id || '');
   
-  // currentStore is either the cashier's active store, or the admin's selected store.
   const currentStore = React.useMemo(() => {
     return isAdmin ? stores.find(s => s.id === adminSelectedStoreId) : activeStore;
   }, [isAdmin, stores, adminSelectedStoreId, activeStore]);
   
   const currentStoreId = currentStore?.id;
 
+  const fetchProductsForStore = React.useCallback(async (storeId: string) => {
+    setIsLoading(true);
+    try {
+        const productCollectionName = `products_${storeId.replace('store_', '')}`;
+        const productsSnapshot = await getDocs(query(collection(db, productCollectionName), orderBy('name')));
+        const fetchedProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        setAdminProducts(fetchedProducts);
+    } catch (error) {
+        console.error(`Error fetching products for store ${storeId}:`, error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memuat Produk',
+            description: `Tidak dapat mengambil data produk untuk toko ${stores.find(s => s.id === storeId)?.name}.`
+        });
+        setAdminProducts([]);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [stores, toast]);
 
   React.useEffect(() => {
-    if (isAdmin && !adminSelectedStoreId && stores.length > 0) {
-      setAdminSelectedStoreId(stores[0].id);
+    if (isAdmin && adminSelectedStoreId) {
+      fetchProductsForStore(adminSelectedStoreId);
+    } else if (!isAdmin) {
+        setIsLoading(false);
     }
-  }, [isAdmin, adminSelectedStoreId, stores]);
+  }, [isAdmin, adminSelectedStoreId, fetchProductsForStore]);
 
 
   const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
@@ -141,7 +163,11 @@ export default function Products({ products: allProducts, stores, onDataChange, 
 
     try {
       await updateDoc(productRef, { stock: newStock });
-      onDataChange(); // Refresh data from parent
+      if (isAdmin) {
+        fetchProductsForStore(currentStoreId); // Refetch for admin
+      } else {
+        onDataChange(); // Trigger parent refetch for cashier
+      }
     } catch (error) {
       console.error("Error updating stock:", error);
       toast({
@@ -179,7 +205,11 @@ export default function Products({ products: allProducts, stores, onDataChange, 
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-        onDataChange(); 
+         if (isAdmin) {
+            fetchProductsForStore(currentStoreId);
+        } else {
+            onDataChange();
+        }
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -195,7 +225,11 @@ export default function Products({ products: allProducts, stores, onDataChange, 
 
 
   const handleDataUpdate = () => {
-    onDataChange();
+    if (isAdmin && currentStoreId) {
+        fetchProductsForStore(currentStoreId);
+    } else {
+        onDataChange();
+    }
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {
@@ -211,25 +245,20 @@ export default function Products({ products: allProducts, stores, onDataChange, 
   };
 
   const filteredProducts = React.useMemo(() => {
-    // If admin, filter allProducts by the selected storeId.
-    // If cashier, allProducts is already pre-filtered, so just use it.
-    const productsForCurrentStore = isAdmin
-      ? allProducts.filter(p => 'storeId' in p && p.storeId === currentStoreId)
-      : allProducts;
-
-    // Apply search and category filters to the determined list of products
-    return productsForCurrentStore.filter(product => {
+    const productsToFilter = isAdmin ? adminProducts : cashierProducts;
+    
+    return productsToFilter.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
     });
-  }, [allProducts, currentStoreId, searchTerm, selectedCategories, isAdmin]);
+  }, [isAdmin, adminProducts, cashierProducts, searchTerm, selectedCategories]);
 
-  // The categories available in the dropdown should be based on the products of the currently selected store
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(filteredProducts.map(p => p.category));
+    const productsToGetCategoriesFrom = isAdmin ? adminProducts : cashierProducts;
+    const categories = new Set(productsToGetCategoriesFrom.map(p => p.category));
     return Array.from(categories).sort();
-  }, [filteredProducts]);
+  }, [isAdmin, adminProducts, cashierProducts]);
 
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
