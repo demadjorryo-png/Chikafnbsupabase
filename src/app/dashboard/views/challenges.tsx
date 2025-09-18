@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,6 +22,8 @@ import { addDays, format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
+import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 export default function Challenges() {
   const [budget, setBudget] = React.useState(500000);
@@ -32,6 +35,8 @@ export default function Challenges() {
   const [generatedChallenges, setGeneratedChallenges] =
     React.useState<ChallengeGeneratorOutput | null>(null);
   const { toast } = useToast();
+  const { pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+
 
   const handleGenerateChallenges = async () => {
     if (budget <= 0) {
@@ -51,6 +56,12 @@ export default function Challenges() {
         return;
     }
 
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, toast);
+    } catch (error) {
+      return; // Stop if not enough tokens
+    }
+
     setIsLoading(true);
     setGeneratedChallenges(null);
     try {
@@ -60,6 +71,7 @@ export default function Challenges() {
           endDate: format(date.to, 'yyyy-MM-dd'),
        });
       setGeneratedChallenges(result);
+      refreshPradanaTokenBalance();
       toast({
         title: 'Challenges Generated!',
         description: `Chika AI has successfully created new challenges for the period ${result.period}.`,
@@ -152,7 +164,7 @@ export default function Challenges() {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              Generate with Chika AI
+              Generate with Chika AI (0.1 Token)
             </Button>
           </div>
         </CardContent>

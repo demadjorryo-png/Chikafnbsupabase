@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,6 +10,8 @@ import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommen
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
@@ -23,6 +26,8 @@ export function LoyaltyRecommendation({
   const [isLoading, setIsLoading] = React.useState(false);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const { toast } = useToast();
+  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   React.useEffect(() => {
     const fetchRedemptionOptions = async () => {
@@ -41,6 +46,14 @@ export function LoyaltyRecommendation({
 
 
   const handleGetRecommendation = async () => {
+    if (isAdmin) {
+      try {
+        await deductAiUsageFee(pradanaTokenBalance, toast);
+      } catch (error) {
+        return; // Stop if not enough tokens
+      }
+    }
+
     setIsLoading(true);
     setRecommendation('');
     if (redemptionOptions.length === 0) {
@@ -55,6 +68,9 @@ export function LoyaltyRecommendation({
         availableRedemptionOptions: redemptionOptions,
       });
       setRecommendation(result.recommendation);
+      if (isAdmin) {
+        refreshPradanaTokenBalance();
+      }
     } catch (error) {
       console.error('Error getting loyalty recommendation:', error);
       setRecommendation('Maaf, terjadi kesalahan saat mengambil rekomendasi.');
@@ -76,7 +92,7 @@ export function LoyaltyRecommendation({
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        <span>Get AI Point Recommendation</span>
+        <span>Get AI Point Recommendation {isAdmin && '(0.1 Token)'}</span>
       </Button>
 
       {recommendation && (

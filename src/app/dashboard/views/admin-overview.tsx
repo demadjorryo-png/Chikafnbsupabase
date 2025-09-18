@@ -43,6 +43,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 
 const chartConfig = {
@@ -62,15 +63,14 @@ type AppliedStrategy = {
 
 type AdminOverviewProps = {
     pendingOrders: PendingOrder[];
-    stores: Store[];
     transactions: Transaction[];
     products: Product[];
     customers: Customer[];
     onDataChange: () => void;
 };
 
-export default function AdminOverview({ pendingOrders: initialPendingOrders, stores, transactions, products, customers, onDataChange }: AdminOverviewProps) {
-  const { activeStore } = useAuth();
+export default function AdminOverview({ pendingOrders: initialPendingOrders, transactions, products, customers, onDataChange }: AdminOverviewProps) {
+  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -180,9 +180,17 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, sto
       topProductsLastMonth: sortedProductsLastMonth.slice(0, 3),
       worstProductsLastMonth: sortedProductsLastMonth.slice(-3).reverse()
     };
-  }, [transactions, products]);
+  }, [transactions, products, idLocale]);
 
   const handleGenerateRecommendations = async () => {
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, toast);
+    } catch (error) {
+      // deductAiUsageFee throws an error if balance is insufficient, which is caught here.
+      // The toast is handled inside the function, so we just need to stop execution.
+      return;
+    }
+    
     setIsLoading(true);
     setRecommendations(null);
     const thisMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 1]?.revenue || 0;
@@ -196,6 +204,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, sto
             worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
         });
         setRecommendations(result);
+        refreshPradanaTokenBalance();
     } catch (error) {
         console.error("Error generating recommendations:", error);
     } finally {
@@ -336,7 +345,7 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, sto
             <CardContent className="space-y-4">
                 <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
                     {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Buat Rekomendasi Baru
+                    Buat Rekomendasi Baru (0.1 Token)
                 </Button>
 
                 {recommendations && (

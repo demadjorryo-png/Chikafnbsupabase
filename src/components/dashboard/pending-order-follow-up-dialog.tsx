@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -17,6 +18,8 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 type PendingOrderFollowUpDialogProps = {
   order: PendingOrder;
@@ -29,12 +32,23 @@ export function PendingOrderFollowUpDialog({
   open,
   onOpenChange,
 }: PendingOrderFollowUpDialogProps) {
+  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
   const [message, setMessage] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [customer, setCustomer] = React.useState<Customer | null>(null);
   const { toast } = useToast();
 
-  const handleGenerate = async () => {
+  const handleGenerate = React.useCallback(async () => {
+    if (isAdmin) {
+      try {
+        await deductAiUsageFee(pradanaTokenBalance, toast);
+      } catch (error) {
+        onOpenChange(false); // Close dialog if not enough tokens
+        return;
+      }
+    }
+    
     setIsLoading(true);
     setMessage('');
     try {
@@ -43,13 +57,16 @@ export function PendingOrderFollowUpDialog({
         productName: order.productName,
       });
       setMessage(result.followUpMessage);
+      if (isAdmin) {
+        refreshPradanaTokenBalance();
+      }
     } catch (error) {
       console.error('Error generating follow-up message:', error);
       setMessage('Gagal membuat pesan. Coba lagi.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAdmin, onOpenChange, order.customerName, order.productName, pradanaTokenBalance, refreshPradanaTokenBalance, toast]);
 
   React.useEffect(() => {
     if (open) {
@@ -78,8 +95,7 @@ export function PendingOrderFollowUpDialog({
       setIsLoading(false);
       setCustomer(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, order, toast]);
+  }, [open, order, toast, handleGenerate]);
 
   const formattedPhone = customer?.phone
     ? customer.phone.startsWith('0')
@@ -100,7 +116,7 @@ export function PendingOrderFollowUpDialog({
           </DialogTitle>
           <DialogDescription>
             Kirim notifikasi ke {order.customerName} bahwa produknya sudah
-            tersedia.
+            tersedia. {isAdmin && '(Biaya 0.1 Token)'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">

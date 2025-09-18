@@ -1,3 +1,4 @@
+
 'use client';
 
 import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
@@ -64,10 +65,25 @@ export async function updatePradanaTokenBalance(amount: number) {
     } catch (error: any) {
         // If the document doesn't exist, create it with the new balance.
         if (error.code === 'not-found') {
-            await setDoc(tokenDocRef, { balance: amount > 0 ? amount : 0 });
+             const initialBalance = await getPradanaTokenBalance();
+             const newBalance = initialBalance + amount;
+             await setDoc(tokenDocRef, { balance: newBalance > 0 ? newBalance : 0 });
         } else {
             // Re-throw other errors
             throw error;
         }
     }
+}
+
+export async function deductAiUsageFee(currentBalance: number, toast: Function) {
+  const fee = 0.1;
+  if (currentBalance < fee) {
+    toast({
+      variant: 'destructive',
+      title: 'Saldo Token Tidak Cukup',
+      description: `Saldo Pradana Token Anda (${currentBalance.toFixed(2)}) tidak cukup untuk membayar biaya AI (${fee}). Silakan top up.`,
+    });
+    throw new Error('Insufficient token balance');
+  }
+  await updatePradanaTokenBalance(-fee);
 }

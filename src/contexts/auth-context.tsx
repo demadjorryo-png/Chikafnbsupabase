@@ -5,16 +5,19 @@ import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, query, where, getDocs, collection } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { stores as staticStores } from '@/lib/data';
+import { getPradanaTokenBalance } from '@/lib/app-settings';
 
 interface AuthContextType {
   currentUser: User | null;
   activeStore: Store | null;
+  pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (userId: string, password: string, role: 'admin' | 'cashier', store?: Store) => Promise<void>;
+  login: (userId: string, password: string, role: 'admin' | 'cashier', store: Store) => Promise<void>;
   logout: () => Promise<void>;
+  refreshPradanaTokenBalance: () => void;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -22,8 +25,17 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [activeStore, setActiveStore] = React.useState<Store | null>(null);
+  const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+
+  const refreshPradanaTokenBalance = React.useCallback(async () => {
+    if (currentUser?.role === 'admin') {
+      const balance = await getPradanaTokenBalance();
+      setPradanaTokenBalance(balance);
+    }
+  }, [currentUser?.role]);
+
 
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
@@ -34,15 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
           
+          if (userData.role === 'admin') {
+            refreshPradanaTokenBalance();
+          }
+
           const storeId = sessionStorage.getItem('activeStoreId');
           if (storeId) {
             const storeData = staticStores.find(s => s.id === storeId) || null;
-            // Only set user and store if both are valid
             if (storeData) {
               setCurrentUser(userData);
               setActiveStore(storeData);
             } else {
-              // This can happen if the storeId in session storage is invalid
               await signOut(auth);
               sessionStorage.removeItem('activeStoreId');
               toast({
@@ -52,8 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } else {
-             // This case might happen if session storage is cleared but user is still logged in
-             // We should log them out gracefully instead of throwing an error.
              await signOut(auth);
              toast({
                 variant: 'destructive',
@@ -62,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              });
           }
         } else {
-          // User exists in Auth but not in Firestore, treat as an error and sign out
           throw new Error('User data not found in database.');
         }
       } catch (error) {
@@ -77,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveStore(null);
     }
     setIsLoading(false);
-  }, [toast]);
+  }, [toast, refreshPradanaTokenBalance]);
 
 
   React.useEffect(() => {
@@ -86,27 +97,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleUserSession]);
 
 
-  const login = async (userId: string, password: string, role: 'admin' | 'cashier', store?: Store) => {
-    if (!store) {
-      throw new Error("Store is required for login.");
-    }
-    
+  const login = async (userId: string, password: string, role: 'admin' | 'cashier', store: Store) => {
     const email = `${userId}@era5758.co.id`;
-    await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
     
-    const userQuery = query(collection(db, "users"), where("userId", "==", userId));
-    const userDoc = await getDocs(userQuery);
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
     
-    if (userDoc.empty) {
+    if (!userDocSnap.exists()) {
       await signOut(auth);
       throw new Error("Data pengguna tidak ditemukan di database.");
     }
 
-    const userData = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as User;
+    const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
 
     if (userData.status === 'inactive') {
       await signOut(auth);
       throw new Error("Akun Anda saat ini nonaktif. Silakan hubungi admin.");
+    }
+    
+    if (role === 'admin') {
+      const balance = await getPradanaTokenBalance();
+      setPradanaTokenBalance(balance);
     }
     
     setCurrentUser(userData);
@@ -125,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
+    setPradanaTokenBalance(0);
     sessionStorage.removeItem('activeStoreId');
     toast({
       title: 'Logout Berhasil',
@@ -132,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const value = { currentUser, activeStore, isLoading, login, logout };
+  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

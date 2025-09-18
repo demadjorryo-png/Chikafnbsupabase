@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -23,13 +24,14 @@ import type { RedemptionOption } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 type ReceiptSettingsProps = {
   redemptionOptions: RedemptionOption[];
 };
 
 export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
-  const { activeStore } = useAuth();
+  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { toast } = useToast();
 
   const [settings, setSettings] = React.useState(defaultReceiptSettings);
@@ -76,6 +78,12 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
   };
 
   const handleGeneratePromo = async () => {
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, toast);
+    } catch (error) {
+      return; // Stop if not enough tokens
+    }
+    
     setIsGenerating(true);
     setGeneratedPromo('');
     try {
@@ -85,6 +93,7 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
 
       const result = await getReceiptPromo({ activePromotions: activePromos });
       setGeneratedPromo(result.promoText);
+      refreshPradanaTokenBalance();
     } catch (error) {
       console.error('Error generating receipt promo:', error);
       toast({
@@ -194,7 +203,7 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                Generate with Chika AI
+                Generate with Chika AI (0.1 Token)
               </Button>
               {generatedPromo && (
                 <div className="mt-4 space-y-4">

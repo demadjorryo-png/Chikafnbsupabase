@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -28,7 +29,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useSearchParams } from 'next/navigation';
 import { getPromotionRecommendations } from '@/ai/flows/promotion-recommendation';
 import type { PromotionRecommendationOutput } from '@/ai/flows/promotion-recommendation';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
+import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
@@ -65,25 +67,13 @@ type PromotionsProps = {
 }
 
 export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions }: PromotionsProps) {
+  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
-
-  const [users, setUsers] = React.useState<User[]>([]);
-  React.useEffect(() => {
-    async function loadUsers() {
-        const { users } = await import('@/lib/data');
-        setUsers(users);
-    }
-    loadUsers();
-  }, []);
-  
-  const userId = searchParams.get('userId');
-  const currentUser = users.find((u) => u.id === userId);
-  const isAdmin = currentUser?.role === 'admin';
 
   const [rpPerPoint, setRpPerPoint] = React.useState(pointEarningSettings.rpPerPoint);
 
@@ -157,6 +147,12 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleGenerateRecommendations = async () => {
+    try {
+      await deductAiUsageFee(pradanaTokenBalance, toast);
+    } catch (error) {
+      return; // Stop if not enough tokens
+    }
+
     setIsLoading(true);
     setRecommendations(null);
 
@@ -193,6 +189,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
         worstSellingProducts: worstProducts,
       });
       setRecommendations(result);
+      refreshPradanaTokenBalance();
     } catch (error) {
       console.error('Error generating promotion recommendations:', error);
       toast({
@@ -283,7 +280,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                     ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Buat Rekomendasi Baru
+                    Buat Rekomendasi Baru (0.1 Token)
                 </Button>
                 {recommendations && (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

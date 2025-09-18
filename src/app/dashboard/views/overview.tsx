@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -56,11 +57,12 @@ import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
 import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
+import { useAuth } from '@/contexts/auth-context';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
 const chartConfig = {
   revenue: {
@@ -70,11 +72,21 @@ const chartConfig = {
 };
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser } = useAuth();
+    const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
+        if (currentUser?.role === 'admin') {
+            try {
+                await deductAiUsageFee(pradanaTokenBalance, toast);
+            } catch (error) {
+                return;
+            }
+        }
+        
         setIsLoading(true);
         setMessage('');
         try {
@@ -84,6 +96,9 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                 birthDate: customer.birthDate,
             });
             setMessage(result.followUpMessage);
+            if (currentUser?.role === 'admin') {
+                refreshPradanaTokenBalance();
+            }
         } catch (error) {
             console.error("Error generating birthday message:", error);
             setMessage("Gagal membuat pesan. Coba lagi.");
@@ -132,7 +147,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Generate with Chika AI
+                        Generate with Chika AI {currentUser?.role === 'admin' && '(0.1 Token)'}
                     </Button>
                     {message && (
                         <div className="space-y-2">
@@ -156,7 +171,6 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 }
 
 type OverviewProps = {
-  storeId: string;
   transactions: Transaction[];
   users: User[];
   customers: Customer[];
@@ -164,9 +178,8 @@ type OverviewProps = {
   onDataChange: () => void;
 };
 
-export default function Overview({ storeId, transactions, users, customers, pendingOrders: allPendingOrders, onDataChange }: OverviewProps) {
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
+export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange }: OverviewProps) {
+  const { currentUser, activeStore } = useAuth();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   
@@ -174,8 +187,8 @@ export default function Overview({ storeId, transactions, users, customers, pend
   const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
   const { toast } = useToast();
   
-  const currentUser = users.find(u => u.id === userId);
   const isAdmin = currentUser?.role === 'admin';
+  const storeId = activeStore?.id;
   
   const pendingOrders = React.useMemo(() => 
     isAdmin ? allPendingOrders : allPendingOrders.filter(po => po.storeId === storeId),
@@ -197,7 +210,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
 
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
-    if (!userId) return { monthlyRevenue: 0, todaysRevenue: 0 };
+    if (!currentUser) return { monthlyRevenue: 0, todaysRevenue: 0 };
     
     const now = new Date();
     const startOfThisMonth = startOfMonth(now);
@@ -206,12 +219,12 @@ export default function Overview({ storeId, transactions, users, customers, pend
     const endOfToday = endOfDay(now);
 
     const monthlyTx = transactions.filter(t => 
-      t.staffId === userId && 
+      t.staffId === currentUser.id && 
       isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth })
     );
 
     const todaysTx = transactions.filter(t => 
-      t.staffId === userId && 
+      t.staffId === currentUser.id && 
       t.storeId === storeId &&
       isWithinInterval(new Date(t.createdAt), { start: startOfToday, end: endOfToday })
     );
@@ -220,7 +233,7 @@ export default function Overview({ storeId, transactions, users, customers, pend
     const todaysRevenue = todaysTx.reduce((sum, t) => sum + t.totalAmount, 0);
 
     return { monthlyRevenue, todaysRevenue };
-  }, [userId, storeId, transactions]);
+  }, [currentUser, storeId, transactions]);
   
   const employeeSales = React.useMemo(() => {
     const sales: Record<string, { user: User; totalOmset: number }> = {};
@@ -570,5 +583,3 @@ export default function Overview({ storeId, transactions, users, customers, pend
     </div>
   );
 }
-
-    
