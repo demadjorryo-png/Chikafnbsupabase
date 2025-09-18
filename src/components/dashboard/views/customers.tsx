@@ -80,7 +80,7 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
 }
 
 export default function Customers({ customers, onDataChange, isLoading }: CustomersProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, activeStore } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
 
@@ -123,7 +123,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Tambahkan pelanggan baru ke dalam sistem.
                   </DialogDescription>
                 </DialogHeader>
-                {currentUser && <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
+                {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore} />}
               </DialogContent>
             </Dialog>
           </div>

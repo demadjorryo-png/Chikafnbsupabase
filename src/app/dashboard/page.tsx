@@ -176,6 +176,7 @@ function DashboardContent() {
       case 'products':
         return <Products 
                   products={products}
+                  stores={stores}
                   onDataChange={fetchAllData}
                   isLoading={isDataLoading}
                 />;

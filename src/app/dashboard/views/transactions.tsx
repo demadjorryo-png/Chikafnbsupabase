@@ -188,7 +188,6 @@ export default function Transactions({ transactions, stores, users, customers, o
                     ))
                 ) : (
                     transactions.map((transaction) => {
-                    const store = stores.find(s => s.id === transaction.storeId);
                     return (
                     <TableRow key={transaction.id}>
                         <TableCell>
