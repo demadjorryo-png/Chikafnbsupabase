@@ -51,7 +51,7 @@ function VapeIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 function DashboardContent() {
-  const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, activeStore, isLoading: isAuthLoading, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   
   const [stores, setStores] = React.useState<Store[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -61,7 +61,6 @@ function DashboardContent() {
   const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
-  const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   
   const [isDataLoading, setIsDataLoading] = React.useState(true);
   const { toast } = useToast();
@@ -80,7 +79,6 @@ function DashboardContent() {
             usersSnapshot,
             redemptionOptionsSnapshot,
             feeSettingsData,
-            tokenBalanceData,
             transactionsSnapshot,
             pendingOrdersSnapshot,
         ] = await Promise.all([
@@ -90,7 +88,6 @@ function DashboardContent() {
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
-            getPradanaTokenBalance(),
             getDocs(collection(db, 'transactions')),
             getDocs(collection(db, 'pendingOrders')),
         ]);
@@ -114,7 +111,9 @@ function DashboardContent() {
         
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
-        setPradanaTokenBalance(tokenBalanceData);
+        
+        // Refresh token balance as part of data fetch
+        refreshPradanaTokenBalance();
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -126,7 +125,7 @@ function DashboardContent() {
     } finally {
         setIsDataLoading(false);
     }
-  }, [currentUser, activeStore, toast]);
+  }, [currentUser, activeStore, toast, refreshPradanaTokenBalance]);
   
   React.useEffect(() => {
     if (!isAuthLoading && currentUser) {
@@ -186,6 +185,7 @@ function DashboardContent() {
                     onDataChange={fetchAllData} 
                     isLoading={isDataLoading}
                     feeSettings={feeSettings}
+                    pradanaTokenBalance={pradanaTokenBalance}
                 />;
       case 'products':
         return <Products 
@@ -229,7 +229,7 @@ function DashboardContent() {
 
   const getTitle = () => {
     const baseTitle = {
-      'overview': isAdmin ? 'Admin Overview' : 'Dashboard Overview',
+      'overview': 'Dashboard Overview',
       'pos': 'Point of Sale',
       'products': 'Product Inventory',
       'customers': 'Customer Management',
@@ -241,6 +241,10 @@ function DashboardContent() {
       'promotions': 'Promotions',
       'receipt-settings': 'Receipt Settings',
     }[view] || 'Dashboard';
+    
+    if (isAdmin && view === 'overview') {
+        return `Admin Overview: ${activeStore?.name}`;
+    }
 
     return baseTitle;
   };

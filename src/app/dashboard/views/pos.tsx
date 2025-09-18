@@ -70,6 +70,7 @@ type POSProps = {
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
+    pradanaTokenBalance: number;
 };
 
 function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
@@ -95,7 +96,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -223,6 +224,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
+  const transactionFee = React.useMemo(() => {
+    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+    const feeInRp = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    return feeInRp / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings]);
+  
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
     if (value < 0) value = 0;
@@ -250,6 +257,15 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
         return;
     }
+
+    if (pradanaTokenBalance < transactionFee) {
+        toast({
+            variant: 'destructive',
+            title: 'Saldo Token Global Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo global hanya ${pradanaTokenBalance.toFixed(2)}. Hubungi admin.`
+        });
+        return;
+    }
     
     setIsProcessingCheckout(true);
     
@@ -257,8 +273,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     
     try {
       await runTransaction(db, async (transaction) => {
-        // --- Phase 1: READ ---
         const tokenRef = doc(db, 'appSettings', 'pradanaToken');
+        
+        // --- Phase 1: READ ---
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
@@ -301,12 +318,15 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         }
 
         // --- Phase 3: WRITE ---
-        // 3a. Update product stock
+        // 3a. Deduct token balance
+        transaction.update(tokenRef, { balance: increment(-transactionFee) });
+
+        // 3b. Update product stock
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
         });
 
-        // 3b. Update customer points
+        // 3c. Update customer points
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
@@ -335,9 +355,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       
-      if (currentUser.role === 'admin') {
-          refreshPradanaTokenBalance();
-      }
+      refreshPradanaTokenBalance();
       
       setCart([]);
       setDiscountValue(0);
@@ -623,6 +641,10 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <div className="flex justify-between text-muted-foreground">
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
+              </div>
+               <div className="flex justify-between text-muted-foreground">
+                 <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
+                <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">

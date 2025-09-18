@@ -30,11 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
-    if (currentUser?.role === 'admin') {
       const balance = await getPradanaTokenBalance();
       setPradanaTokenBalance(balance);
-    }
-  }, [currentUser?.role]);
+  }, []);
 
 
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
@@ -46,9 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
           
-          if (userData.role === 'admin') {
-            refreshPradanaTokenBalance();
-          }
+          // Always refresh token balance on session handling for both roles
+          refreshPradanaTokenBalance();
 
           const storeId = sessionStorage.getItem('activeStoreId');
           if (storeId) {
@@ -117,10 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Akun Anda saat ini nonaktif. Silakan hubungi admin.");
     }
     
-    if (role === 'admin') {
-      const balance = await getPradanaTokenBalance();
-      setPradanaTokenBalance(balance);
-    }
+    // Always get token balance on login
+    const balance = await getPradanaTokenBalance();
+    setPradanaTokenBalance(balance);
     
     setCurrentUser(userData);
     setActiveStore(store);
