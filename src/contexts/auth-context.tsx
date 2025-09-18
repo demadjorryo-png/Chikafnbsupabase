@@ -33,23 +33,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-          setCurrentUser(userData);
-
+          
           const storeId = sessionStorage.getItem('activeStoreId');
           if (storeId) {
             const storeData = staticStores.find(s => s.id === storeId) || null;
-            setActiveStore(storeData);
+            // Only set user and store if both are valid
+            if (storeData) {
+              setCurrentUser(userData);
+              setActiveStore(storeData);
+            } else {
+              // This can happen if the storeId in session storage is invalid
+              await signOut(auth);
+              sessionStorage.removeItem('activeStoreId');
+              toast({
+                  variant: 'destructive',
+                  title: 'Sesi Tidak Valid',
+                  description: 'Data toko tidak ditemukan. Silakan login kembali.',
+              });
+            }
           } else {
              // This case might happen if session storage is cleared but user is still logged in
-             // We should probably log them out to be safe
-             throw new Error('Inconsistent session: User logged in but no active store found.');
+             // We should log them out gracefully instead of throwing an error.
+             await signOut(auth);
+             toast({
+                variant: 'destructive',
+                title: 'Sesi Berakhir',
+                description: 'Konteks toko tidak ditemukan. Silakan login kembali.',
+             });
           }
-          
-          toast({
-              title: 'Sesi Dipulihkan',
-              description: `Selamat datang kembali, ${userData.name}.`,
-          });
-
         } else {
           // User exists in Auth but not in Firestore, treat as an error and sign out
           throw new Error('User data not found in database.');
