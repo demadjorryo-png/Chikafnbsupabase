@@ -18,10 +18,18 @@ const AppConsultantInputSchema = z.object({
 });
 export type AppConsultantInput = z.infer<typeof AppConsultantInputSchema>;
 
+const ClientDataSchema = z.object({
+    appName: z.string().optional().describe("The desired name for the application."),
+    fullName: z.string().optional().describe("The client's full name."),
+    whatsappNumber: z.string().optional().describe("The client's WhatsApp number."),
+    address: z.string().optional().describe("The client's city or full address."),
+});
+
 const AppConsultantOutputSchema = z.object({
   response: z.string().describe('The AI\'s next question or response in Indonesian.'),
   isFinished: z.boolean().describe('Set to true only when the AI has gathered enough information and is ready to summarize.'),
   summary: z.string().optional().describe('A detailed summary of the application requirements in Indonesian, formatted in Markdown. This is only provided when isFinished is true.'),
+  clientData: ClientDataSchema.optional().describe('Structured data of the client, collected before finishing the conversation. This is only provided when isFinished is true.'),
 });
 export type AppConsultantOutput = z.infer<typeof AppConsultantOutputSchema>;
 
@@ -52,7 +60,7 @@ Ajukan satu pertanyaan spesifik pada satu waktu. Jangan menanyakan semuanya seka
 
 **Fase 2: Pengumpulan Data Klien (WAJIB)**
 Setelah Anda merasa telah memiliki informasi yang cukup di 5 area di atas, Anda HARUS beralih ke fase ini.
-Tanyakan secara sopan data berikut kepada calon klien untuk keperluan follow-up:
+Tanyakan secara sopan data berikut kepada calon klien untuk keperluan follow-up. Anda harus menanyakan SEMUANYA:
 1.  **Nama Aplikasi** yang diinginkan.
 2.  **Nama Lengkap** calon klien.
 3.  **Nomor WhatsApp** yang dapat dihubungi.
@@ -61,7 +69,9 @@ Contoh transisi: "Baik, terima kasih atas informasinya. Saya sudah punya gambara
 
 **Fase 3: Ringkasan & Penutup**
 - Setelah semua data (kebutuhan aplikasi & data klien) terkumpul, setel \`isFinished\` menjadi \`true\`.
-- Saat \`isFinished\` disetel ke \`true\`, Anda WAJIB membuat \`summary\` yang detail dan terstruktur menggunakan Markdown. Ringkasan ini harus mencakup semua 5 area kunci DAN semua data klien yang telah Anda kumpulkan.
+- Saat \`isFinished\` disetel ke \`true\`, Anda WAJIB:
+    1.  Membuat \`summary\` yang detail dan terstruktur menggunakan Markdown. Ringkasan ini harus mencakup semua 5 area kunci DAN semua data klien yang telah Anda kumpulkan.
+    2.  Mengisi field \`clientData\` dengan data terstruktur yang telah Anda kumpulkan (nama aplikasi, nama lengkap, no whatsapp, alamat).
 
 ---
 **Riwayat Percakapan Sejauh Ini:**

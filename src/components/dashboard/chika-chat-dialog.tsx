@@ -97,7 +97,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
         setInput('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isBusinessAnalystMode]); // Rerun if mode changes (although it shouldn't while open)
+  }, [open]); 
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -111,15 +111,16 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     }
   }, [messages]);
 
- const sendSummaryToWhatsapp = async (summary: string) => {
+ const sendNotifications = async (summary: string, clientData?: { whatsappNumber?: string | undefined, fullName?: string | undefined }) => {
     try {
         const { deviceId, adminGroup } = await getWhatsappSettings();
         if (!deviceId || !adminGroup) {
-            toast({ variant: 'destructive', title: 'WhatsApp Belum Dikonfigurasi', description: 'Gagal mengirim ringkasan ke admin.' });
+            toast({ variant: 'destructive', title: 'WhatsApp Belum Dikonfigurasi', description: 'Gagal mengirim notifikasi.' });
             return;
         }
         
-        const finalMessage = `Konsultasi Pembuatan Aplikasi Baru
+        // 1. Send detailed summary to Admin Group
+        const adminMessage = `Konsultasi Pembuatan Aplikasi Baru
 ---------------------------------
 Chika AI telah menyelesaikan sesi konsultasi dengan calon klien. Berikut adalah ringkasannya:
 
@@ -131,14 +132,35 @@ Mohon untuk segera ditindaklanjuti.`;
         await sendWhatsAppNotification({
             isGroup: true,
             target: adminGroup,
-            message: finalMessage,
+            message: adminMessage,
         });
-        
-        toast({ title: "Ringkasan Terkirim!", description: "Ringkasan konsultasi telah dikirim ke tim admin." });
+        toast({ title: "Ringkasan Terkirim ke Admin!", description: "Ringkasan konsultasi telah dikirim ke tim admin." });
+
+        // 2. Send confirmation to Client
+        if (clientData?.whatsappNumber && clientData?.fullName) {
+             const clientMessage = `Halo Kak *${clientData.fullName}*,
+
+Terima kasih telah berkonsultasi dengan Chika AI. Berikut adalah ringkasan dari diskusi kita:
+${summary}
+
+Tim kami akan segera menghubungi Anda untuk langkah selanjutnya. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp *082140442252*.
+
+Terima kasih!`;
+
+            const formattedPhone = clientData.whatsappNumber.startsWith('0')
+                ? `62${clientData.whatsappNumber.substring(1)}`
+                : clientData.whatsappNumber;
+
+            await sendWhatsAppNotification({
+                target: formattedPhone,
+                message: clientMessage,
+            });
+            toast({ title: "Konfirmasi Terkirim ke Klien!", description: "Salinan ringkasan telah dikirim ke WhatsApp calon klien." });
+        }
 
     } catch (error) {
-         console.error("Failed to send summary to WA:", error);
-         toast({ variant: 'destructive', title: 'Gagal Mengirim Ringkasan' });
+         console.error("Failed to send notifications:", error);
+         toast({ variant: 'destructive', title: 'Gagal Mengirim Notifikasi WhatsApp' });
     }
   }
 
@@ -175,11 +197,11 @@ Mohon untuk segera ditindaklanjuti.`;
         setMessages(updatedMessages);
         
         if (result.isFinished && result.summary) {
-          sendSummaryToWhatsapp(result.summary);
+          await sendNotifications(result.summary, result.clientData);
           setMessages(prev => [...prev, {
               id: Date.now() + 2,
               sender: 'ai',
-              text: `Terima kasih! Saya sudah merangkum kebutuhan Anda dan mengirimkannya ke tim kami. Berikut adalah ringkasannya untuk konfirmasi:\n\n${result.summary}\n\nTim kami akan segera menghubungi Anda. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp 082140442252.`,
+              text: `Terima kasih! Saya sudah merangkum kebutuhan Anda dan mengirimkannya ke tim kami serta salinannya ke nomor WhatsApp Anda. Berikut adalah ringkasannya untuk konfirmasi:\n\n${result.summary}\n\nTim kami akan segera menghubungi Anda. Jika Anda tidak mendengar kabar dari kami dalam 1x24 jam, Anda dapat menghubungi langsung Rio Pradana di WhatsApp *082140442252*.`,
           }]);
         }
 
@@ -386,3 +408,4 @@ Mohon untuk segera ditindaklanjuti.`;
     </Dialog>
   );
 }
+`
