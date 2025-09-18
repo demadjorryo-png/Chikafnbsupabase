@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -15,20 +16,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
-import { Loader, Sparkles, Send, MessageSquare, LogIn, Megaphone } from 'lucide-react';
+import { Loader, Sparkles, LogIn, Megaphone } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { Separator } from '@/components/ui/separator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { ChikaChatDialog } from '@/components/dashboard/chika-chat-dialog';
 import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 
 export default function LoginPage() {
@@ -98,6 +91,9 @@ export default function LoginPage() {
               </Button>
               </form>
           </CardContent>
+           <CardFooter className="flex justify-center text-sm">
+                <p>Belum punya akun? <Link href="/register" className="font-bold text-primary hover:underline">Daftar Sekarang</Link></p>
+            </CardFooter>
         </Card>
 
         <Card className="text-center">
