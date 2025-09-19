@@ -41,11 +41,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan } from 'lucide-react';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2 } from 'lucide-react';
 import type { Table, CartItem, TableStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -69,46 +69,82 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isClearTableDialogOpen, setIsClearTableDialogOpen] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
   
   const [selectedTable, setSelectedTable] = React.useState<Table | null>(null);
+  
+  // State for single/edit mode
   const [tableName, setTableName] = React.useState('');
   const [tableCapacity, setTableCapacity] = React.useState(2);
-  
-  const handleAddOrEditTable = async (e: React.FormEvent) => {
+
+  // State for bulk generate mode
+  const [tablePrefix, setTablePrefix] = React.useState('Meja');
+  const [tableCount, setTableCount] = React.useState(10);
+
+
+  const handleBulkGenerateTables = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeStore || !tableName || tableCapacity <= 0) {
+    if (!activeStore || !tablePrefix || tableCount <= 0 || tableCapacity <= 0) {
+      toast({ variant: 'destructive', title: 'Data tidak valid', description: 'Pastikan semua kolom terisi dengan benar.' });
+      return;
+    }
+    setIsProcessing(true);
+
+    const tableCollectionName = `tables_${activeStore.id}`;
+    const batch = writeBatch(db);
+
+    for (let i = 1; i <= tableCount; i++) {
+        const newTableName = `${tablePrefix} ${i}`;
+        const newTableRef = doc(collection(db, tableCollectionName));
+        batch.set(newTableRef, {
+            name: newTableName,
+            capacity: tableCapacity,
+            status: 'Tersedia',
+            currentOrder: null,
+        });
+    }
+
+    try {
+        await batch.commit();
+        toast({ title: `${tableCount} meja berhasil digenerate!` });
+        onDataChange();
+        closeDialogs();
+    } catch (error) {
+        console.error("Error bulk generating tables:", error);
+        toast({ variant: 'destructive', title: 'Gagal generate meja' });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+
+  const handleEditTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeStore || !tableName || tableCapacity <= 0 || !selectedTable) {
       toast({ variant: 'destructive', title: 'Data tidak valid' });
       return;
     }
+    setIsProcessing(true);
 
     const tableCollectionName = `tables_${activeStore.id}`;
+    const tableRef = doc(db, tableCollectionName, selectedTable.id);
     
     try {
-      if (isEditDialogOpen && selectedTable) {
-        // Edit mode
-        const tableRef = doc(db, tableCollectionName, selectedTable.id);
         await updateDoc(tableRef, { name: tableName, capacity: tableCapacity });
         toast({ title: 'Meja diperbarui!' });
-      } else {
-        // Add mode
-        await addDoc(collection(db, tableCollectionName), {
-          name: tableName,
-          capacity: tableCapacity,
-          status: 'Tersedia',
-          currentOrder: null,
-        });
-        toast({ title: 'Meja baru ditambahkan!' });
-      }
-      onDataChange();
-      closeDialogs();
+        onDataChange();
+        closeDialogs();
     } catch (error) {
       console.error("Error saving table:", error);
       toast({ variant: 'destructive', title: 'Gagal menyimpan meja' });
+    } finally {
+        setIsProcessing(false);
     }
   };
   
   const handleDeleteTable = async () => {
     if (!activeStore || !selectedTable) return;
+    setIsProcessing(true);
     const tableCollectionName = `tables_${activeStore.id}`;
     const tableRef = doc(db, tableCollectionName, selectedTable.id);
     
@@ -120,11 +156,14 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
     } catch (error) {
        console.error("Error deleting table:", error);
        toast({ variant: 'destructive', title: 'Gagal menghapus meja' });
+    } finally {
+        setIsProcessing(false);
     }
   }
 
   const handleClearTable = async () => {
     if (!activeStore || !selectedTable || !currentUser) return;
+    setIsProcessing(true);
      const tableCollectionName = `tables_${activeStore.id}`;
      const tableRef = doc(db, tableCollectionName, selectedTable.id);
      
@@ -141,6 +180,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
      } catch (error) {
         console.error("Error clearing table:", error);
         toast({ variant: 'destructive', title: 'Gagal mengosongkan meja', description: (error as Error).message });
+     } finally {
+        setIsProcessing(false);
      }
   }
   
@@ -180,9 +221,12 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
     setIsEditDialogOpen(false);
     setIsDeleteDialogOpen(false);
     setIsClearTableDialogOpen(false);
+    setIsProcessing(false);
     setSelectedTable(null);
     setTableName('');
     setTableCapacity(2);
+    setTablePrefix('Meja');
+    setTableCount(10);
   }
   
   const handleTableClick = (table: Table) => {
@@ -249,22 +293,26 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                   <Button size="sm" className="gap-1">
                     <PlusCircle className="h-3.5 w-3.5" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                      Tambah Meja
+                      Generate Meja
                     </span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
-                  <form onSubmit={handleAddOrEditTable}>
+                  <form onSubmit={handleBulkGenerateTables}>
                     <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">Tambah Meja Baru</DialogTitle>
+                      <DialogTitle className="font-headline tracking-wider">Generate Meja Massal</DialogTitle>
                       <DialogDescription>
-                        Masukkan nama dan kapasitas untuk meja baru.
+                        Buat beberapa meja sekaligus dengan nama dan kapasitas yang sama.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Nama</Label>
-                        <Input id="name" value={tableName} onChange={(e) => setTableName(e.target.value)} className="col-span-3" placeholder="e.g., Meja 1"/>
+                        <Label htmlFor="prefix" className="text-right">Awalan</Label>
+                        <Input id="prefix" value={tablePrefix} onChange={(e) => setTablePrefix(e.target.value)} className="col-span-3" placeholder="e.g., Meja"/>
+                      </div>
+                       <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="count" className="text-right">Jumlah</Label>
+                        <Input id="count" type="number" value={tableCount} onChange={(e) => setTableCount(Number(e.target.value))} className="col-span-3" placeholder="e.g., 10"/>
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="capacity" className="text-right">Kapasitas</Label>
@@ -272,7 +320,10 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="submit">Simpan</Button>
+                      <Button type="submit" disabled={isProcessing}>
+                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Generate Meja
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -346,7 +397,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open) closeDialogs() }}>
         <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleAddOrEditTable}>
+          <form onSubmit={handleEditTable}>
             <DialogHeader>
               <DialogTitle className="font-headline tracking-wider">Ubah Meja</DialogTitle>
               <DialogDescription>
@@ -364,7 +415,10 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Simpan Perubahan</Button>
+              <Button type="submit" disabled={isProcessing}>
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                Simpan Perubahan
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -382,7 +436,10 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeDialogs}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTable} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>Ya, Hapus</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteTable} disabled={isProcessing} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
+              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+              Ya, Hapus
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -398,7 +455,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeDialogs}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClearTable}>
+            <AlertDialogAction onClick={handleClearTable} disabled={isProcessing}>
+              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               <Check className="mr-2 h-4 w-4" /> Ya, Kosongkan
             </AlertDialogAction>
           </AlertDialogFooter>
