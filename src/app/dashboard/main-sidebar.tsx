@@ -47,7 +47,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentView = searchParams.get('view') || 'overview';
+  const currentView = searchParams.get('view') || 'pos';
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
@@ -71,13 +71,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'pos',
-      label: 'Point of Sale',
-      icon: <ShoppingCart />,
-      roles: ['admin', 'cashier'],
-    },
-     {
-      view: 'tables',
-      label: 'Meja',
+      label: 'POS',
       icon: <Armchair />,
       roles: ['admin', 'cashier'],
     },

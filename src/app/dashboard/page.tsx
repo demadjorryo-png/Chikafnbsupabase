@@ -113,7 +113,7 @@ function DashboardContent() {
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
-  const view = new URLSearchParams(window.location.search).get('view') || 'overview';
+  const view = new URLSearchParams(window.location.search).get('view') || 'pos';
   
   if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings')) {
     return <DashboardSkeleton />;
@@ -122,13 +122,11 @@ function DashboardContent() {
   const renderView = () => {
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
     if (!isAdmin && unauthorizedCashierViews.includes(view)) {
-        return <Overview 
-          transactions={transactions} 
-          users={users} 
-          customers={customers} 
-          onDataChange={fetchAllData}
-          feeSettings={feeSettings} 
-        />;
+        return <Tables 
+                  tables={tables}
+                  onDataChange={fetchAllData}
+                  isLoading={isDataLoading}
+                />;
     }
 
     switch (view) {
@@ -150,7 +148,10 @@ function DashboardContent() {
               feeSettings={feeSettings}
             />;
       case 'pos':
-        return <POS 
+        // This view now shows the tables first. If a table is selected, it will go to POS component.
+        const tableId = new URLSearchParams(window.location.search).get('tableId');
+        if (tableId) {
+             return <POS 
                     products={products} 
                     customers={customers}
                     tables={tables}
@@ -159,7 +160,7 @@ function DashboardContent() {
                     feeSettings={feeSettings}
                     pradanaTokenBalance={pradanaTokenBalance}
                 />;
-      case 'tables':
+        }
         return <Tables 
                   tables={tables}
                   onDataChange={fetchAllData}
@@ -193,21 +194,25 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} feeSettings={feeSettings} />;
       default:
-        return <Overview 
-              transactions={transactions} 
-              users={users} 
-              customers={customers} 
-              onDataChange={fetchAllData} 
-              feeSettings={feeSettings}
+        return <Tables 
+              tables={tables}
+              onDataChange={fetchAllData}
+              isLoading={isDataLoading}
             />;
     }
   };
 
   const getTitle = () => {
+    // If we are in 'pos' view and have a tableId, it means we are in the actual POS screen.
+    const tableId = new URLSearchParams(window.location.search).get('tableId');
+    const tableName = new URLSearchParams(window.location.search).get('tableName');
+    if (view === 'pos' && tableId) {
+        return `Pesanan Meja ${tableName || ''}`;
+    }
+
     const baseTitle = {
       'overview': 'Dashboard Overview',
-      'pos': 'Point of Sale',
-      'tables': 'Manajemen Meja',
+      'pos': 'Manajemen Meja',
       'products': 'Inventaris Produk',
       'customers': 'Manajemen Pelanggan',
       'customer-analytics': 'Analisis Pelanggan',
@@ -217,7 +222,7 @@ function DashboardContent() {
       'challenges': 'Tantangan Karyawan',
       'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
-    }[view] || 'Dashboard';
+    }[view] || 'Manajemen Meja';
     
     if (isAdmin && view === 'overview') {
         return `Admin Overview`;
