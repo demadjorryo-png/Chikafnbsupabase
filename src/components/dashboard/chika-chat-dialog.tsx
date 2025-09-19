@@ -311,7 +311,7 @@ Terima kasih!`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-full h-screen flex flex-col sm:rounded-none">
         <DialogHeader>
           <DialogTitle className="font-headline tracking-wider flex items-center gap-2">
             <Sparkles /> 
