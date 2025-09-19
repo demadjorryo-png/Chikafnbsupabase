@@ -13,7 +13,7 @@ export function Logo({ storeName }: LogoProps) {
         <ShoppingCart className="h-6 w-6" />
       </div>
       <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-        <span className="font-headline text-2xl leading-none tracking-wider text-sidebar-foreground">Chika POS</span>
+        <span className="font-headline text-2xl leading-none tracking-wider text-sidebar-foreground">Chika POS F&B</span>
         {storeName && (
             <span className="text-xs font-medium text-sidebar-foreground/70">{storeName}</span>
         )}
