@@ -57,6 +57,7 @@ import {
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
 
 type TransactionsProps = {
     transactions: Transaction[];
