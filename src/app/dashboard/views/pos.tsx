@@ -441,7 +441,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       
       if (selectedTableId) {
         const params = new URLSearchParams();
-        params.set('view', 'tables');
+        params.set('view', 'pos'); // keep view as POS which will default to tables
         router.push(`/dashboard?${params.toString()}`);
       }
 
@@ -746,7 +746,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'admin' && transactionFee > 0 && !selectedTableId &&(
+              {currentUser?.role === 'admin' && transactionFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
