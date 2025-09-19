@@ -323,35 +323,26 @@ export default function Products({ products, onDataChange, isLoading }: Products
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-2">
-                          <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, product.stock - 1)}
-                              disabled={updatingStock === product.id}
-                          >
-                              <Minus className="h-4 w-4" />
-                          </Button>
+                      <div className="flex items-center justify-center">
                            {updatingStock === product.id ? 
                             <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
                             <Input 
                                 type="number"
                                 value={product.stock}
-                                onChange={(e) => handleStockChange(product.id, Number(e.target.value))}
+                                onBlur={(e) => handleStockChange(product.id, Number(e.target.value))}
+                                onChange={(e) => {
+                                    // This allows typing, but the update happens on blur
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleStockChange(product.id, Number((e.target as HTMLInputElement).value))
+                                        ;(e.target as HTMLInputElement).blur();
+                                    }
+                                }}
                                 onFocus={(e) => e.target.select()}
-                                className={cn('w-16 h-7 text-center', getStockColorClass(product.stock))}
+                                className={cn('w-20 h-7 text-center', getStockColorClass(product.stock))}
                             />
                            }
-                          <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, product.stock + 1)}
-                              disabled={updatingStock === product.id}
-                          >
-                              <Plus className="h-4 w-4" />
-                          </Button>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
