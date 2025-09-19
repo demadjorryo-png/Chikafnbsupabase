@@ -112,12 +112,6 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       roles: ['admin', 'cashier'],
     },
     {
-      view: 'pending-orders',
-      label: 'Pesanan Tertunda',
-      icon: <ClipboardList />,
-      roles: ['admin', 'cashier'],
-    },
-    {
       view: 'promotions',
       label: 'Promosi',
       icon: <Gift />,

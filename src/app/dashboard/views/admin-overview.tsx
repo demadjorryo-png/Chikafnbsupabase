@@ -36,11 +36,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { PendingOrder, Store, Transaction, Product, Customer } from '@/lib/types';
+import type { Store, Transaction, Product, Customer } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -62,7 +61,6 @@ type AppliedStrategy = {
 };
 
 type AdminOverviewProps = {
-    pendingOrders: PendingOrder[];
     transactions: Transaction[];
     products: Product[];
     customers: Customer[];
@@ -70,7 +68,7 @@ type AdminOverviewProps = {
     feeSettings: TransactionFeeSettings;
 };
 
-export default function AdminOverview({ pendingOrders: initialPendingOrders, transactions, products, customers, onDataChange, feeSettings }: AdminOverviewProps) {
+export default function AdminOverview({ transactions, products, customers, onDataChange, feeSettings }: AdminOverviewProps) {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -86,14 +84,6 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
    React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
-
-  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>(initialPendingOrders);
-   React.useEffect(() => {
-    setPendingOrders(initialPendingOrders);
-  }, [initialPendingOrders]);
-  
-  const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
-  const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
 
   React.useEffect(() => {
     if (!activeStore) return;
@@ -271,29 +261,6 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
     })
   }
 
-  const handleDeletePendingOrder = async () => {
-    if (!orderToDelete || !activeStore) return;
-
-    try {
-      const pendingOrderCollectionName = `pendingOrders_${activeStore.id}`;
-      await deleteDoc(doc(db, pendingOrderCollectionName, orderToDelete.id));
-      onDataChange();
-      toast({
-        title: 'Pesanan Dihapus',
-        description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
-      });
-    } catch (error) {
-      console.error("Error deleting pending order: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Menghapus',
-        description: 'Terjadi kesalahan saat menghapus pesanan.',
-      });
-    } finally {
-      setOrderToDelete(null);
-    }
-  };
-
   return (
     <div className="grid gap-6">
       <Card>
@@ -462,66 +429,6 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
 
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda di Toko Ini</CardTitle>
-            <CardDescription>
-              Produk yang ditunggu pelanggan di toko {activeStore?.name}.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pelanggan</TableHead>
-                <TableHead>Produk</TableHead>
-                <TableHead className="text-center">Qty</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {pendingOrders.slice(0, 5).map((order) => (
-                    <TableRow key={order.id}>
-                        <TableCell>
-                           <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                <AvatarImage
-                                    src={order.customerAvatarUrl}
-                                    alt={order.customerName}
-                                />
-                                <AvatarFallback>
-                                    {order.customerName.charAt(0)}
-                                </AvatarFallback>
-                                </Avatar>
-                                <div className="font-medium">{order.customerName}</div>
-                            </div>
-                        </TableCell>
-                        <TableCell>{order.productName}</TableCell>
-                        <TableCell className="text-center font-mono">{order.quantity}</TableCell>
-                        <TableCell>
-                          {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <div className="flex items-center justify-end gap-2">
-                             <Button variant="outline" size="sm" className="gap-2" onClick={() => setOrderToFollowUp(order)}>
-                                <Send className="h-3 w-3" />
-                                Follow Up
-                             </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive h-8 w-8" onClick={() => setOrderToDelete(order)}>
-                                <Trash2 className="h-4 w-4"/>
-                                <span className="sr-only">Delete order</span>
-                            </Button>
-                           </div>
-                        </TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-
-      <Card>
-        <CardHeader>
             <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
             <CardDescription>Unduh data transaksi dari toko {activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
@@ -574,36 +481,6 @@ export default function AdminOverview({ pendingOrders: initialPendingOrders, tra
         </CardContent>
       </Card>
       
-      {orderToFollowUp && (
-        <PendingOrderFollowUpDialog
-          order={orderToFollowUp}
-          open={!!orderToFollowUp}
-          onOpenChange={() => setOrderToFollowUp(null)}
-          feeSettings={feeSettings}
-        />
-      )}
-
-      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pesanan tertunda untuk{' '}
-              <span className="font-bold">{orderToDelete?.productName}</span> dari pelanggan{' '}
-              <span className="font-bold">{orderToDelete?.customerName}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePendingOrder}
-              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-            >
-              Ya, Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

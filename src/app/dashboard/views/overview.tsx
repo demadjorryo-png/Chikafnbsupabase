@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -54,13 +55,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
+import type { Customer, Transaction, User } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -175,40 +175,30 @@ type OverviewProps = {
   transactions: Transaction[];
   users: User[];
   customers: Customer[];
-  pendingOrders: PendingOrder[];
   onDataChange: () => void;
   feeSettings: TransactionFeeSettings;
 };
 
-export default function Overview({ transactions, users, customers, pendingOrders: allPendingOrders, onDataChange, feeSettings }: OverviewProps) {
+export default function Overview({ transactions, users, customers, onDataChange, feeSettings }: OverviewProps) {
   const { currentUser, activeStore } = useAuth();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   
-  const [orderToDelete, setOrderToDelete] = React.useState<PendingOrder | null>(null);
-  const [orderToFollowUp, setOrderToFollowUp] = React.useState<PendingOrder | null>(null);
   const { toast } = useToast();
   
   const isAdmin = currentUser?.role === 'admin';
   const storeId = activeStore?.id;
-  
-  const pendingOrders = React.useMemo(() => 
-    allPendingOrders.filter(po => po.storeId === storeId),
-    [allPendingOrders, storeId]
-  );
 
   React.useEffect(() => {
     import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
   }, []);
 
-  const { birthdayCustomers, recentPendingOrders } = React.useMemo(() => {
+  const { birthdayCustomers } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
     const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth && new Date(c.birthDate).getFullYear() > 1970);
     
-    const storePendingOrders = pendingOrders.slice(0, 5);
-
-    return { birthdayCustomers: bdayCustomers, recentPendingOrders: storePendingOrders };
-  }, [customers, pendingOrders]);
+    return { birthdayCustomers: bdayCustomers };
+  }, [customers]);
 
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
@@ -282,30 +272,6 @@ export default function Overview({ transactions, users, customers, pendingOrders
 
     return dailyRevenue;
   }, [storeId, transactions]);
-  
-  const handleDeletePendingOrder = async () => {
-    if (!orderToDelete || !storeId) return;
-
-    try {
-      const pendingOrderCollectionName = `pendingOrders_${storeId}`;
-      await deleteDoc(doc(db, pendingOrderCollectionName, orderToDelete.id));
-      onDataChange();
-      toast({
-        title: 'Pesanan Dihapus',
-        description: `Pesanan tertunda untuk ${orderToDelete.productName} telah dihapus.`,
-      });
-    } catch (error) {
-      console.error("Error deleting pending order: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Menghapus',
-        description: 'Terjadi kesalahan saat menghapus pesanan.',
-      });
-    } finally {
-      setOrderToDelete(null);
-    }
-  };
-
 
   return (
     <div className="grid gap-6">
@@ -481,67 +447,6 @@ export default function Overview({ transactions, users, customers, pendingOrders
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-            <CardTitle className="font-headline tracking-wider">Pesanan Tertunda Terbaru</CardTitle>
-            <CardDescription>
-              Produk yang ditunggu pelanggan. Hubungi jika stok sudah tersedia.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pelanggan</TableHead>
-                <TableHead>Produk</TableHead>
-                <TableHead className="text-center">Qty</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {recentPendingOrders.map((order) => (
-                    <TableRow key={order.id}>
-                        <TableCell>
-                           <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                <AvatarImage
-                                    src={order.customerAvatarUrl}
-                                    alt={order.customerName}
-                                />
-                                <AvatarFallback>
-                                    {order.customerName.charAt(0)}
-                                </AvatarFallback>
-                                </Avatar>
-                                <div className="font-medium">{order.customerName}</div>
-                            </div>
-                        </TableCell>
-                        <TableCell>{order.productName}</TableCell>
-                        <TableCell className="text-center font-mono">{order.quantity}</TableCell>
-                        <TableCell>
-                          {dateFnsLocale && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: dateFnsLocale })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <div className="flex items-center justify-end gap-2">
-                             <Button variant="outline" size="sm" className="gap-2" onClick={() => setOrderToFollowUp(order)}>
-                                <Send className="h-3 w-3" />
-                                Follow Up
-                             </Button>
-                            {isAdmin && (
-                                <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive h-8 w-8" onClick={() => setOrderToDelete(order)}>
-                                    <Trash2 className="h-4 w-4"/>
-                                    <span className="sr-only">Delete order</span>
-                                </Button>
-                            )}
-                           </div>
-                        </TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
       {selectedCustomer && (
         <BirthdayFollowUpDialog 
             customer={selectedCustomer}
@@ -555,36 +460,6 @@ export default function Overview({ transactions, users, customers, pendingOrders
         />
       )}
       
-      {orderToFollowUp && (
-        <PendingOrderFollowUpDialog
-          order={orderToFollowUp}
-          open={!!orderToFollowUp}
-          onOpenChange={() => setOrderToFollowUp(null)}
-          feeSettings={feeSettings}
-        />
-      )}
-
-      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pesanan tertunda untuk{' '}
-              <span className="font-bold">{orderToDelete?.productName}</span> dari pelanggan{' '}
-              <span className="font-bold">{orderToDelete?.customerName}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePendingOrder}
-              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-            >
-              Ya, Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
