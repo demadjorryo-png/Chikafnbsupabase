@@ -76,10 +76,22 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       roles: ['admin', 'cashier'],
     },
     {
+      view: 'transactions',
+      label: 'Transaksi',
+      icon: <History />,
+      roles: ['admin', 'cashier'],
+    },
+    {
       view: 'products',
       label: 'Produk (Menu)',
       icon: <BookOpenCheck />,
       roles: ['admin', 'cashier'],
+    },
+    {
+      view: 'employees',
+      label: 'Karyawan',
+      icon: <Users />,
+      roles: ['admin'],
     },
     {
       view: 'customers',
@@ -92,18 +104,6 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       label: 'Analisis Pelanggan',
       icon: <BarChart4 />,
       roles: ['admin'],
-    },
-    {
-      view: 'employees',
-      label: 'Karyawan',
-      icon: <Users />,
-      roles: ['admin'],
-    },
-    {
-      view: 'transactions',
-      label: 'Transaksi',
-      icon: <History />,
-      roles: ['admin', 'cashier'],
     },
     {
       view: 'promotions',
