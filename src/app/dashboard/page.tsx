@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -27,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
-import { ShoppingCart } from 'lucide-react';
+import { UtensilsCrossed } from 'lucide-react';
 
 function DashboardContent() {
   const { currentUser, activeStore, isLoading: isAuthLoading, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
@@ -263,7 +264,7 @@ function DashboardSkeleton() {
     return (
         <div className="flex min-h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
-                <ShoppingCart className="h-16 w-16 animate-pulse-slow text-primary/50" />
+                <UtensilsCrossed className="h-16 w-16 animate-pulse-slow text-primary/50" />
                 <p className="font-headline text-xl tracking-wider text-muted-foreground">
                     Loading Dashboard...
                 </p>

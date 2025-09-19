@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart } from 'lucide-react';
+import { UtensilsCrossed } from 'lucide-react';
 
 
 export default function WelcomePage() {
@@ -19,7 +19,7 @@ export default function WelcomePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
        <div className="flex flex-col items-center gap-4 text-center">
-          <ShoppingCart className="h-20 w-20 text-primary animate-pulse-slow" />
+          <UtensilsCrossed className="h-20 w-20 text-primary animate-pulse-slow" />
           <h1 className="font-headline text-5xl tracking-widest text-foreground">
             KASIR POS CHIKA
           </h1>

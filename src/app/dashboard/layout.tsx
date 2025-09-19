@@ -8,7 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ShoppingCart } from "lucide-react";
+import { UtensilsCrossed } from "lucide-react";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { currentUser, isLoading } = useAuth();
@@ -26,7 +26,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
        <div className="flex min-h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
-                <ShoppingCart className="h-16 w-16 animate-pulse-slow text-primary/50" />
+                <UtensilsCrossed className="h-16 w-16 animate-pulse-slow text-primary/50" />
                 <p className="font-headline text-xl tracking-wider text-muted-foreground">
                     Loading Session...
                 </p>
