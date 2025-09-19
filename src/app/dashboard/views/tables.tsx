@@ -41,7 +41,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2 } from 'lucide-react';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2, ServerCog } from 'lucide-react';
 import type { Table, CartItem, TableStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
@@ -65,7 +65,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   const { toast } = useToast();
   const router = useRouter();
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [isBulkAddDialogOpen, setIsBulkAddDialogOpen] = React.useState(false);
+  const [isAddSingleDialogOpen, setIsAddSingleDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isClearTableDialogOpen, setIsClearTableDialogOpen] = React.useState(false);
@@ -80,11 +81,12 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   // State for bulk generate mode
   const [tablePrefix, setTablePrefix] = React.useState('Meja');
   const [tableCount, setTableCount] = React.useState(10);
+  const [bulkCapacity, setBulkCapacity] = React.useState(2);
 
 
   const handleBulkGenerateTables = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeStore || !tablePrefix || tableCount <= 0 || tableCapacity <= 0) {
+    if (!activeStore || !tablePrefix || tableCount <= 0 || bulkCapacity <= 0) {
       toast({ variant: 'destructive', title: 'Data tidak valid', description: 'Pastikan semua kolom terisi dengan benar.' });
       return;
     }
@@ -98,7 +100,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
         const newTableRef = doc(collection(db, tableCollectionName));
         batch.set(newTableRef, {
             name: newTableName,
-            capacity: tableCapacity,
+            capacity: bulkCapacity,
             status: 'Tersedia',
             currentOrder: null,
         });
@@ -116,6 +118,33 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
         setIsProcessing(false);
     }
   };
+  
+  const handleSaveSingleTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeStore || !tableName || tableCapacity <= 0) {
+      toast({ variant: 'destructive', title: 'Data tidak valid' });
+      return;
+    }
+    setIsProcessing(true);
+
+    const tableCollectionName = `tables_${activeStore.id}`;
+    try {
+        await addDoc(collection(db, tableCollectionName), {
+            name: tableName,
+            capacity: tableCapacity,
+            status: 'Tersedia',
+            currentOrder: null
+        });
+        toast({ title: 'Meja baru ditambahkan!' });
+        onDataChange();
+        closeDialogs();
+    } catch (error) {
+        console.error("Error adding table:", error);
+        toast({ variant: 'destructive', title: 'Gagal menambah meja' });
+    } finally {
+        setIsProcessing(false);
+    }
+  }
 
 
   const handleEditTable = async (e: React.FormEvent) => {
@@ -217,7 +246,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   }
   
   const closeDialogs = () => {
-    setIsAddDialogOpen(false);
+    setIsBulkAddDialogOpen(false);
+    setIsAddSingleDialogOpen(false);
     setIsEditDialogOpen(false);
     setIsDeleteDialogOpen(false);
     setIsClearTableDialogOpen(false);
@@ -285,49 +315,91 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
               </CardDescription>
             </div>
             {isAdmin && (
-              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-                  if (open) setIsAddDialogOpen(true);
-                  else closeDialogs();
-              }}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1">
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                      Generate Meja
-                    </span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <form onSubmit={handleBulkGenerateTables}>
-                    <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">Generate Meja Massal</DialogTitle>
-                      <DialogDescription>
-                        Buat beberapa meja sekaligus dengan nama dan kapasitas yang sama.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="prefix" className="text-right">Awalan</Label>
-                        <Input id="prefix" value={tablePrefix} onChange={(e) => setTablePrefix(e.target.value)} className="col-span-3" placeholder="e.g., Meja"/>
-                      </div>
-                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="count" className="text-right">Jumlah</Label>
-                        <Input id="count" type="number" value={tableCount} onChange={(e) => setTableCount(Number(e.target.value))} className="col-span-3" placeholder="e.g., 10"/>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="capacity" className="text-right">Kapasitas</Label>
-                        <Input id="capacity" type="number" value={tableCapacity} onChange={(e) => setTableCapacity(Number(e.target.value))} className="col-span-3" />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit" disabled={isProcessing}>
-                        {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+              <div className="flex gap-2">
+                 <Dialog open={isAddSingleDialogOpen} onOpenChange={(open) => {
+                    if (open) setIsAddSingleDialogOpen(true);
+                    else closeDialogs();
+                }}>
+                    <DialogTrigger asChild>
+                    <Button size="sm" className="gap-1" variant="outline">
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Tambah Meja
+                        </span>
+                    </Button>
+                    </DialogTrigger>
+                     <DialogContent className="sm:max-w-[425px]">
+                        <form onSubmit={handleSaveSingleTable}>
+                            <DialogHeader>
+                            <DialogTitle className="font-headline tracking-wider">Tambah Meja Baru</DialogTitle>
+                            <DialogDescription>
+                                Buat satu meja baru dengan nama dan kapasitas spesifik.
+                            </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name-single" className="text-right">Nama</Label>
+                                <Input id="name-single" value={tableName} onChange={(e) => setTableName(e.target.value)} className="col-span-3" placeholder="e.g., VIP 1"/>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="capacity-single" className="text-right">Kapasitas</Label>
+                                <Input id="capacity-single" type="number" value={tableCapacity} onChange={(e) => setTableCapacity(Number(e.target.value))} className="col-span-3" />
+                            </div>
+                            </div>
+                            <DialogFooter>
+                            <Button type="submit" disabled={isProcessing}>
+                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Simpan Meja
+                            </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+                
+                <Dialog open={isBulkAddDialogOpen} onOpenChange={(open) => {
+                    if (open) setIsBulkAddDialogOpen(true);
+                    else closeDialogs();
+                }}>
+                    <DialogTrigger asChild>
+                    <Button size="sm" className="gap-1">
+                        <ServerCog className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                         Generate Meja
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                        </span>
+                    </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                    <form onSubmit={handleBulkGenerateTables}>
+                        <DialogHeader>
+                        <DialogTitle className="font-headline tracking-wider">Generate Meja Massal</DialogTitle>
+                        <DialogDescription>
+                            Buat beberapa meja sekaligus dengan nama dan kapasitas yang sama.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="prefix" className="text-right">Awalan</Label>
+                            <Input id="prefix" value={tablePrefix} onChange={(e) => setTablePrefix(e.target.value)} className="col-span-3" placeholder="e.g., Meja"/>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="count" className="text-right">Jumlah</Label>
+                            <Input id="count" type="number" value={tableCount} onChange={(e) => setTableCount(Number(e.target.value))} className="col-span-3" placeholder="e.g., 10"/>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="capacity-bulk" className="text-right">Kapasitas</Label>
+                            <Input id="capacity-bulk" type="number" value={bulkCapacity} onChange={(e) => setBulkCapacity(Number(e.target.value))} className="col-span-3" />
+                        </div>
+                        </div>
+                        <DialogFooter>
+                        <Button type="submit" disabled={isProcessing}>
+                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Generate Meja
+                        </Button>
+                        </DialogFooter>
+                    </form>
+                    </DialogContent>
+                </Dialog>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -465,3 +537,5 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
     </>
   );
 }
+
+    
