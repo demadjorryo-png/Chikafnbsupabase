@@ -676,6 +676,13 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             </ScrollArea>
             <Separator />
             <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Coins className="h-4 w-4"/> Saldo Token Toko
+                </span>
+                <span>{pradanaTokenBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+              </div>
+              <Separator className="my-1"/>
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span>Rp {subtotal.toLocaleString('id-ID')}</span>
