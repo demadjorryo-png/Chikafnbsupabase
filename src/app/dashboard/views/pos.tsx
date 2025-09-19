@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -71,6 +70,7 @@ import { Switch } from '@/components/ui/switch';
 type POSProps = {
     products: Product[];
     customers: Customer[];
+    tables: Table[];
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -100,7 +100,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { t
     );
 }
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -143,6 +143,21 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     value: c.id,
     label: c.name,
   }));
+
+  const availableTableOptions = tables
+    .filter(t => t.status === 'Tersedia')
+    .map((t) => ({
+        value: t.id,
+        label: t.name
+    }));
+
+  const handleTableSelect = (tableId: string) => {
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+        setSelectedTableId(table.id);
+        setSelectedTableName(table.name);
+    }
+  }
 
 
   const addToCart = (product: Product) => {
@@ -254,10 +269,13 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
-    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
-    return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
-  }, [totalAmount, feeSettings]);
+    if (currentUser?.role === 'admin') {
+        const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+        const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+        return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
+    }
+    return 0; // Cashiers don't trigger direct token deduction at POS
+  }, [totalAmount, feeSettings, currentUser]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -287,11 +305,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         return;
     }
 
-    if (pradanaTokenBalance < transactionFee) {
+    if (currentUser.role === 'admin' && pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
-            title: 'Saldo Token Toko Tidak Cukup',
-            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo toko Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
+            title: 'Saldo Token Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
         });
         return;
     }
@@ -324,12 +342,14 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        const storeTokenDoc = await transaction.get(storeRef);
+        const storeTokenDoc = currentUser.role === 'admin' ? await transaction.get(storeRef) : null;
 
         // --- Phase 2: VALIDATE & CALCULATE ---
-        const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-        if (currentTokenBalance < transactionFee) {
-            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+        if (currentUser.role === 'admin') {
+            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
+            if (currentTokenBalance < transactionFee) {
+                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+            }
         }
         
         const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
@@ -359,7 +379,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         }
 
         // --- Phase 3: WRITE ---
-        transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
+        if (currentUser.role === 'admin') {
+            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
+        }
         
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
@@ -406,7 +428,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       
-      refreshPradanaTokenBalance();
+      if (currentUser.role === 'admin') {
+        refreshPradanaTokenBalance();
+      }
       
       setCart([]);
       setDiscountValue(0);
@@ -527,37 +551,51 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-                <Combobox
-                    options={customerOptions}
-                    value={selectedCustomer?.id}
-                    onValueChange={(value) => {
-                    setSelectedCustomer(customers.find((c) => c.id === value));
-                    setPointsToRedeem(0);
-                    }}
-                    placeholder="Cari pelanggan..."
-                    searchPlaceholder="Cari nama pelanggan..."
-                    notFoundText="Pelanggan tidak ditemukan."
-                />
-                <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
-                    <DialogTrigger asChild>
-                    <Button variant="outline" size="icon">
-                        <UserPlus className="h-4 w-4" />
-                    </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle className="font-headline tracking-wider">
-                        Daftar Pelanggan Baru
-                        </DialogTitle>
-                        <DialogDescription>
-                        Tambahkan pelanggan baru ke dalam sistem.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
-                    </DialogContent>
-                </Dialog>
+             <div className="grid grid-cols-1 gap-2">
+                 <div className="flex items-center gap-2">
+                    <Combobox
+                        options={customerOptions}
+                        value={selectedCustomer?.id}
+                        onValueChange={(value) => {
+                        setSelectedCustomer(customers.find((c) => c.id === value));
+                        setPointsToRedeem(0); // Reset points when customer changes
+                        }}
+                        placeholder="Cari pelanggan..."
+                        searchPlaceholder="Cari nama pelanggan..."
+                        notFoundText="Pelanggan tidak ditemukan."
+                    />
+                    <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+                        <DialogTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <UserPlus className="h-4 w-4" />
+                        </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle className="font-headline tracking-wider">
+                            Daftar Pelanggan Baru
+                            </DialogTitle>
+                            <DialogDescription>
+                            Tambahkan pelanggan baru ke dalam sistem.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                {!searchParams.get('tableId') && (
+                    <Combobox
+                        options={availableTableOptions}
+                        value={selectedTableId || ''}
+                        onValueChange={handleTableSelect}
+                        placeholder="Pilih Meja (Opsional)"
+                        searchPlaceholder="Cari nama meja..."
+                        notFoundText="Meja tidak ditemukan/tersedia."
+                        disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
+                    />
+                )}
             </div>
+
 
             {selectedTableId && !selectedCustomer && (
                 <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
@@ -707,7 +745,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {transactionFee > 0 && (
+              {currentUser?.role === 'admin' && transactionFee > 0 && !selectedTableId &&(
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
@@ -734,11 +772,13 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                 </div>
             )}
             
-            <div className="grid grid-cols-3 gap-2">
-                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-            </div>
+            {!selectedTableId && (
+              <div className="grid grid-cols-3 gap-2">
+                  <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                  <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                  <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
+              </div>
+            )}
 
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
                 {selectedTableId ? 'Buat Pesanan & Bayar' : 'Checkout'}

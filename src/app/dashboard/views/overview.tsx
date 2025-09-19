@@ -80,11 +80,12 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
-        if (!activeStore) return;
-        try {
-            await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-        } catch (error) {
-            return;
+        if (currentUser?.role === 'admin' && activeStore) {
+            try {
+                await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
+            } catch (error) {
+                return;
+            }
         }
         
         setIsLoading(true);
@@ -96,7 +97,9 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
                 birthDate: customer.birthDate,
             });
             setMessage(result.followUpMessage);
-            refreshPradanaTokenBalance();
+            if (currentUser?.role === 'admin') {
+                refreshPradanaTokenBalance();
+            }
         } catch (error) {
             console.error("Error generating birthday message:", error);
             setMessage("Gagal membuat pesan. Coba lagi.");
@@ -145,7 +148,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
+                        Buat dengan Chika AI {currentUser?.role === 'admin' && `(${feeSettings.aiUsageFee} Token)`}
                     </Button>
                     {message && (
                         <div className="space-y-2">

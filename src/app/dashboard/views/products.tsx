@@ -17,11 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, Store, ProductCategory } from '@/lib/types';
+import type { Product, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2, Building } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -61,7 +61,6 @@ import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
     products: Product[];
-    stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
 };
@@ -94,7 +93,7 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
-export default function Products({ products, stores, onDataChange, isLoading }: ProductsProps) {
+export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
@@ -120,7 +119,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId}`;
     const productRef = doc(db, productCollectionName, productId);
 
     try {
@@ -156,7 +155,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
+    const productCollectionName = `products_${currentStoreId}`;
     try {
         await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
         toast({
@@ -233,7 +232,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search products..."
+                  placeholder="Cari produk..."
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -249,7 +248,7 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Filter by category</DropdownMenuLabel>
+                  <DropdownMenuLabel>Filter berdasarkan kategori</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <ScrollArea className="h-48">
                   {availableCategories.map(category => (
@@ -272,14 +271,14 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
                     <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
                       <PlusCircle className="h-3.5 w-3.5" />
                       <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Add Product
+                        Tambah Produk
                       </span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle className="font-headline tracking-wider">
-                        Add New Product
+                        Tambah Produk Baru
                       </DialogTitle>
                       <DialogDescription>
                         Menambahkan produk baru ke inventaris {activeStore?.name}.
@@ -302,11 +301,11 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-center">Stock</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                {isAdmin && <TableHead className="w-[100px] text-right">Actions</TableHead>}
+                <TableHead>Nama</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead className="text-center">Stok</TableHead>
+                <TableHead className="text-right">Harga</TableHead>
+                {isAdmin && <TableHead className="w-[100px] text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -371,9 +370,9 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEditClick(product)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Delete</DropdownMenuItem>
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEditClick(product)}>Ubah</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Hapus</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>
@@ -400,8 +399,8 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                  <DialogTitle className="font-headline tracking-wider">Edit Product</DialogTitle>
-                  <DialogDescription>Update details for {selectedProduct.name}.</DialogDescription>
+                  <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
+                  <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
                   </DialogHeader>
                   <EditProductForm 
                   setDialogOpen={setIsEditDialogOpen} 
@@ -417,19 +416,19 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
       <AlertDialogContent>
           <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
           <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product: <br />
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk secara permanen: <br />
               <span className="font-bold">"{selectedProduct?.name}"</span>.
           </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
           <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
           >
-              Yes, delete
+              Ya, Hapus
           </AlertDialogAction>
           </AlertDialogFooter>
       </AlertDialogContent>
@@ -437,5 +436,3 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     </div>
   );
 }
-
-    

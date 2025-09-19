@@ -161,6 +161,7 @@ function DashboardContent() {
         return <POS 
                     products={products} 
                     customers={customers}
+                    tables={tables}
                     onDataChange={fetchAllData} 
                     isLoading={isDataLoading}
                     feeSettings={feeSettings}
@@ -175,7 +176,6 @@ function DashboardContent() {
       case 'products':
         return <Products 
                   products={products}
-                  stores={stores}
                   onDataChange={fetchAllData}
                   isLoading={isDataLoading}
                 />;
