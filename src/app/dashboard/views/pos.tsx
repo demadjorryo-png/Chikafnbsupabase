@@ -270,13 +270,12 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (currentUser?.role === 'admin') {
-        const feeFromPercentage = totalAmount * feeSettings.feePercentage;
-        const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
-        return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
-    }
-    return 0; // Cashiers don't trigger direct token deduction at POS
-  }, [totalAmount, feeSettings, currentUser]);
+    // Transaction fee always applies, regardless of role, for display.
+    // The actual deduction logic in handleCheckout is what matters.
+    const feeFromPercentage = totalAmount * feeSettings.feePercentage;
+    const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
+    return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -740,7 +739,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'admin' && transactionFee > 0 && (
+              {transactionFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
