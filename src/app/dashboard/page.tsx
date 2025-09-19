@@ -28,9 +28,11 @@ import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-setting
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { UtensilsCrossed } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 function DashboardContent() {
   const { currentUser, activeStore, isLoading: isAuthLoading, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const searchParams = useSearchParams();
   
   const [stores, setStores] = React.useState<Store[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -113,7 +115,7 @@ function DashboardContent() {
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
   const isAdmin = currentUser?.role === 'admin';
-  const view = new URLSearchParams(window.location.search).get('view') || 'pos';
+  const view = searchParams.get('view') || 'pos';
   
   if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings')) {
     return <DashboardSkeleton />;
@@ -149,7 +151,7 @@ function DashboardContent() {
             />;
       case 'pos':
         // This view now shows the tables first. If a table is selected, it will go to POS component.
-        const tableId = new URLSearchParams(window.location.search).get('tableId');
+        const tableId = searchParams.get('tableId');
         if (tableId) {
              return <POS 
                     products={products} 
@@ -204,8 +206,8 @@ function DashboardContent() {
 
   const getTitle = () => {
     // If we are in 'pos' view and have a tableId, it means we are in the actual POS screen.
-    const tableId = new URLSearchParams(window.location.search).get('tableId');
-    const tableName = new URLSearchParams(window.location.search).get('tableName');
+    const tableId = searchParams.get('tableId');
+    const tableName = searchParams.get('tableName');
     if (view === 'pos' && tableId) {
         return `Pesanan: ${tableName || ''}`;
     }
