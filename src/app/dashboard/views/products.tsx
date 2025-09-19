@@ -112,10 +112,8 @@ export default function Products({ products, onDataChange, isLoading }: Products
   const currentStoreId = activeStore?.id;
 
 
-  const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
-    if (!currentStoreId) return;
-    const newStock = currentStock + adjustment;
-    if (newStock < 0) return;
+  const handleStockChange = async (productId: string, newStock: number) => {
+    if (!currentStoreId || newStock < 0) return;
     
     setUpdatingStock(productId);
 
@@ -330,19 +328,26 @@ export default function Products({ products, onDataChange, isLoading }: Products
                               size="icon"
                               variant="outline"
                               className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, product.stock, -1)}
+                              onClick={() => handleStockChange(product.id, product.stock - 1)}
                               disabled={updatingStock === product.id}
                           >
                               <Minus className="h-4 w-4" />
                           </Button>
-                          <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
-                              {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
-                          </span>
+                           {updatingStock === product.id ? 
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
+                            <Input 
+                                type="number"
+                                value={product.stock}
+                                onChange={(e) => handleStockChange(product.id, Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
+                                className={cn('w-16 h-7 text-center', getStockColorClass(product.stock))}
+                            />
+                           }
                           <Button
                               size="icon"
                               variant="outline"
                               className="h-6 w-6"
-                              onClick={() => handleStockChange(product.id, product.stock, 1)}
+                              onClick={() => handleStockChange(product.id, product.stock + 1)}
                               disabled={updatingStock === product.id}
                           >
                               <Plus className="h-4 w-4" />
