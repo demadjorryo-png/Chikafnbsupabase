@@ -98,7 +98,7 @@ export default function Settings() {
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
-  const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle'> | null>(null);
+  const [generalSettings, setGeneralSettings] = React.useState<Pick&lt;ReceiptSettings, 'voiceGender' | 'notificationStyle'&gt; | null>(null);
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
@@ -116,7 +116,7 @@ export default function Settings() {
     }
   }, [activeStore]);
 
-  const passwordForm = useForm<z.infer<typeof PasswordFormSchema>>({
+  const passwordForm = useForm&lt;z.infer&lt;typeof PasswordFormSchema&gt;&gt;({
     resolver: zodResolver(PasswordFormSchema),
     defaultValues: {
       currentPassword: '',
@@ -126,7 +126,7 @@ export default function Settings() {
   });
 
   const handlePasswordChange = async (
-    values: z.infer<typeof PasswordFormSchema>
+    values: z.infer&lt;typeof PasswordFormSchema&gt;
   ) => {
     setIsPasswordChangeLoading(true);
     const user = auth.currentUser;
@@ -280,136 +280,137 @@ export default function Settings() {
                                     {isSamplePlaying ? <Loader className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
                                 </Button>
                             </div>
-                        ) : <Skeleton className="h-10 w-full" />}
+                        ) : &lt;Skeleton className="h-10 w-full" /&gt;}
                        
                     </div>
                      <div className="max-w-md space-y-2">
                         <Label>Gaya Pesan Notifikasi</Label>
                         {generalSettings ? (
-                           <RadioGroup
+                           &lt;RadioGroup
                                 value={generalSettings.notificationStyle}
-                                onValueChange={(value: 'fakta' | 'pantun') => setGeneralSettings(s => s ? {...s, notificationStyle: value} : null)}
+                                onValueChange={(value: 'fakta' | 'pantun') => setGeneralSettings(s =&gt; s ? {...s, notificationStyle: value} : null)}
                                 className="flex gap-4 pt-2"
-                            >
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="fakta" id="fakta" />
-                                    <Label htmlFor="fakta" className="flex items-center gap-2 font-normal"><Zap/> Fakta Menarik</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="pantun" id="pantun" />
-                                    <Label htmlFor="pantun" className="flex items-center gap-2 font-normal"><MessageSquareQuote /> Pantun Unik</Label>
-                                </div>
-                            </RadioGroup>
-                        ) : <Skeleton className="h-10 w-full" />}
-                    </div>
+                            &gt;
+                                &lt;div className="flex items-center space-x-2"&gt;
+                                    &lt;RadioGroupItem value="fakta" id="fakta" /&gt;
+                                    &lt;Label htmlFor="fakta" className="flex items-center gap-2 font-normal"&gt;&lt;Zap/&gt; Fakta Menarik&lt;/Label&gt;
+                                &lt;/div&gt;
+                                &lt;div className="flex items-center space-x-2"&gt;
+                                    &lt;RadioGroupItem value="pantun" id="pantun" /&gt;
+                                    &lt;Label htmlFor="pantun" className="flex items-center gap-2 font-normal"&gt;&lt;MessageSquareQuote /&gt; Pantun Unik&lt;/Label&gt;
+                                &lt;/div&gt;
+                            &lt;/RadioGroup&gt;
+                        ) : &lt;Skeleton className="h-10 w-full" /&gt;}
+                    &lt;/div&gt;
                      <Button onClick={handleGeneralSettingSave} disabled={isGeneralSettingLoading}>
-                        {isGeneralSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}
-                        <Save className="mr-2 h-4 w-4" />
+                        {isGeneralSettingLoading &amp;&amp; &lt;Loader className="mr-2 h-4 w-4 animate-spin"/&gt;}
+                        &lt;Save className="mr-2 h-4 w-4" /&gt;
                         Simpan Pengaturan
                     </Button>
-                </CardContent>
-            </Card>
+                &lt;/CardContent&gt;
+            &lt;/Card&gt;
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline tracking-wider">
+        &lt;Card&gt;
+          &lt;CardHeader&gt;
+            &lt;CardTitle className="font-headline tracking-wider"&gt;
               Ubah Password
-            </CardTitle>
-            <CardDescription>
+            &lt;/CardTitle&gt;
+            &lt;CardDescription&gt;
               Untuk keamanan, masukkan password Anda saat ini sebelum membuat
               yang baru.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...passwordForm}>
-              <form
+            &lt;/CardDescription&gt;
+          &lt;/CardHeader&gt;
+          &lt;CardContent&gt;
+            &lt;Form {...passwordForm}&gt;
+              &lt;form
                 onSubmit={passwordForm.handleSubmit(handlePasswordChange)}
                 className="space-y-6 max-w-md"
-              >
-                <FormField
+              &gt;
+                &lt;FormField
                   control={passwordForm.control}
                   name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password Saat Ini</FormLabel>
-                      <div className="relative">
-                          <FormControl>
-                          <Input type={showCurrentPassword ? 'text' : 'password'} {...field} />
-                          </FormControl>
-                          <Button 
+                  render={({ field }) =&gt; (
+                    &lt;FormItem&gt;
+                      &lt;FormLabel&gt;Password Saat Ini&lt;/FormLabel&gt;
+                      &lt;div className="relative"&gt;
+                          &lt;FormControl&gt;
+                          &lt;Input type={showCurrentPassword ? 'text' : 'password'} {...field} /&gt;
+                          &lt;/FormControl&gt;
+                          &lt;Button 
                               type="button"
                               variant="ghost"
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                          >
-                              {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
+                              onClick={() =&gt; setShowCurrentPassword(!showCurrentPassword)}
+                          &gt;
+                              {showCurrentPassword ? &lt;EyeOff className="h-4 w-4" /&gt; : &lt;Eye className="h-4 w-4" /&gt;}
+                          &lt;/Button&gt;
+                      &lt;/div&gt;
+                      &lt;FormMessage /&gt;
+                    &lt;/FormItem&gt;
                   )}
-                />
-                <FormField
+                /&gt;
+                &lt;FormField
                   control={passwordForm.control}
                   name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password Baru</FormLabel>
-                       <div className="relative">
-                          <FormControl>
-                          <Input type={showNewPassword ? 'text' : 'password'} {...field} />
-                          </FormControl>
-                          <Button 
+                  render={({ field }) =&gt; (
+                    &lt;FormItem&gt;
+                      &lt;FormLabel&gt;Password Baru&lt;/FormLabel&gt;
+                       &lt;div className="relative"&gt;
+                          &lt;FormControl&gt;
+                          &lt;Input type={showNewPassword ? 'text' : 'password'} {...field} /&gt;
+                          &lt;/FormControl&gt;
+                          &lt;Button 
                               type="button"
                               variant="ghost"
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                              onClick={() => setShowNewPassword(!showNewPassword)}
-                          >
-                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
+                              onClick={() =&gt; setShowNewPassword(!showNewPassword)}
+                          &gt;
+                              {showNewPassword ? &lt;EyeOff className="h-4 w-4" /&gt; : &lt;Eye className="h-4 w-4" /&gt;}
+                          &lt;/Button&gt;
+                      &lt;/div&gt;
+                      &lt;FormMessage /&gt;
+                    &lt;/FormItem&gt;
                   )}
-                />
-                <FormField
+                /&gt;
+                &lt;FormField
                   control={passwordForm.control}
                   name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Konfirmasi Password Baru</FormLabel>
-                      <div className="relative">
-                          <FormControl>
-                          <Input type={showConfirmPassword ? 'text' : 'password'} {...field} />
-                          </FormControl>
-                          <Button 
+                  render={({ field }) =&gt; (
+                    &lt;FormItem&gt;
+                      &lt;FormLabel&gt;Konfirmasi Password Baru&lt;/FormLabel&gt;
+                      &lt;div className="relative"&gt;
+                          &lt;FormControl&gt;
+                          &lt;Input type={showConfirmPassword ? 'text' : 'password'} {...field} /&gt;
+                          &lt;/FormControl&gt;
+                          &lt;Button 
                               type="button"
                               variant="ghost"
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
+                              onClick={() =&gt; setShowConfirmPassword(!showConfirmPassword)}
+                          &gt;
+                              {showConfirmPassword ? &lt;EyeOff className="h-4 w-4" /&gt; : &lt;Eye className="h-4 w-4" /&gt;}
+                          &lt;/Button&gt;
+                      &lt;/div&gt;
+                      &lt;FormMessage /&gt;
+                    &lt;/FormItem&gt;
                   )}
-                />
-                <Button type="submit" disabled={isPasswordChangeLoading}>
-                  {isPasswordChangeLoading && (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                /&gt;
+                &lt;Button type="submit" disabled={isPasswordChangeLoading}&gt;
+                  {isPasswordChangeLoading &amp;&amp; (
+                    &lt;Loader className="mr-2 h-4 w-4 animate-spin" /&gt;
                   )}
                   Simpan Password Baru
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                &lt;/Button&gt;
+              &lt;/form&gt;
+            &lt;/Form&gt;
+          &lt;/CardContent&gt;
+        &lt;/Card&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
   );
 }
+
 
