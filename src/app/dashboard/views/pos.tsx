@@ -301,8 +301,8 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       toast({ variant: 'destructive', title: 'Keranjang Kosong', description: 'Silakan tambahkan produk ke keranjang.' });
       return;
     }
-    if (!currentUser || !activeStore) {
-        toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
+    if (!currentUser || !activeStore || !selectedTableId) {
+        toast({ variant: 'destructive', title: 'Sesi atau Meja Tidak Valid', description: 'Data staff, toko, atau meja tidak ditemukan. Silakan pilih meja dari halaman utama.' });
         return;
     }
 
@@ -407,27 +407,26 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
-            status: selectedTableId && isDineIn ? 'Diproses' : 'Selesai',
-            ...(selectedTableId && { tableId: selectedTableId }),
+            status: 'Diproses', // All table orders are processed
+            tableId: selectedTableId,
         };
         transaction.set(newTransactionRef, finalTransactionData);
         
-        if (selectedTableId) {
-            const tableRef = doc(db, tableCollectionName, selectedTableId);
-            transaction.update(tableRef, {
-                status: 'Terisi',
-                currentOrder: {
-                    items: cart,
-                    totalAmount: totalAmount,
-                    orderTime: new Date().toISOString(),
-                }
-            });
-        }
+        // Update table status
+        const tableRef = doc(db, tableCollectionName, selectedTableId);
+        transaction.update(tableRef, {
+            status: 'Terisi',
+            currentOrder: {
+                items: cart,
+                totalAmount: totalAmount,
+                orderTime: new Date().toISOString(),
+            }
+        });
         
         setLastTransaction(finalTransactionData);
       });
 
-      toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
       
       if (currentUser.role === 'admin') {
         refreshPradanaTokenBalance();
@@ -439,11 +438,10 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       setSelectedCustomer(undefined);
       onDataChange();
       
-      if (selectedTableId) {
-        const params = new URLSearchParams();
-        params.set('view', 'pos'); // keep view as POS which will default to tables
-        router.push(`/dashboard?${params.toString()}`);
-      }
+      // Go back to table management view
+      const params = new URLSearchParams();
+      params.set('view', 'pos'); // 'pos' view now defaults to table management
+      router.push(`/dashboard?${params.toString()}`);
 
     } catch (error) {
       console.error("Checkout failed:", error);
@@ -584,17 +582,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         </DialogContent>
                     </Dialog>
                 </div>
-                {!searchParams.get('tableId') && (
-                    <Combobox
-                        options={availableTableOptions}
-                        value={selectedTableId || ''}
-                        onValueChange={handleTableSelect}
-                        placeholder="Pilih Meja (Opsional)"
-                        searchPlaceholder="Cari nama meja..."
-                        notFoundText="Meja tidak ditemukan/tersedia."
-                        disabled={!!searchParams.get('tableId')} // Disable if navigated from tables view
-                    />
-                )}
             </div>
 
 
@@ -730,7 +717,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                     onChange={handlePointsRedeemChange}
                     className="h-9"
                     placeholder='0'
-                    disabled={!selectedCustomer || selectedCustomer.loyaltyPoints === 0 || selectedTableId !== null}
+                    disabled={!selectedCustomer || selectedCustomer.loyaltyPoints === 0}
                 />
               </div>
 
@@ -759,30 +746,20 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
               </div>
             </div>
             
-            {selectedCustomer && cart.length > 0 && !selectedTableId && (
+            {selectedCustomer && cart.length > 0 && (
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
-            {selectedTableId && (
-                <div className="flex items-center justify-between rounded-md border p-3">
-                    <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
-                        <Bell className="h-4 w-4" />
-                        <span>Sajikan di Sini (Dine-in)</span>
-                    </Label>
-                    <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} />
-                </div>
-            )}
+            <div className="flex items-center justify-between rounded-md border p-3">
+                <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Sajikan di Sini (Dine-in)</span>
+                </Label>
+                <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} disabled/>
+            </div>
             
-            {!selectedTableId && (
-              <div className="grid grid-cols-3 gap-2">
-                  <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
-                  <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
-                  <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
-              </div>
-            )}
-
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
-                {selectedTableId ? 'Buat Pesanan & Bayar' : 'Checkout'}
+                Buat Pesanan & Bayar
              </Button>
           </CardContent>
         </Card>
