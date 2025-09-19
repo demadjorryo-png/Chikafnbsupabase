@@ -18,6 +18,7 @@ export type ReceiptSettings = {
     headerText: string;
     footerText: string;
     promoText: string;
+    voice: string;
 };
 
 export type Store = {

@@ -5,7 +5,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 
 export const metadata: Metadata = {
   title: 'Kasir POS Chika',
-  description: 'Aplikasi Kasir POS untuk Semua Jenis Usaha',
+  description: 'Aplikasi Kasir untuk Semua Jenis Usaha',
 };
 
 export default function RootLayout({

@@ -83,7 +83,7 @@ export default function RegisterPage() {
         <Card>
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">DAFTAR AKUN BARU</CardTitle>
-              <CardDescription>Buat akun admin dan toko pertama Anda.</CardDescription>
+              <CardDescription>Buat akun admin dan bisnis F&amp;B pertama Anda.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -104,8 +104,8 @@ export default function RegisterPage() {
                   name="storeName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Toko Anda</FormLabel>
-                      <FormControl><Input placeholder="Toko Budi Jaya" {...field} /></FormControl>
+                      <FormLabel>Nama Kafe/Restoran Anda</FormLabel>
+                      <FormControl><Input placeholder="Kafe Chika" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -116,7 +116,7 @@ export default function RegisterPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email (untuk login)</FormLabel>
-                      <FormControl><Input type="email" placeholder="admin@tokobudi.com" {...field} /></FormControl>
+                      <FormControl><Input type="email" placeholder="admin@kafechika.com" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -158,7 +158,7 @@ export default function RegisterPage() {
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-                    Daftar & Buat Toko
+                    Daftar &amp; Buat Bisnis
                 </Button>
               </form>
             </Form>

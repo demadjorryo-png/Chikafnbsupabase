@@ -24,7 +24,7 @@ export default function WelcomePage() {
             KASIR POS CHIKA
           </h1>
           <p className="text-lg text-muted-foreground">
-            Aplikasi Kasir untuk Semua Jenis Usaha
+            Aplikasi Kasir untuk Restoran, Kafe, dan Bisnis Kuliner
           </p>
       </div>
     </div>

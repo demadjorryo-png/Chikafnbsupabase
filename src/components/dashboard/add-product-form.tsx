@@ -84,7 +84,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
     
-    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const productCollectionName = `products_${activeStore.id}`;
 
     try {
         await addDoc(collection(db, productCollectionName), {
@@ -92,7 +92,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
             category: data.category,
             price: data.price,
             costPrice: costPrice,
-            stock: data.stock, // Now using single stock field
+            stock: data.stock,
             supplierId: '',
             imageUrl: placeholderImage.imageUrl,
             imageHint: placeholderImage.imageHint,
