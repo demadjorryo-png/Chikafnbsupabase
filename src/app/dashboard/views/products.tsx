@@ -93,6 +93,55 @@ function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName
     );
 }
 
+function StockInput({ product, onStockChange, isUpdating }: { product: Product; onStockChange: (productId: string, newStock: number) => void; isUpdating: boolean; }) {
+  const [currentStock, setCurrentStock] = React.useState(product.stock);
+
+  React.useEffect(() => {
+    // Sync with external changes
+    setCurrentStock(product.stock);
+  }, [product.stock]);
+
+  const handleBlur = () => {
+    if (currentStock !== product.stock) {
+      onStockChange(product.id, currentStock);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (currentStock !== product.stock) {
+        onStockChange(product.id, currentStock);
+      }
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+  
+  const getStockColorClass = (stock: number): string => {
+    if (stock < 3) return 'text-destructive';
+    if (stock < 10) return 'text-yellow-500';
+    if (stock < 20) return '';
+    return 'text-green-600';
+  };
+
+  return (
+    <div className="flex items-center justify-center">
+      {isUpdating ? 
+        <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
+        <Input 
+            type="number"
+            value={currentStock}
+            onBlur={handleBlur}
+            onChange={(e) => setCurrentStock(Number(e.target.value))}
+            onKeyDown={handleKeyDown}
+            onFocus={(e) => e.target.select()}
+            className={cn('w-20 h-7 text-center', getStockColorClass(currentStock))}
+        />
+      }
+    </div>
+  );
+}
+
+
 export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
@@ -203,13 +252,6 @@ export default function Products({ products, onDataChange, isLoading }: Products
     const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
   }, [products]);
-
-  const getStockColorClass = (stock: number): string => {
-    if (stock < 3) return 'text-destructive';
-    if (stock < 10) return 'text-yellow-500';
-    if (stock < 20) return '';
-    return 'text-green-600';
-  };
 
 
   return (
@@ -323,27 +365,11 @@ export default function Products({ products, onDataChange, isLoading }: Products
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center">
-                           {updatingStock === product.id ? 
-                            <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
-                            <Input 
-                                type="number"
-                                value={product.stock}
-                                onBlur={(e) => handleStockChange(product.id, Number(e.target.value))}
-                                onChange={(e) => {
-                                    // This allows typing, but the update happens on blur
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleStockChange(product.id, Number((e.target as HTMLInputElement).value))
-                                        ;(e.target as HTMLInputElement).blur();
-                                    }
-                                }}
-                                onFocus={(e) => e.target.select()}
-                                className={cn('w-20 h-7 text-center', getStockColorClass(product.stock))}
-                            />
-                           }
-                      </div>
+                       <StockInput 
+                        product={product} 
+                        onStockChange={handleStockChange}
+                        isUpdating={updatingStock === product.id}
+                       />
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
@@ -424,3 +450,4 @@ export default function Products({ products, onDataChange, isLoading }: Products
     </div>
   );
 }
+
