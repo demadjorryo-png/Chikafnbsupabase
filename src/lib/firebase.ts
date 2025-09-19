@@ -10,7 +10,7 @@ const firebaseConfig = {
   projectId: "kasir-pos-chika-77817547-3caa2",
   storageBucket: "kasir-pos-chika-77817547-3caa2.firebasestorage.app",
   messagingSenderId: "167545733860",
-  appId: "1:167545733860:web:ba789ac18ed13f069162f1"
+  appId: "1:167545733860:web:78c5b81939c443ad9162f1"
 };
 
 // Initialize Firebase
