@@ -207,7 +207,7 @@ function DashboardContent() {
     const tableId = new URLSearchParams(window.location.search).get('tableId');
     const tableName = new URLSearchParams(window.location.search).get('tableName');
     if (view === 'pos' && tableId) {
-        return `Pesanan Meja ${tableName || ''}`;
+        return `Pesanan: ${tableName || ''}`;
     }
 
     const baseTitle = {
