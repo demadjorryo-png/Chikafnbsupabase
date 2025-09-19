@@ -265,34 +265,32 @@ export default function Products({ products, onDataChange, isLoading }: Products
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              {isAdmin && (
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Tambah Produk
-                      </span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">
-                        Tambah Produk Baru
-                      </DialogTitle>
-                      <DialogDescription>
-                        Menambahkan produk baru ke inventaris {activeStore?.name}.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {activeStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
-                      onProductAdded={handleDataUpdate}
-                      activeStore={activeStore}
-                    />}
-                  </DialogContent>
-                </Dialog>
-              )}
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                      Tambah Produk
+                    </span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider">
+                      Tambah Produk Baru
+                    </DialogTitle>
+                    <DialogDescription>
+                      Menambahkan produk baru ke inventaris {activeStore?.name}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {activeStore && <AddProductForm 
+                    setDialogOpen={setIsAddDialogOpen} 
+                    userRole={userRole} 
+                    onProductAdded={handleDataUpdate}
+                    activeStore={activeStore}
+                  />}
+                </DialogContent>
+              </Dialog>
               
             </div>
           </div>
@@ -327,35 +325,29 @@ export default function Products({ products, onDataChange, isLoading }: Products
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                      {isAdmin ? (
-                        <div className="flex items-center justify-center gap-2">
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, -1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
-                                {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
-                            </span>
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, 1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                      ) : (
-                        <span className={cn(getStockColorClass(product.stock))}>
-                            {product.stock}
-                        </span>
-                      )}
+                      <div className="flex items-center justify-center gap-2">
+                          <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => handleStockChange(product.id, product.stock, -1)}
+                              disabled={updatingStock === product.id}
+                          >
+                              <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
+                              {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
+                          </span>
+                          <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => handleStockChange(product.id, product.stock, 1)}
+                              disabled={updatingStock === product.id}
+                          >
+                              <Plus className="h-4 w-4" />
+                          </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
