@@ -754,12 +754,18 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
-            <div className="flex items-center justify-between rounded-md border p-3">
+             <div className="flex items-center justify-between rounded-md border p-3">
                 <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
                     <Bell className="h-4 w-4" />
                     <span>Sajikan di Sini (Dine-in)</span>
                 </Label>
-                <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} disabled/>
+                <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} disabled={!!selectedTableId}/>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+                <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
+                <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
+                <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
             
              <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
