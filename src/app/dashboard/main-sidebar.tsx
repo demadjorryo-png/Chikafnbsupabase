@@ -16,15 +16,15 @@ import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
   ShoppingCart,
-  Package,
-  Users,
+  BookOpenCheck,
+  Contact2,
   LogOut,
   Settings,
   ClipboardList,
   History,
-  UsersRound,
+  Users,
   Trophy,
-  TicketPercent,
+  Gift,
   CircleDollarSign,
   Receipt,
   UserCircle,
@@ -83,14 +83,14 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'products',
-      label: 'Produk',
-      icon: <Package />,
+      label: 'Produk (Menu)',
+      icon: <BookOpenCheck />,
       roles: ['admin', 'cashier'],
     },
     {
       view: 'customers',
       label: 'Pelanggan',
-      icon: <Users />,
+      icon: <Contact2 />,
       roles: ['admin', 'cashier'],
     },
      {
@@ -102,7 +102,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     {
       view: 'employees',
       label: 'Karyawan',
-      icon: <UsersRound />,
+      icon: <Users />,
       roles: ['admin'],
     },
     {
@@ -120,7 +120,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     {
       view: 'promotions',
       label: 'Promosi',
-      icon: <TicketPercent />,
+      icon: <Gift />,
       roles: ['admin', 'cashier'],
     },
     {
