@@ -88,6 +88,3 @@ const orderReadyFollowUpFlow = ai.defineFlow(
     return output!;
   }
 );
-
-
-```
