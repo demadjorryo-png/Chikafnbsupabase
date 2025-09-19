@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Transaction, Store, User, Customer } from '@/lib/types';
+import type { Transaction, Store, User, Customer, TransactionStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Volume2, Send, CheckCircle, Loader, Calendar as CalendarIcon } from 'lucide-react';
@@ -58,6 +58,7 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type TransactionsProps = {
     transactions: Transaction[];
@@ -146,6 +147,8 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, use
     );
 }
 
+type StatusFilter = 'Semua' | 'Diproses' | 'Selesai';
+
 export default function Transactions({ transactions, stores, users, customers, onDataChange, isLoading }: TransactionsProps) {
   const { activeStore } = useAuth();
   const { toast } = useToast();
@@ -160,18 +163,34 @@ export default function Transactions({ transactions, stores, users, customers, o
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('Semua');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 100;
 
   const filteredTransactions = React.useMemo(() => {
-    if (!date?.from || !date?.to) {
-      return transactions;
+    let dateFiltered = transactions;
+    if (date?.from && date?.to) {
+        // Set time to beginning and end of day to include full days
+        const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+        const toDate = new Date(date.to.setHours(23, 59, 59, 999));
+        dateFiltered = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
     }
-    // Set time to beginning and end of day to include full days
-    const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
-    const toDate = new Date(date.to.setHours(23, 59, 59, 999));
-    return transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
-  }, [transactions, date]);
+
+    if (statusFilter === 'Semua') {
+        return dateFiltered;
+    }
+    
+    return dateFiltered.filter(t => {
+        if (statusFilter === 'Diproses') {
+            return t.status === 'Diproses';
+        }
+        if (statusFilter === 'Selesai') {
+            return t.status === 'Selesai' || t.status === 'Selesai Dibayar';
+        }
+        return false;
+    });
+
+  }, [transactions, date, statusFilter]);
 
   const paginatedTransactions = React.useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -180,6 +199,12 @@ export default function Transactions({ transactions, stores, users, customers, o
   }, [filteredTransactions, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  
+  React.useEffect(() => {
+      // Reset to page 1 when filters change
+      setCurrentPage(1);
+  }, [date, statusFilter]);
+
 
   const handlePrint = (transaction: Transaction) => {
     setTransactionToPrint(transaction);
@@ -251,7 +276,17 @@ export default function Transactions({ transactions, stores, users, customers, o
                     Lihat semua penjualan yang lalu, status pesanan, dan detailnya.
                     </CardDescription>
                 </div>
-                <div className="w-full sm:w-auto">
+                <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
+                    <Select value={statusFilter} onValueChange={(value: StatusFilter) => setStatusFilter(value)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Filter status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Semua">Semua Status</SelectItem>
+                            <SelectItem value="Diproses">Diproses</SelectItem>
+                            <SelectItem value="Selesai">Selesai</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Popover>
                         <PopoverTrigger asChild>
                         <Button
