@@ -8,6 +8,7 @@ export const defaultReceiptSettings: ReceiptSettings = {
     footerText: "Terima kasih telah berbelanja!",
     promoText: "Kumpulkan poin dan dapatkan hadiah menarik!",
     voiceGender: "female", // Default female voice
+    notificationStyle: "fakta", // Default to fun facts
 };
 
 /**

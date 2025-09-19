@@ -18,6 +18,7 @@ export type ReceiptSettings = {
     footerText: string;
     promoText: string;
     voiceGender: 'male' | 'female';
+    notificationStyle: 'fakta' | 'pantun';
 };
 
 export type Store = {

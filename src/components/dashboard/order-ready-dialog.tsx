@@ -14,9 +14,10 @@ import { Loader, Send, Volume2 } from 'lucide-react';
 import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
-import type { Customer, Store, Transaction } from '@/lib/types';
+import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { getReceiptSettings } from '@/lib/receipt-settings';
 
 
 type OrderReadyDialogProps = {
@@ -44,9 +45,16 @@ export function OrderReadyDialog({
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   
+  const [receiptSettings, setReceiptSettings] = React.useState<ReceiptSettings | null>(null);
+
+  React.useEffect(() => {
+    if(store.id) {
+        getReceiptSettings(store.id).then(setReceiptSettings);
+    }
+  }, [store.id]);
 
   const processAction = React.useCallback(async () => {
-    if (!store.id) {
+    if (!receiptSettings) {
         if(open) toast({ variant: 'destructive', title: 'Pengaturan belum dimuat. Coba lagi.' });
         setIsLoading(false);
         return;
@@ -64,14 +72,14 @@ export function OrderReadyDialog({
             storeName: store.name,
             itemsOrdered: transaction.items.map(item => item.productName),
             currentTime: currentTime,
+            notificationStyle: receiptSettings.notificationStyle,
         });
         
         const text = generatedTextResult.followUpMessage;
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const { voiceGender } = await import('@/lib/receipt-settings').then(m => m.getReceiptSettings(store.id));
-            const audioResult = await convertTextToSpeech({ text, gender: voiceGender });
+            const audioResult = await convertTextToSpeech({ text, gender: receiptSettings.voiceGender });
             setAudioDataUri(audioResult.audioDataUri);
             onSuccess?.();
         } else if (actionType === 'whatsapp') {
@@ -104,7 +112,7 @@ export function OrderReadyDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [actionType, customer, store, transaction, onOpenChange, toast, open, onSuccess]);
+  }, [actionType, customer, store, transaction, onOpenChange, toast, open, onSuccess, receiptSettings]);
   
   React.useEffect(() => {
     if (audioDataUri && audioRef.current && actionType === 'call') {
@@ -116,9 +124,11 @@ export function OrderReadyDialog({
     if (open) {
         setAnnouncementText('');
         setAudioDataUri('');
-        processAction();
+        if (receiptSettings) {
+            processAction();
+        }
     }
-  }, [open, processAction]);
+  }, [open, processAction, receiptSettings]);
 
 
   return (
@@ -162,7 +172,14 @@ export function OrderReadyDialog({
             </>
           )}
 
-          {!isLoading && !announcementText && (
+          {!isLoading && !announcementText && !receiptSettings && (
+             <div className="flex items-center justify-center gap-2 py-4">
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                <span>Memuat pengaturan...</span>
+            </div>
+          )}
+
+           {!isLoading && !announcementText && receiptSettings &&(
             <Alert variant="destructive">
               <AlertTitle>Gagal Memproses</AlertTitle>
               <AlertDescription>
