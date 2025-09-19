@@ -59,40 +59,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
+          
+          if(userData.status === 'inactive') {
+              throw new Error('Akun Anda tidak aktif. Silakan hubungi admin.');
+          }
 
-          const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
-          const storeSnapshot = await getDocs(storeQuery);
-
-          if (!storeSnapshot.empty) {
-            const storeData = { id: storeSnapshot.docs[0].id, ...storeSnapshot.docs[0].data() } as Store;
-            setCurrentUser(userData);
-            setActiveStore(storeData);
-            setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-            sessionStorage.setItem('activeStoreId', storeData.id);
-          } else {
-             // For non-admin users (cashiers), find their assigned store
-             if (userData.role === 'cashier' && userData.storeId) {
-                const storeDocRef = doc(db, 'stores', userData.storeId);
-                const storeDoc = await getDoc(storeDocRef);
-                if (storeDoc.exists()) {
-                     const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
-                     setCurrentUser(userData);
-                     setActiveStore(storeData);
-                     setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-                     sessionStorage.setItem('activeStoreId', storeData.id);
-                } else {
-                    throw new Error(`Toko dengan ID ${userData.storeId} tidak ditemukan.`);
-                }
-             } else {
-                throw new Error('Toko untuk pengguna ini tidak dapat ditentukan.');
+          let storeId: string | null = sessionStorage.getItem('activeStoreId');
+          
+          if (!storeId) {
+             // If no storeId in session, find the first one they are admin of
+             const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
+             const storeSnapshot = await getDocs(storeQuery);
+             if (!storeSnapshot.empty) {
+                 storeId = storeSnapshot.docs[0].id;
+             } else if (userData.role === 'cashier' && userData.storeId) {
+                 storeId = userData.storeId;
              }
           }
 
+          if (storeId) {
+            const storeDocRef = doc(db, 'stores', storeId);
+            const storeDocSnap = await getDoc(storeDocRef);
+            if (storeDocSnap.exists()) {
+                const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
+                setCurrentUser(userData);
+                setActiveStore(storeData);
+                setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+                sessionStorage.setItem('activeStoreId', storeData.id);
+            } else {
+                 throw new Error(`Toko dengan ID ${storeId} tidak ditemukan.`);
+            }
+          } else {
+              throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda.');
+          }
+
         } else {
-           // If user doc still doesn't exist, log out the user so they can try again.
            console.error("User document not found in Firestore after retry for UID:", firebaseUser.uid);
            toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri, silakan coba login kembali.' });
-           await signOut(auth); // This will re-trigger onAuthStateChanged with null
+           await signOut(auth);
         }
       } catch (error: any) {
         console.error("Kesalahan saat menangani sesi:", error);
@@ -118,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
+    sessionStorage.removeItem('activeStoreId'); // Clear old store on new login
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
      toast({
@@ -127,6 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
+    sessionStorage.removeItem('activeStoreId'); // Clear old store
+    
     // 1. Create user in Firebase Auth. This will trigger onAuthStateChanged.
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
@@ -139,6 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminUids: [firebaseUser.uid],
         createdAt: new Date().toISOString(),
     });
+    
+    sessionStorage.setItem('activeStoreId', storeRef.id);
 
     // 3. Create the user document in Firestore
     const userDocRef = doc(db, "users", firebaseUser.uid);
