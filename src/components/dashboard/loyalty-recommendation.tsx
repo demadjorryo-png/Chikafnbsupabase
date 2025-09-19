@@ -31,8 +31,7 @@ export function LoyaltyRecommendation({
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const { toast } = useToast();
   const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
-
+  
   React.useEffect(() => {
     const fetchRedemptionOptions = async () => {
         try {
@@ -93,13 +92,13 @@ export function LoyaltyRecommendation({
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        <span>Get AI Point Recommendation ({feeSettings.aiUsageFee} Token)</span>
+        <span>Rekomendasi Poin AI ({feeSettings.aiUsageFee} Token)</span>
       </Button>
 
       {recommendation && (
         <Alert className="border-accent bg-accent/10">
             <Sparkles className="h-4 w-4 !text-accent" />
-          <AlertTitle className="font-semibold text-accent">AI Suggestion</AlertTitle>
+          <AlertTitle className="font-semibold text-accent">Saran AI</AlertTitle>
           <AlertDescription>{recommendation}</AlertDescription>
         </Alert>
       )}

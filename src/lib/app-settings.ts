@@ -59,6 +59,15 @@ export async function getPradanaTokenBalance(storeId: string): Promise<number> {
     }
 }
 
+/**
+ * Deducts the standard AI usage fee from the active store's token balance.
+ * This function is used by all business-related AI features for any user role.
+ * It throws an error if the balance is insufficient, which should be caught by the caller.
+ * @param currentBalance The current token balance of the store.
+ * @param feeSettings The application's fee settings.
+ * @param storeId The ID of the store to deduct from.
+ * @param toast A function to display notifications to the user.
+ */
 export async function deductAiUsageFee(currentBalance: number, feeSettings: TransactionFeeSettings, storeId: string, toast: Function) {
   const fee = feeSettings.aiUsageFee;
   if (currentBalance < fee) {

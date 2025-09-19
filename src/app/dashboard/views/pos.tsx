@@ -305,11 +305,11 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         return;
     }
 
-    if (currentUser.role === 'admin' && pradanaTokenBalance < transactionFee) {
+    if (pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
             title: 'Saldo Token Tidak Cukup',
-            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo toko Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
         });
         return;
     }
@@ -342,14 +342,12 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        const storeTokenDoc = currentUser.role === 'admin' ? await transaction.get(storeRef) : null;
+        const storeTokenDoc = await transaction.get(storeRef);
 
         // --- Phase 2: VALIDATE & CALCULATE ---
-        if (currentUser.role === 'admin') {
-            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-            if (currentTokenBalance < transactionFee) {
-                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-            }
+        const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
+        if (currentTokenBalance < transactionFee) {
+            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
         }
         
         const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
@@ -379,9 +377,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         }
 
         // --- Phase 3: WRITE ---
-        if (currentUser.role === 'admin') {
-            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
-        }
+        transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
         
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
@@ -427,9 +423,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
 
       toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
       
-      if (currentUser.role === 'admin') {
-        refreshPradanaTokenBalance();
-      }
+      refreshPradanaTokenBalance();
       
       setCart([]);
       setDiscountValue(0);
