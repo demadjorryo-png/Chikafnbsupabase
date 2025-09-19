@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
-import { Loader, Eye, EyeOff } from 'lucide-react';
+import { Loader, Eye, EyeOff, ScanBarcode } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import {
@@ -30,6 +30,8 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 
 
 const FormSchema = z.object({
@@ -43,6 +45,7 @@ const FormSchema = z.object({
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { register } = useAuth();
@@ -57,6 +60,17 @@ export default function RegisterPage() {
       password: '',
     },
   });
+
+  const handlePhoneScanned = (scannedPhone: string) => {
+    // Basic cleaning for scanned phone number
+    const cleanedPhone = scannedPhone.replace(/\D/g, ''); 
+    form.setValue('whatsapp', cleanedPhone);
+    toast({
+      title: 'Nomor WhatsApp Terbaca!',
+      description: `Nomor ${cleanedPhone} telah diisi.`,
+    });
+    setIsScannerOpen(false);
+  };
 
   const handleRegister = async (values: z.infer<typeof FormSchema>) => {
     setIsLoading(true);
@@ -75,6 +89,7 @@ export default function RegisterPage() {
   };
 
   return (
+    <>
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="flex justify-center">
@@ -127,7 +142,15 @@ export default function RegisterPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>No. WhatsApp</FormLabel>
-                      <FormControl><Input type="tel" placeholder="08123456789" {...field} /></FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                            <Input type="tel" placeholder="08123456789" {...field} />
+                        </FormControl>
+                        <Button variant="outline" size="icon" type="button" onClick={() => setIsScannerOpen(true)}>
+                            <ScanBarcode className="h-4 w-4" />
+                            <span className="sr-only">Scan QR Code</span>
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -169,5 +192,18 @@ export default function RegisterPage() {
         </Card>
       </div>
     </main>
+
+    <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-headline tracking-wider">Scan Nomor WhatsApp</DialogTitle>
+            <DialogDescription>
+              Arahkan kamera ke QR code yang berisi nomor telepon.
+            </DialogDescription>
+          </DialogHeader>
+          <BarcodeScanner onScan={handlePhoneScanned} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

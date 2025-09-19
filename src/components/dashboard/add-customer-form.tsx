@@ -25,9 +25,11 @@ import {
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import * as React from 'react';
-import { Loader } from 'lucide-react';
+import { Loader, ScanBarcode } from 'lucide-react';
 import type { UserRole, Store } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { BarcodeScanner } from './barcode-scanner';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) =>
@@ -64,6 +66,7 @@ type AddCustomerFormProps = {
 export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, activeStore }: AddCustomerFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -72,6 +75,17 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, acti
       phone: '',
     },
   });
+
+  const handlePhoneScanned = (scannedPhone: string) => {
+    // Basic cleaning for scanned phone number
+    const cleanedPhone = scannedPhone.replace(/\D/g, ''); 
+    form.setValue('phone', cleanedPhone);
+    toast({
+      title: 'Nomor HP Terbaca!',
+      description: `Nomor ${cleanedPhone} telah diisi.`,
+    });
+    setIsScannerOpen(false);
+  };
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
@@ -115,6 +129,7 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, acti
   }
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
@@ -136,9 +151,15 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, acti
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nomor Telepon</FormLabel>
-              <FormControl>
-                <Input placeholder="081234567890" type="tel" {...field} />
-              </FormControl>
+                <div className="flex gap-2">
+                    <FormControl>
+                        <Input placeholder="081234567890" type="tel" {...field} />
+                    </FormControl>
+                    <Button variant="outline" size="icon" type="button" onClick={() => setIsScannerOpen(true)}>
+                        <ScanBarcode className="h-4 w-4" />
+                        <span className="sr-only">Scan QR Code</span>
+                    </Button>
+                </div>
               <FormMessage />
             </FormItem>
           )}
@@ -234,5 +255,18 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, acti
         </Button>
       </form>
     </Form>
+
+    <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-headline tracking-wider">Scan Nomor Telepon</DialogTitle>
+            <DialogDescription>
+              Arahkan kamera ke QR code yang berisi nomor telepon.
+            </DialogDescription>
+          </DialogHeader>
+          <BarcodeScanner onScan={handlePhoneScanned} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
