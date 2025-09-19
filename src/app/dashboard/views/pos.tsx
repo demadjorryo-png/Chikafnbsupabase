@@ -270,8 +270,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    // Transaction fee always applies, regardless of role, for display.
-    // The actual deduction logic in handleCheckout is what matters.
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
     return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
@@ -638,7 +636,13 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                       >
                         <MinusCircle className="h-4 w-4" />
                       </Button>
-                      <span className="w-4 text-center">{item.quantity}</span>
+                      <Input
+                        type="number"
+                        className="w-14 h-8 text-center"
+                        value={item.quantity}
+                        onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
+                      />
                       <Button
                         variant="ghost"
                         size="icon"
