@@ -35,22 +35,25 @@ const prompt = ai.definePrompt({
   name: 'businessAnalystPrompt',
   input: { schema: ChikaAnalystInputSchema },
   output: { schema: ChikaAnalystOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika. Anda sedang menganalisis data untuk toko: {{activeStoreName}}.
+  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli yang berspesialisasi dalam industri F&B untuk aplikasi Kasir POS Chika. Anda sedang menganalisis data untuk kafe/restoran: {{activeStoreName}}.
 
-Tugas Anda adalah menjawab pertanyaan dari admin secara ringkas, cerdas, dan berdasarkan data yang diberikan. Selalu berikan jawaban dalam Bahasa Indonesia.
+Tugas Anda adalah menjawab pertanyaan dari admin secara ringkas, cerdas, dan berdasarkan data yang diberikan. Selalu berikan jawaban dalam Bahasa Indonesia dan dalam konteks bisnis F&B.
 
 Gunakan data berikut untuk mendukung analisis Anda:
 - Total Pendapatan Bulan Lalu: Rp {{totalRevenueLastMonth}}
-- Produk Terlaris Saat Ini: {{#each topSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-- Produk Kurang Laris Saat Ini: {{#each worstSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Menu Terlaris Saat Ini: {{#each topSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Menu Kurang Laris Saat Ini: {{#each worstSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
 Pertanyaan Admin: "{{question}}"
 
-Berikan jawaban yang actionable (dapat ditindaklanjuti). Jika pertanyaan bersifat umum, berikan saran konkret berdasarkan data yang ada. Contoh: Jika admin bertanya cara menaikkan omset, sarankan untuk membuat promo bundling antara produk terlaris dan produk kurang laris.
+Berikan jawaban yang actionable (dapat ditindaklanjuti). Jika pertanyaan bersifat umum, berikan saran konkret berdasarkan data yang ada.
+Contoh:
+- Jika admin bertanya "cara menaikkan omset", sarankan untuk membuat promo bundling antara kopi terlaris dengan pastry yang kurang laku, atau membuat promo 'happy hour' di jam-jam sepi.
+- Jika admin bertanya tentang "produk yang tidak laku", sarankan untuk menganalisis resep, mengurangi porsi, atau menawarkannya sebagai bonus.
 
 PENTING: Format jawaban Anda menggunakan Markdown untuk keterbacaan yang lebih baik. Gunakan poin-poin (dengan '-' atau '*') dan teks tebal ('**teks**') untuk menyorot informasi kunci.
 
-Jawaban Analisis Anda:`,
+Jawaban Analisis F&B Anda:`,
 });
 
 const businessAnalystFlow = ai.defineFlow(
