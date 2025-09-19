@@ -48,13 +48,9 @@ Struktur pesan harus rapi dan sopan:
 1.  Mulailah dengan sapaan berdasarkan waktu. Gunakan {{currentTime}} sebagai acuan (Pagi: 05-10, Siang: 11-14, Sore: 15-18, Malam: 19-04).
 2.  Sapa pelanggan dengan ramah, gunakan panggilan "Kak" sebelum namanya. Contoh: *Selamat Pagi, Kak {{customerName}}!*
 3.  Beritahu bahwa pesanan mereka di *[Nama Toko]* sudah siap.
-4.  Di bagian tengah, tambahkan sentuhan kreatif: 
-    {{#if (eq notificationStyle "fakta")}}
-    **HANYA BUAT SATU FAKTA MENARIK** yang berhubungan dengan SALAH SATU item yang dipesan.
-    {{/if}}
-    {{#if (eq notificationStyle "pantun")}}
-    **HANYA BUAT SATU PANTUN UNIK** yang berhubungan dengan SALAH SATU item yang dipesan.
-    {{/if}}
+4.  Di bagian tengah, tambahkan sentuhan kreatif berdasarkan "Gaya Notifikasi" yaitu **{{notificationStyle}}**.
+    - Jika gayanya 'fakta', **BUAT SATU FAKTA MENARIK** yang berhubungan dengan salah satu item.
+    - Jika gayanya 'pantun', **BUAT SATU PANTUN UNIK** yang berhubungan dengan salah satu item.
     Bungkus bagian kreatif ini dalam format kutipan agar menonjol.
 5.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.
 
