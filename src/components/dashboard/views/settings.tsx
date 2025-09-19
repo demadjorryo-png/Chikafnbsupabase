@@ -54,10 +54,10 @@ const PasswordFormSchema = z
   });
   
 const availableVoices = [
-    { name: 'Algenib', label: 'Algenib (Pria)' },
     { name: 'Achernar', label: 'Achernar (Pria)' },
     { name: 'Enceladus', label: 'Enceladus (Wanita)' },
     { name: 'Vindemiatrix', label: 'Vindemiatrix (Wanita)' },
+    { name: 'Zephyr', label: 'Zephyr (Pria)' },
 ];
 
 function ProfileCardSkeleton() {
@@ -388,5 +388,7 @@ export default function Settings() {
     </div>
   );
 }
+
+    
 
     
