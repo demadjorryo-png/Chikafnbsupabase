@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -547,7 +548,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              {selectedTableId ? `Pesanan untuk Meja ${selectedTableName}` : 'Pesanan Saat Ini'}
+              {selectedTableId ? `Pesanan untuk ${selectedTableName}` : 'Pesanan Saat Ini'}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
