@@ -70,8 +70,8 @@ export function OrderReadyDialog({
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const { voice } = await import('@/lib/receipt-settings').then(m => m.getReceiptSettings(store.id));
-            const audioResult = await convertTextToSpeech({ text, voiceName: voice });
+            const { voiceGender } = await import('@/lib/receipt-settings').then(m => m.getReceiptSettings(store.id));
+            const audioResult = await convertTextToSpeech({ text, gender: voiceGender });
             setAudioDataUri(audioResult.audioDataUri);
             onSuccess?.();
         } else if (actionType === 'whatsapp') {

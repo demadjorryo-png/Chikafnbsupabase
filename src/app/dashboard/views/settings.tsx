@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -30,12 +31,13 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
 import type { ReceiptSettings } from '@/lib/types';
+import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 
 
 const PasswordFormSchema = z
@@ -51,6 +53,10 @@ const PasswordFormSchema = z
     path: ['confirmPassword'],
   });
   
+const availableGenders = [
+    { value: 'female', label: 'Suara Wanita' },
+    { value: 'male', label: 'Suara Pria' },
+];
 
 function ProfileCardSkeleton() {
     return (
@@ -89,12 +95,22 @@ function ProfileCardSkeleton() {
 export default function Settings() {
   const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
+  const [isVoiceSettingLoading, setIsVoiceSettingLoading] = React.useState(false);
+  const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
+  const [voiceSettings, setVoiceSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender'> | null>(null);
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const { toast } = useToast();
   
+  React.useEffect(() => {
+    if (activeStore) {
+        getReceiptSettings(activeStore.id).then(settings => {
+            setVoiceSettings({ voiceGender: settings.voiceGender });
+        });
+    }
+  }, [activeStore]);
 
   const passwordForm = useForm<z.infer<typeof PasswordFormSchema>>({
     resolver: zodResolver(PasswordFormSchema),
@@ -149,6 +165,36 @@ export default function Settings() {
     }
   };
   
+  const handleVoiceSettingSave = async () => {
+    if (!activeStore || !voiceSettings) return;
+    setIsVoiceSettingLoading(true);
+    try {
+        await updateReceiptSettings(activeStore.id, { voiceGender: voiceSettings.voiceGender });
+        toast({ title: 'Pengaturan Suara Disimpan!' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Gagal Menyimpan' });
+    } finally {
+        setIsVoiceSettingLoading(false);
+    }
+  };
+  
+  const handlePlaySample = async () => {
+    if (!voiceSettings?.voiceGender) return;
+    setIsSamplePlaying(true);
+    try {
+        const { audioDataUri } = await convertTextToSpeech({
+            text: "Ini adalah contoh suara saya. Terima kasih.",
+            gender: voiceSettings.voiceGender,
+        });
+        const audio = new Audio(audioDataUri);
+        audio.play();
+    } catch (error) {
+        console.error("Error playing voice sample:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memutar Suara', description: 'Tidak dapat menghasilkan sampel suara saat ini.' });
+    } finally {
+        setIsSamplePlaying(false);
+    }
+  };
   
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -191,6 +237,53 @@ export default function Settings() {
       )}
 
       <div className="lg:col-span-2 grid gap-6">
+        {currentUser?.role === 'admin' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline tracking-wider">Pengaturan Suara Panggilan</CardTitle>
+                    <CardDescription>Pilih gender suara yang akan digunakan untuk memanggil pelanggan saat pesanan siap.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="max-w-md space-y-2">
+                        <Label>Gender Suara</Label>
+                        {voiceSettings ? (
+                            <div className="flex items-center gap-2">
+                                 <Select
+                                    value={voiceSettings.voiceGender}
+                                    onValueChange={(value: 'male' | 'female') => setVoiceSettings({ voiceGender: value })}
+                                 >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih gender..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableGenders.map(gender => (
+                                            <SelectItem key={gender.value} value={gender.value}>
+                                                {gender.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handlePlaySample}
+                                    disabled={isSamplePlaying}
+                                    aria-label="Play voice sample"
+                                >
+                                    {isSamplePlaying ? <Loader className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                        ) : <Skeleton className="h-10 w-full" />}
+                       
+                    </div>
+                     <Button onClick={handleVoiceSettingSave} disabled={isVoiceSettingLoading}>
+                        {isVoiceSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}
+                        <Save className="mr-2 h-4 w-4" />
+                        Simpan Suara
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
@@ -293,3 +386,6 @@ export default function Settings() {
     </div>
   );
 }
+
+    
+```

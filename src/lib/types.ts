@@ -17,7 +17,7 @@ export type ReceiptSettings = {
     headerText: string;
     footerText: string;
     promoText: string;
-    voice: string;
+    voiceGender: 'male' | 'female';
 };
 
 export type Store = {

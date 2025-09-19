@@ -12,9 +12,12 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 
+const MALE_VOICES = ['Achernar', 'Zephyr'];
+const FEMALE_VOICES = ['Enceladus', 'Vindemiatrix'];
+
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
-  voiceName: z.string().optional().describe('The name of the voice to use (e.g., "Algenib", "Enceladus"). Defaults to a standard female voice if not provided.'),
+  gender: z.enum(['male', 'female']).optional().describe('The preferred gender of the voice. Defaults to female.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
@@ -62,14 +65,19 @@ const textToSpeechFlow = ai.defineFlow(
     inputSchema: TextToSpeechInputSchema,
     outputSchema: TextToSpeechOutputSchema,
   },
-  async ({ text, voiceName }) => {
+  async ({ text, gender = 'female' }) => {
+    
+    // Randomly select a voice based on the specified gender
+    const voiceList = gender === 'male' ? MALE_VOICES : FEMALE_VOICES;
+    const voiceName = voiceList[Math.floor(Math.random() * voiceList.length)];
+    
     const { media } = await ai.generate({
       model: 'googleai/gemini-2.5-flash-preview-tts',
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName || 'Enceladus' }, // Default female voice
+            prebuiltVoiceConfig: { voiceName: voiceName },
           },
         },
       },
