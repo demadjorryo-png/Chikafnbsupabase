@@ -3,12 +3,11 @@
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
 // Pastikan untuk mengapitnya dengan tanda kutip tunggal (') dan menambahkan koma di akhir.
 export const productCategories = [
-  'Makanan',
-  'Minuman',
-  'Pakaian',
-  'Elektronik',
-  'Aksesoris',
-  'Buku',
+  'Kopi',
+  'Non-Kopi',
+  'Makanan Utama',
+  'Makanan Ringan',
+  'Dessert',
   'Lainnya',
 ] as const;
 
