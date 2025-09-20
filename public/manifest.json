@@ -1,24 +1,16 @@
 {
-  "name": "Kasir POS Chika FnB",
-  "short_name": "Kasir Chika FnB",
-  "description": "Aplikasi Kasir POS (Point of Sale) cerdas dengan fitur AI untuk membantu menumbuhkan bisnis F&B Anda.",
-  "start_url": "/login",
+  "name": "CHIKA POS F&B",
+  "short_name": "Chika POS",
+  "description": "Aplikasi Kasir untuk Semua Jenis Usaha",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#FFC700",
-  "orientation": "any",
+  "background_color": "#1E1E1E",
+  "theme_color": "#FFBF00",
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
