@@ -128,7 +128,7 @@ export default function LoginPage() {
 
         <Card className="text-center">
             <CardHeader>
-                <CardTitle className="text-lg font-headline tracking-wider">BUTUH APLIKASI UNTUK BISNIS ANDA?</CardTitle>
+                <CardTitle className="text-lg font-headline tracking-wider">BUTUH APLIKASI DENGAN BRANDING NAMA USAHA ANDA?</CardTitle>
                 <CardDescription>Konsultasikan kebutuhan aplikasi Anda secara gratis dengan asisten AI kami.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
