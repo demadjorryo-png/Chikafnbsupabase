@@ -19,6 +19,7 @@ import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import Tables from '@/app/dashboard/views/tables';
+import PlatformControl from '@/app/dashboard/views/platform-control';
 import { Suspense } from 'react';
 import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder, Table } from '@/lib/types';
 import { db } from '@/lib/firebase';
@@ -157,16 +158,16 @@ function DashboardContent() {
     }
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
-  const isAdmin = currentUser?.role === 'admin';
-  const view = searchParams.get('view') || 'pos';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const view = searchParams.get('view') || (currentUser?.role === 'superadmin' ? 'platform-control' : 'pos');
   
-  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings')) {
+  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings' && view !== 'platform-control')) {
     return <DashboardSkeleton />;
   }
 
   const renderView = () => {
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
-    if (!isAdmin && unauthorizedCashierViews.includes(view)) {
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics', 'platform-control'];
+    if (currentUser?.role === 'cashier' && unauthorizedCashierViews.includes(view)) {
         return <Tables 
                   tables={tables}
                   onDataChange={fetchAllData}
@@ -176,6 +177,8 @@ function DashboardContent() {
     }
 
     switch (view) {
+      case 'platform-control':
+        return <PlatformControl allStores={stores} allUsers={users} isLoading={isDataLoading} />;
       case 'overview':
         if (isAdmin) {
           return <AdminOverview
@@ -270,9 +273,10 @@ function DashboardContent() {
       'challenges': 'Tantangan Karyawan',
       'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
+      'platform-control': 'Kontrol Platform',
     }[view] || 'Manajemen Meja';
     
-    if (isAdmin && view === 'overview') {
+    if (isAdmin && view === 'overview' && currentUser?.role !== 'superadmin') {
         return `Admin Overview`;
     }
 

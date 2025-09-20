@@ -30,6 +30,7 @@ import {
   UserCircle,
   BarChart4,
   Armchair,
+  ShieldCheck,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
@@ -63,6 +64,12 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   };
 
   const allMenuItems = [
+     {
+      view: 'platform-control',
+      label: 'Kontrol Platform',
+      icon: <ShieldCheck />,
+      roles: ['superadmin'],
+    },
     {
       view: 'overview',
       label: 'Overview',
@@ -129,7 +136,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
     : [];
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
@@ -167,7 +174,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => {
-            const isDisabledForAdmin = isAdmin && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
+            const isDisabledForAdmin = currentUser?.role === 'admin' && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
             return (
                 <SidebarMenuItem key={item.view}>
                 <SidebarMenuButton

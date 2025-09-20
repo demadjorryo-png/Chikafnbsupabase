@@ -31,7 +31,7 @@ export type Store = {
   createdAt: string;
 };
 
-export type UserRole = 'admin' | 'cashier';
+export type UserRole = 'admin' | 'cashier' | 'superadmin';
 
 export type User = {
   id: string;
