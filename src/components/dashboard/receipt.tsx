@@ -1,16 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import type { Transaction, ReceiptSettings } from '@/lib/types';
-import { users, stores } from '@/lib/data';
+import type { Transaction, ReceiptSettings, User } from '@/lib/types';
 import { getReceiptSettings, defaultReceiptSettings } from '@/lib/receipt-settings';
 import { ShoppingCart } from 'lucide-react';
 
 type ReceiptProps = {
     transaction: Transaction;
+    users: User[];
 };
 
-export function Receipt({ transaction }: ReceiptProps) {
+export function Receipt({ transaction, users }: ReceiptProps) {
   const [settings, setSettings] = React.useState<ReceiptSettings>(defaultReceiptSettings);
   
   React.useEffect(() => {

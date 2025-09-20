@@ -34,7 +34,7 @@ import { Receipt } from '@/components/dashboard/receipt';
 import { Button } from '@/components/ui/button';
 
 
-function CheckoutReceiptDialog({ transaction, open, onOpenChange }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+function CheckoutReceiptDialog({ transaction, users, open, onOpenChange }: { transaction: Transaction | null; users: User[]; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!transaction) return null;
     
     const handlePrint = () => {
@@ -59,7 +59,7 @@ function CheckoutReceiptDialog({ transaction, open, onOpenChange }: { transactio
                     <DialogTitle className="font-headline tracking-wider text-center">Pratinjau Struk</DialogTitle>
                 </DialogHeader>
                 <div className="py-4" id={`receipt-for-${transaction.id}`}>
-                    <Receipt transaction={transaction} />
+                    <Receipt transaction={transaction} users={users} />
                 </div>
                 <DialogFooter className="sm:justify-center">
                     <Button type="button" className="w-full gap-2" onClick={handlePrint}>
@@ -291,6 +291,7 @@ function DashboardContent() {
       <div className="printable-area" aria-hidden="true"></div>
        <CheckoutReceiptDialog
             transaction={transactionToPrint}
+            users={users}
             open={!!transactionToPrint}
             onOpenChange={() => setTransactionToPrint(null)}
         />
