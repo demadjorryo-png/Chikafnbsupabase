@@ -119,7 +119,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Daftar Pelanggan Baru
                   </DialogTitle>
                   <DialogDescription>
-                    Tambahkan pelanggan baru ke komunitas {activeStore?.name || 'Anda'}.
+                    Tambahkan pelanggan baru ke dalam komunitas {activeStore?.name || 'Anda'}.
                   </DialogDescription>
                 </DialogHeader>
                 <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} />

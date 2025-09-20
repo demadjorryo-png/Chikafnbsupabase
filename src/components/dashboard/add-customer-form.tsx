@@ -45,10 +45,10 @@ const days = Array.from({ length: 31 }, (_, i) =>
 const FormSchema = z
   .object({
     name: z.string().min(2, {
-      message: 'Name must be at least 2 characters.',
+      message: 'Nama minimal harus 2 karakter.',
     }),
     phone: z.string().min(10, {
-      message: 'Phone number must be at least 10 digits.',
+      message: 'Nomor telepon minimal harus 10 digit.',
     }),
     birthDay: z.string().optional(),
     birthMonth: z.string().optional(),
