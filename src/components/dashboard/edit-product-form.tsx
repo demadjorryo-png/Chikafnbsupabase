@@ -31,12 +31,12 @@ import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 const FormSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  name: z.string().min(2, { message: 'Nama harus minimal 2 karakter.' }),
   category: z.enum(productCategories),
   barcode: z.string().optional(),
-  price: z.coerce.number().min(0, "Price is required"),
+  price: z.coerce.number().min(0, "Harga harus diisi"),
   costPrice: z.coerce.number().min(0).optional(),
-  brand: z.string().min(2, { message: 'Brand must be at least 2 characters.' }),
+  brand: z.string().min(2, { message: 'Merek harus minimal 2 karakter.' }),
 });
 
 type FormValues = z.infer<typeof FormSchema>;

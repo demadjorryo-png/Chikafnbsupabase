@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -42,9 +41,22 @@ export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps)
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const midtransScriptUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
-    const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'YOUR_CLIENT_KEY';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const midtransScriptUrl = isProduction 
+        ? 'https://app.midtrans.com/snap/snap.js' 
+        : 'https://app.sandbox.midtrans.com/snap/snap.js';
+    const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
     
+    if (!clientKey) {
+        console.error("Midtrans client key is not set. Please check your environment variables.");
+        toast({
+            variant: 'destructive',
+            title: 'Konfigurasi Midtrans Error',
+            description: 'Client Key Midtrans tidak ditemukan.'
+        });
+        return;
+    }
+
     let script = document.createElement('script');
     script.src = midtransScriptUrl;
     script.setAttribute('data-client-key', clientKey);
@@ -55,7 +67,7 @@ export function TopUpDialog({ currentBalance, setDialogOpen }: TopUpDialogProps)
     return () => {
       document.body.removeChild(script);
     }
-  }, []);
+  }, [toast]);
 
   React.useEffect(() => {
     async function fetchSettings() {

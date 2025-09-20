@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/auth-context';
 
 type CustomersProps = {
     customers: Customer[];
@@ -80,6 +81,7 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
 export default function Customers({ customers, onDataChange, isLoading }: CustomersProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const { activeStore } = useAuth();
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -117,7 +119,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Daftar Pelanggan Baru
                   </DialogTitle>
                   <DialogDescription>
-                    Tambahkan pelanggan baru ke dalam sistem.
+                    Tambahkan pelanggan baru ke komunitas {activeStore?.name || 'Anda'}.
                   </DialogDescription>
                 </DialogHeader>
                 <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} />

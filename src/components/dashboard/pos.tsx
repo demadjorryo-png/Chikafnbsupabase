@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -71,32 +69,10 @@ type POSProps = {
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
     pradanaTokenBalance: number;
+    onPrintRequest: (transaction: Transaction) => void;
 };
 
-function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
-    if (!transaction) return null;
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-sm">
-                <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider text-center">Checkout Successful</DialogTitle>
-                </DialogHeader>
-                <div className="py-4">
-                    <Receipt transaction={transaction} />
-                </div>
-                <DialogFooter className="sm:justify-center">
-                    <Button type="button" className="w-full gap-2" onClick={onPrint}>
-                        <Printer className="h-4 w-4" />
-                        Print Receipt
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance, onPrintRequest }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
@@ -105,7 +81,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const [paymentMethod, setPaymentMethod] = React.useState<'Cash' | 'Card' | 'QRIS'>('Cash');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
-  const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
@@ -120,8 +95,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     if (product.stock === 0) {
       toast({
         variant: 'destructive',
-        title: 'Out of Stock',
-        description: `${product.name} is currently out of stock.`,
+        title: 'Stok Habis',
+        description: `${product.name} saat ini stoknya habis di toko ini.`,
       });
       return;
     }
@@ -133,8 +108,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         if (existingItem.quantity >= product.stock) {
             toast({
                 variant: 'destructive',
-                title: 'Stock Limit Reached',
-                description: `Only ${product.stock} units of ${product.name} available.`,
+                title: 'Batas Stok Tercapai',
+                description: `Hanya ${product.stock} unit ${product.name} yang tersedia.`,
             });
             return prevCart;
         }
@@ -166,8 +141,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     if(product && quantity > product.stock) {
         toast({
             variant: 'destructive',
-            title: 'Stock Limit Reached',
-            description: `Only ${product.stock} units of ${product.name} available.`,
+            title: 'Batas Stok Tercapai',
+            description: `Hanya ${product.stock} unit ${product.name} yang tersedia.`,
         });
         setCart((prevCart) =>
             prevCart.map((item) =>
@@ -195,15 +170,15 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     if (product) {
       addToCart(product);
       toast({
-        title: 'Product Added!',
-        description: `${product.name} has been added to the cart.`,
+        title: 'Produk Ditambahkan!',
+        description: `${product.name} telah ditambahkan ke keranjang.`,
       });
       setIsScannerOpen(false);
     } else {
       toast({
         variant: 'destructive',
-        title: 'Product Not Found',
-        description: `No product found with barcode: ${barcode}`,
+        title: 'Produk Tidak Ditemukan',
+        description: `Tidak ada produk dengan barcode: ${barcode}`,
       });
     }
   };
@@ -260,22 +235,28 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         return;
     }
 
-    if (currentUser.role === 'cashier' && pradanaTokenBalance < transactionFee) {
+    if (currentUser.role !== 'admin' && pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
-            title: 'Saldo Token Global Tidak Cukup',
-            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo global hanya ${pradanaTokenBalance.toFixed(2)}. Hubungi admin.`
+            title: 'Saldo Token Tidak Cukup',
+            description: `Transaksi ini memerlukan ${transactionFee.toFixed(2)} token, tetapi saldo toko Anda hanya ${pradanaTokenBalance.toFixed(2)}. Silakan top up.`
         });
         return;
     }
     
     setIsProcessingCheckout(true);
     
-    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
+    const storeId = activeStore.id;
+    const productCollectionName = `products_${storeId}`;
+    const customerCollectionName = `customers_${storeId}`;
+    const transactionCollectionName = `transactions_${storeId}`;
     
     try {
+      let finalTransactionData: Transaction | null = null;
       await runTransaction(db, async (transaction) => {
-        // --- Phase 1: READ ---
+        
+        const storeRef = doc(db, 'stores', storeId);
+
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
@@ -283,22 +264,18 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             item: item,
           }));
         
-        const customerRef = selectedCustomer ? doc(db, "customers", selectedCustomer.id) : null;
+        const customerRef = selectedCustomer ? doc(db, customerCollectionName, selectedCustomer.id) : null;
   
         const productDocs = await Promise.all(
           productReads.map(p => transaction.get(p.ref))
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        // Also read token balance for cashier transactions
-        const tokenRef = currentUser.role === 'cashier' ? doc(db, 'appSettings', 'pradanaToken') : null;
-        const tokenDoc = tokenRef ? await transaction.get(tokenRef) : null;
-
-        // --- Phase 2: VALIDATE & CALCULATE ---
-        if (currentUser.role === 'cashier') {
-            const currentTokenBalance = tokenDoc?.data()?.balance || 0;
+        if (currentUser.role !== 'admin') {
+            const storeTokenDoc = await transaction.get(storeRef);
+            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
             if (currentTokenBalance < transactionFee) {
-                throw new Error(`Saldo Token Global Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
             }
         }
         
@@ -328,25 +305,20 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
         }
 
-        // --- Phase 3: WRITE ---
-        // 3a. Deduct token balance if cashier
-        if (tokenRef) {
-            transaction.update(tokenRef, { balance: increment(-transactionFee) });
+        if (currentUser.role !== 'admin') {
+            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
         }
         
-        // 3b. Update product stock
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
         });
 
-        // 3c. Update customer points
         if (customerRef && newCustomerPoints !== null) {
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
-        // 3d. Create the transaction record
-        const newTransactionRef = doc(collection(db, 'transactions'));
-        const finalTransactionData: Transaction = {
+        const newTransactionRef = doc(collection(db, transactionCollectionName));
+        const transactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
@@ -360,15 +332,19 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
+            status: 'Selesai',
         };
-        transaction.set(newTransactionRef, finalTransactionData);
-        
-        setLastTransaction(finalTransactionData);
+        transaction.set(newTransactionRef, transactionData);
+        finalTransactionData = transactionData;
       });
 
       toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
       
-      if (currentUser.role === 'cashier') {
+      if(finalTransactionData) {
+        onPrintRequest(finalTransactionData);
+      }
+      
+      if (currentUser.role !== 'admin') {
         refreshPradanaTokenBalance();
       }
       
@@ -386,11 +362,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       setIsProcessingCheckout(false);
     }
   }
-
-
-  const handlePrint = () => {
-    setTimeout(() => window.print(), 100);
-  };
   
   const handleCustomerAdded = () => {
     onDataChange();
@@ -512,7 +483,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                       Tambahkan pelanggan baru ke dalam sistem.
                     </DialogDescription>
                   </DialogHeader>
-                  {currentUser && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} />}
+                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -657,7 +628,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role === 'cashier' && transactionFee > 0 && (
+              {currentUser?.role !== 'admin' && transactionFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
@@ -685,10 +656,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       </div>
     </div>
 
-    <div className="printable-area">
-        {lastTransaction && <Receipt transaction={lastTransaction} />}
-    </div>
-
     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
@@ -700,15 +667,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           <BarcodeScanner onScan={handleBarcodeScanned} />
         </DialogContent>
       </Dialog>
-
-      <CheckoutReceiptDialog
-        transaction={lastTransaction}
-        open={!!lastTransaction}
-        onOpenChange={(open) => {
-            if (!open) setLastTransaction(null);
-        }}
-        onPrint={handlePrint}
-      />
     </>
   );
 }

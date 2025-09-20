@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -15,25 +14,27 @@ import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
   ShoppingCart,
-  Package,
-  Users,
+  BookOpenCheck,
+  Contact2,
   LogOut,
   Settings,
   ClipboardList,
   History,
-  UsersRound,
+  Users,
   Trophy,
-  TicketPercent,
+  Gift,
   CircleDollarSign,
   Receipt,
   UserCircle,
+  BarChart4,
+  Armchair,
+  ShieldCheck,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 
 type MainSidebarProps = {
@@ -44,12 +45,17 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   const { currentUser, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentView = searchParams.get('view') || 'overview';
+  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : 'pos';
+  const currentView = searchParams.get('view') || defaultView;
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
   const navigate = (view: string) => {
     const newParams = new URLSearchParams(searchParams.toString());
+    if (view !== 'pos') {
+      newParams.delete('tableId');
+      newParams.delete('tableName');
+    }
     newParams.set('view', view);
     router.push(`/dashboard?${newParams.toString()}`);
   };
@@ -60,52 +66,58 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   };
 
   const allMenuItems = [
+     {
+      view: 'platform-control',
+      label: 'Kontrol Platform',
+      icon: <ShieldCheck />,
+      roles: ['superadmin'],
+    },
     {
       view: 'overview',
       label: 'Overview',
       icon: <LayoutGrid />,
-      roles: ['admin', 'cashier'],
+      roles: ['admin', 'cashier', 'superadmin'],
     },
     {
       view: 'pos',
-      label: 'Point of Sale',
-      icon: <ShoppingCart />,
-      roles: ['cashier'],
-    },
-    {
-      view: 'products',
-      label: 'Products',
-      icon: <Package />,
+      label: 'Manajemen Meja',
+      icon: <Armchair />,
       roles: ['admin', 'cashier'],
     },
     {
-      view: 'customers',
-      label: 'Customers',
-      icon: <Users />,
+      view: 'transactions',
+      label: 'Transaksi',
+      icon: <History />,
+      roles: ['admin', 'cashier'],
+    },
+    {
+      view: 'products',
+      label: 'Produk (Menu)',
+      icon: <BookOpenCheck />,
       roles: ['admin', 'cashier'],
     },
     {
       view: 'employees',
       label: 'Karyawan',
-      icon: <UsersRound />,
+      icon: <Users />,
       roles: ['admin'],
     },
     {
-      view: 'transactions',
-      label: 'Transactions',
-      icon: <History />,
+      view: 'customers',
+      label: 'Pelanggan',
+      icon: <Contact2 />,
       roles: ['admin', 'cashier'],
     },
-    {
-      view: 'pending-orders',
-      label: 'Pending Orders',
-      icon: <ClipboardList />,
-      roles: ['admin', 'cashier'],
+     {
+      view: 'customer-analytics',
+      label: 'Analisis Pelanggan',
+      icon: <BarChart4 />,
+      roles: ['admin'],
     },
     {
       view: 'promotions',
-      label: 'Promotions',
-      icon: <TicketPercent />,
+      label: 'Promosi',
+      icon: <Gift />,
       roles: ['admin', 'cashier'],
     },
     {
@@ -116,7 +128,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'receipt-settings',
-      label: 'Receipt Settings',
+      label: 'Pengaturan Struk',
       icon: <Receipt />,
       roles: ['admin'],
     },
@@ -126,7 +138,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
     : [];
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
@@ -138,7 +150,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
-        <Logo />
+        <Logo storeName={activeStore?.name} />
         <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
             <Separator className="mb-2 bg-sidebar-border" />
               <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
@@ -164,8 +176,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => {
-            // Admins should not be able to go to cashier-specific views that require a storeId
-            const isDisabledForAdmin = isAdmin && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
+            const isDisabledForAdmin = currentUser?.role === 'admin' && item.roles.includes('cashier') && !item.roles.includes('admin') && item.view !== 'overview';
             return (
                 <SidebarMenuItem key={item.view}>
                 <SidebarMenuButton
@@ -197,15 +208,15 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
                </div>
             )}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
+            <SidebarMenuButton tooltip="Pengaturan" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />
-              <span>Settings</span>
+              <span>Pengaturan</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log Out" onClick={handleLogout}>
+            <SidebarMenuButton tooltip="Keluar" onClick={handleLogout}>
               <LogOut />
-              <span>Log Out</span>
+              <span>Keluar</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

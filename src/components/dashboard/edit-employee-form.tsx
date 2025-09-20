@@ -29,10 +29,10 @@ import { Loader } from 'lucide-react';
 
 const FormSchema = z.object({
     name: z.string().min(2, {
-      message: 'Name must be at least 2 characters.',
+      message: 'Nama minimal 2 karakter.',
     }),
     role: z.enum(['admin', 'cashier'], {
-        required_error: "Please select a role."
+        required_error: "Silakan pilih peran."
     }),
   });
 
@@ -91,7 +91,7 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nama Lengkap</FormLabel>
               <FormControl>
                 <Input placeholder="Budi Perkasa" {...field} />
               </FormControl>
@@ -104,15 +104,15 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
           name="role"
           render={({ field }) => (
               <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>Peran</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                   <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
+                      <SelectValue placeholder="Pilih peran" />
                   </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                      <SelectItem value="cashier">Cashier</SelectItem>
+                      <SelectItem value="cashier">Kasir</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
               </Select>
@@ -122,7 +122,7 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
         />
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
+          Simpan Perubahan
         </Button>
       </form>
     </Form>
