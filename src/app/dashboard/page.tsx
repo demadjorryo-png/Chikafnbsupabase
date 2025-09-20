@@ -27,8 +27,50 @@ import { useToast } from '@/hooks/use-toast';
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useAuth } from '@/contexts/auth-context';
-import { UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed, Printer } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Receipt } from '@/components/dashboard/receipt';
+import { Button } from '@/components/ui/button';
+
+
+function CheckoutReceiptDialog({ transaction, open, onOpenChange }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+    if (!transaction) return null;
+    
+    const handlePrint = () => {
+        const printableArea = document.querySelector('.printable-area');
+        if(printableArea) {
+            printableArea.innerHTML = ''; // Clear previous receipt
+            const receiptNode = document.createElement('div');
+            // This is a way to render React component to a node, not ideal but works for this case.
+            // A better way would be to use ReactDOM.createPortal if we can get a stable node.
+            const receiptString = document.getElementById(`receipt-for-${transaction.id}`)?.innerHTML;
+            if (receiptString) {
+                printableArea.innerHTML = receiptString;
+                window.print();
+            }
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="font-headline tracking-wider text-center">Pratinjau Struk</DialogTitle>
+                </DialogHeader>
+                <div className="py-4" id={`receipt-for-${transaction.id}`}>
+                    <Receipt transaction={transaction} />
+                </div>
+                <DialogFooter className="sm:justify-center">
+                    <Button type="button" className="w-full gap-2" onClick={handlePrint}>
+                        <Printer className="h-4 w-4" />
+                        Cetak Struk
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function DashboardContent() {
   const { currentUser, activeStore, isLoading: isAuthLoading, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
@@ -42,6 +84,7 @@ function DashboardContent() {
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const [tables, setTables] = React.useState<Table[]>([]);
   const [feeSettings, setFeeSettings] = React.useState<TransactionFeeSettings>(defaultFeeSettings);
+  const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
   
   const [isDataLoading, setIsDataLoading] = React.useState(true);
   const { toast } = useToast();
@@ -128,6 +171,7 @@ function DashboardContent() {
                   tables={tables}
                   onDataChange={fetchAllData}
                   isLoading={isDataLoading}
+                  onPrintRequest={setTransactionToPrint}
                 />;
     }
 
@@ -150,7 +194,6 @@ function DashboardContent() {
               feeSettings={feeSettings}
             />;
       case 'pos':
-        // This view now shows the tables first. If a table is selected, it will go to POS component.
         const tableId = searchParams.get('tableId');
         if (tableId) {
              return <POS 
@@ -161,12 +204,14 @@ function DashboardContent() {
                     isLoading={isDataLoading}
                     feeSettings={feeSettings}
                     pradanaTokenBalance={pradanaTokenBalance}
+                    onPrintRequest={setTransactionToPrint}
                 />;
         }
         return <Tables 
                   tables={tables}
                   onDataChange={fetchAllData}
                   isLoading={isDataLoading}
+                  onPrintRequest={setTransactionToPrint}
                 />;
       case 'products':
         return <Products 
@@ -181,7 +226,7 @@ function DashboardContent() {
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={transactions} stores={stores} users={users} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} />;
+        return <Transactions transactions={transactions} stores={stores} users={users} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} onPrintRequest={setTransactionToPrint} />;
       case 'settings':
         return <Settings />;
       case 'challenges':
@@ -200,6 +245,7 @@ function DashboardContent() {
               tables={tables}
               onDataChange={fetchAllData}
               isLoading={isDataLoading}
+              onPrintRequest={setTransactionToPrint}
             />;
     }
   };
@@ -242,6 +288,12 @@ function DashboardContent() {
           {currentUser ? renderView() : <DashboardSkeleton />}
         </main>
       </SidebarInset>
+      <div className="printable-area" aria-hidden="true"></div>
+       <CheckoutReceiptDialog
+            transaction={transactionToPrint}
+            open={!!transactionToPrint}
+            onOpenChange={() => setTransactionToPrint(null)}
+        />
     </>
   );
 }

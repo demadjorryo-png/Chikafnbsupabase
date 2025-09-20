@@ -19,7 +19,7 @@ import {
 import type { Transaction, Store, User, Customer, TransactionStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Volume2, Send, CheckCircle, Loader, Calendar as CalendarIcon } from 'lucide-react';
+import { MoreHorizontal, Volume2, Send, CheckCircle, Loader, Calendar as CalendarIcon, Printer } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +67,7 @@ type TransactionsProps = {
     customers: Customer[];
     onDataChange: () => void;
     isLoading: boolean;
+    onPrintRequest: (transaction: Transaction) => void;
 };
 
 function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; stores: Store[], users: User[] }) {
@@ -149,11 +150,10 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, use
 
 type StatusFilter = 'Semua' | 'Diproses' | 'Selesai';
 
-export default function Transactions({ transactions, stores, users, customers, onDataChange, isLoading }: TransactionsProps) {
+export default function Transactions({ transactions, stores, users, customers, onDataChange, isLoading, onPrintRequest }: TransactionsProps) {
   const { activeStore } = useAuth();
   const { toast } = useToast();
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
-  const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
   const [actionInProgress, setActionInProgress] = React.useState<{ transaction: Transaction; type: 'call' | 'whatsapp' } | null>(null);
   const [completingTransactionId, setCompletingTransactionId] = React.useState<string | null>(null);
   const [transactionToComplete, setTransactionToComplete] = React.useState<Transaction | null>(null);
@@ -170,7 +170,6 @@ export default function Transactions({ transactions, stores, users, customers, o
   const filteredTransactions = React.useMemo(() => {
     let dateFiltered = transactions;
     if (date?.from && date?.to) {
-        // Set time to beginning and end of day to include full days
         const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
         const toDate = new Date(date.to.setHours(23, 59, 59, 999));
         dateFiltered = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
@@ -201,18 +200,9 @@ export default function Transactions({ transactions, stores, users, customers, o
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   
   React.useEffect(() => {
-      // Reset to page 1 when filters change
       setCurrentPage(1);
   }, [date, statusFilter]);
 
-
-  const handlePrint = (transaction: Transaction) => {
-    setTransactionToPrint(transaction);
-    setTimeout(() => {
-        window.print();
-        setTransactionToPrint(null);
-    }, 100);
-  };
 
   const getCustomerForTransaction = (transaction: Transaction): Customer | undefined => {
       if (!transaction.customerId || transaction.customerId === 'N/A') return undefined;
@@ -261,9 +251,6 @@ export default function Transactions({ transactions, stores, users, customers, o
 
   return (
     <>
-      <div className="printable-area">
-        {transactionToPrint && <Receipt transaction={transactionToPrint} />}
-      </div>
       <div className="non-printable">
         <Card>
           <CardHeader>
@@ -421,8 +408,8 @@ export default function Transactions({ transactions, stores, users, customers, o
                                 <DropdownMenuItem onClick={() => setSelectedTransaction(transaction)}>
                                     Lihat Detail
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePrint(transaction)}>
-                                    Cetak Struk
+                                <DropdownMenuItem onClick={() => onPrintRequest(transaction)}>
+                                    <Printer className="mr-2 h-4 w-4"/> Cetak Struk
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive">

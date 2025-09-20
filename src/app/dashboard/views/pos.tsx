@@ -75,32 +75,11 @@ type POSProps = {
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
     pradanaTokenBalance: number;
+    onPrintRequest: (transaction: Transaction) => void;
 };
 
-function CheckoutReceiptDialog({ transaction, open, onOpenChange, onPrint }: { transaction: Transaction | null; open: boolean; onOpenChange: (open: boolean) => void, onPrint: () => void }) {
-    if (!transaction) return null;
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-sm">
-                <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider text-center">Checkout Berhasil</DialogTitle>
-                </DialogHeader>
-                <div className="py-4">
-                    <Receipt transaction={transaction} />
-                </div>
-                <DialogFooter className="sm:justify-center">
-                    <Button type="button" className="w-full gap-2" onClick={onPrint}>
-                        <Printer className="h-4 w-4" />
-                        Cetak Struk
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance }: POSProps) {
+export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance, onPrintRequest }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -132,7 +111,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const [paymentMethod, setPaymentMethod] = React.useState<'Cash' | 'Card' | 'QRIS'>('Cash');
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
-  const [lastTransaction, setLastTransaction] = React.useState<Transaction | null>(null);
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
@@ -320,11 +298,11 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     const tableCollectionName = `tables_${storeId}`;
     
     try {
+      let finalTransactionData: Transaction | null = null;
       await runTransaction(db, async (transaction) => {
         
         const storeRef = doc(db, 'stores', storeId);
 
-        // --- Phase 1: READ ---
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
@@ -341,7 +319,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         
         const storeTokenDoc = await transaction.get(storeRef);
 
-        // --- Phase 2: VALIDATE & CALCULATE ---
         const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
         if (currentTokenBalance < transactionFee) {
             throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
@@ -373,7 +350,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
           newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
         }
 
-        // --- Phase 3: WRITE ---
         transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
         
         stockUpdates.forEach(update => {
@@ -385,7 +361,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         }
         
         const newTransactionRef = doc(collection(db, transactionCollectionName));
-        const finalTransactionData: Transaction = {
+        const transactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
@@ -402,9 +378,8 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             status: 'Diproses', // All table orders are processed
             tableId: selectedTableId,
         };
-        transaction.set(newTransactionRef, finalTransactionData);
+        transaction.set(newTransactionRef, transactionData);
         
-        // Update table status
         const tableRef = doc(db, tableCollectionName, selectedTableId);
         transaction.update(tableRef, {
             status: 'Terisi',
@@ -415,10 +390,14 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             }
         });
         
-        setLastTransaction(finalTransactionData);
+        finalTransactionData = transactionData;
       });
 
       toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
+      
+      if (finalTransactionData) {
+        onPrintRequest(finalTransactionData);
+      }
       
       refreshPradanaTokenBalance();
       
@@ -428,9 +407,8 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       setSelectedCustomer(undefined);
       onDataChange();
       
-      // Go back to table management view
       const params = new URLSearchParams();
-      params.set('view', 'pos'); // 'pos' view now defaults to table management
+      params.set('view', 'pos');
       router.push(`/dashboard?${params.toString()}`);
 
     } catch (error) {
@@ -441,11 +419,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       setIsProcessingCheckout(false);
     }
   }
-
-
-  const handlePrint = () => {
-    setTimeout(() => window.print(), 100);
-  };
   
   const handleCustomerAdded = () => {
     onDataChange();
@@ -775,10 +748,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       </div>
     </div>
 
-    <div className="printable-area">
-        {lastTransaction && <Receipt transaction={lastTransaction} />}
-    </div>
-
     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
@@ -790,15 +759,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
           <BarcodeScanner onScan={handleBarcodeScanned} />
         </DialogContent>
       </Dialog>
-
-      <CheckoutReceiptDialog
-        transaction={lastTransaction}
-        open={!!lastTransaction}
-        onOpenChange={(open) => {
-            if (!open) setLastTransaction(null);
-        }}
-        onPrint={handlePrint}
-      />
     </>
   );
 }

@@ -41,11 +41,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2, ServerCog } from 'lucide-react';
-import type { Table, CartItem, TableStatus } from '@/lib/types';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2, ServerCog, Printer } from 'lucide-react';
+import type { Table, CartItem, TableStatus, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction, writeBatch, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -57,9 +57,10 @@ type TablesProps = {
   tables: Table[];
   onDataChange: () => void;
   isLoading: boolean;
+  onPrintRequest: (transaction: Transaction) => void;
 };
 
-export default function Tables({ tables, onDataChange, isLoading }: TablesProps) {
+export default function Tables({ tables, onDataChange, isLoading, onPrintRequest }: TablesProps) {
   const { currentUser, activeStore } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const { toast } = useToast();
@@ -74,11 +75,9 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   
   const [selectedTable, setSelectedTable] = React.useState<Table | null>(null);
   
-  // State for single/edit mode
   const [tableName, setTableName] = React.useState('');
   const [tableCapacity, setTableCapacity] = React.useState(2);
 
-  // State for bulk generate mode
   const [tablePrefix, setTablePrefix] = React.useState('Meja');
   const [tableCount, setTableCount] = React.useState(10);
   const [bulkCapacity, setBulkCapacity] = React.useState(2);
@@ -197,6 +196,21 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
      const tableRef = doc(db, tableCollectionName, selectedTable.id);
      
      try {
+        // Find the latest transaction for this table to print the receipt
+        const transactionCollectionName = `transactions_${activeStore.id}`;
+        const q = query(
+            collection(db, transactionCollectionName), 
+            where("tableId", "==", selectedTable.id),
+            orderBy("createdAt", "desc"),
+            limit(1)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        let transactionToPrint: Transaction | null = null;
+        if (!querySnapshot.empty) {
+            transactionToPrint = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Transaction;
+        }
+
         await updateDoc(tableRef, {
             status: 'Tersedia',
             currentOrder: null
@@ -204,6 +218,11 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
 
         toast({ title: `Meja ${selectedTable.name} telah dikosongkan.` });
         onDataChange();
+        
+        if (transactionToPrint) {
+            onPrintRequest(transactionToPrint);
+        }
+
         closeDialogs();
 
      } catch (error) {
@@ -260,7 +279,7 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
   }
   
   const handleTableClick = (table: Table) => {
-    if (table.status === 'Tersedia' || table.status === 'Dipesan') {
+    if (table.status === 'Tersedia' || table.status === 'Dipesan' || table.status === 'Terisi') {
       const params = new URLSearchParams();
       params.set('view', 'pos');
       params.set('tableId', table.id);
@@ -436,8 +455,8 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
                         <DropdownMenuItem onClick={() => handleChangeStatus(table, 'Dipesan')} disabled={table.status !== 'Tersedia'}>
                           <BookMarked className="mr-2 h-4 w-4" /> Tandai Dipesan
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openClearDialog(table)} disabled={table.status !== 'Selesai Dibayar'}>
-                          <SprayCan className="mr-2 h-4 w-4" /> Tandai Tersedia
+                        <DropdownMenuItem onClick={() => openClearDialog(table)}>
+                          <Printer className="mr-2 h-4 w-4" /> Bayar & Cetak Struk
                         </DropdownMenuItem>
                          <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEditDialog(table)}>
@@ -520,16 +539,16 @@ export default function Tables({ tables, onDataChange, isLoading }: TablesProps)
        <AlertDialog open={isClearTableDialogOpen} onOpenChange={(open) => { if (!open) closeDialogs() }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kosongkan Meja?</AlertDialogTitle>
+            <AlertDialogTitle>Selesaikan Pembayaran?</AlertDialogTitle>
             <AlertDialogDescription>
-                Apakah Anda yakin ingin menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan siap untuk pelanggan berikutnya?
+                Ini akan menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan mencetak struk terakhir. Pastikan pembayaran sudah diterima.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeDialogs}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearTable} disabled={isProcessing}>
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-              <Check className="mr-2 h-4 w-4" /> Ya, Kosongkan
+              <Check className="mr-2 h-4 w-4" /> Ya, Selesaikan & Cetak
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
