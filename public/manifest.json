@@ -1,29 +1,17 @@
 {
-  "background_color": "#333333",
-  "description": "Fitur Unggulan Chika POS: Lebih dari Sekadar Kasir, Ini Partner Bisnis Cerdas Anda!\n​Tinggalkan cara lama dan sambut era baru dalam mengelola bisnis F&B Anda. Chika POS hadir dengan fitur-fitur revolusioner yang didukung Chika AI untuk tidak hanya mempermudah operasional, tetapi juga secara aktif menumbuhkan bisnis Anda.\n​1. Analis Pribadi Bisnis Usaha Anda\n​Lupakan pusingnya membaca laporan yang rumit. Chika AI bertindak sebagai konsultan bisnis pribadi Anda yang bekerja 24/7. Ia menganalisis semua data penjualan, stok, dan pelanggan, lalu menyajikannya dalam bentuk wawasan sederhana yang mudah dimengerti. Anda bisa langsung tahu menu apa yang paling profitabel, jam mana yang paling ramai, dan di mana potensi bisnis Anda yang tersembunyi.\n​2. Rekomendasi Promo Cerdas untuk Optimasi Penjualan\n​Berhenti menebak-nebak promo mana yang akan berhasil! Berdasarkan data penjualan real-time, Chika AI akan memberikan rekomendasi strategi promosi yang paling efektif untuk bisnis Anda.\n​\"Buat promo bundling Kopi Susu dan Donat di jam 15.00-17.00, potensi peningkatan penjualan 20%.\"\n​\"Diskon 10% untuk menu Ayam Geprek di hari Selasa kurang efektif, coba ganti dengan promo Beli 1 Gratis 1.\"\n​3. Program Loyalitas Cerdas (AI Rekomendasi Poin Pelanggan)\n​Bangun basis pelanggan setia yang terus kembali. Chika AI membantu Anda merancang program poin yang dipersonalisasi. Sistem akan secara cerdas merekomendasikan jumlah poin yang tepat untuk setiap item atau total belanja, memastikan pelanggan merasa dihargai dan termotivasi untuk terus bertransaksi di tempat Anda.\n​4. Tingkatkan Kinerja Tim dengan Tantangan Karyawan\n​Ubah rutinitas kerja menjadi permainan yang seru! Fitur gamifikasi kami memungkinkan Anda membuat tantangan (challenge) untuk karyawan. Misalnya, \"Siapa yang berhasil menjual menu upsell terbanyak hari ini?\" atau \"Tim dengan transaksi tercepat akan mendapatkan bonus.\" Ini terbukti meningkatkan motivasi, semangat kompetisi yang sehat, dan pastinya, penjualan.\n​5. Sistem Panggilan Pesanan yang Cerdas & Menghibur\n​Revolusikan cara Anda memanggil pelanggan! Saat pesanan siap, sistem kami akan secara otomatis:\n​📲 Mengirim notifikasi WhatsApp ke nomor pelanggan.\n​📣 Melakukan panggilan otomatis melalui speaker di outlet Anda.\n​Yang membuatnya unik, pesan panggilan tidak lagi monoton! Chika AI akan menyusun pesan panggilan yang kreatif dengan fakta menarik atau pantun unik yang relevan dengan pesanan pelanggan.\n​Contoh Panggilan:\n​\"Pesanan atas nama Budi sudah siap! Sambil menikmati Nasi Goreng Spesial, tahu nggak sih? Nasi Goreng pertama kali muncul di Tiongkok lho. Selamat menikmati!\"\n​\"Panggilan untuk Kak Sari! Kopi Susu Gula Aren sudah menanti. Jalan-jalan ke Cikini, jangan lupa beli alpukat. Kopi ini kubuat sepenuh hati, semoga rasanya nikmat.\"\n​Fitur ini tidak hanya mengefisienkan antrean, tetapi juga menciptakan pengalaman yang tak terlupakan dan membuat brand Anda viral!",
-  "dir": "ltr",
-  "display": "standalone",
   "name": "Kasir POS Chika F&B",
-  "orientation": "any",
-  "scope": "/",
   "short_name": "Chika POS F&B",
+  "description": "Fitur Unggulan Chika POS: Lebih dari Sekadar Kasir, Ini Partner Bisnis Cerdas Anda! Tinggalkan cara lama dan sambut era baru dalam mengelola bisnis F&B Anda. Chika POS hadir dengan fitur-fitur revolusioner yang didukung Chika AI untuk tidak hanya mempermudah operasional, tetapi juga secara aktif menumbuhkan bisnis Anda.",
   "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#333333",
   "theme_color": "#333333",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
-    },
-    {
-      "src": "/icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
     }
   ]
 }
