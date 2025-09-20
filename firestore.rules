@@ -1,96 +1,105 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
+    // Helper function to check if a user is a Super Admin
+    function isSuperAdmin(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.role == 'superadmin';
+    }
+
+    // Helper function to check if a user is an Admin of a specific store
+    function isStoreAdmin(userId, storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId)) &&
+             userId in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
+    }
+
+    // Helper function to check if a user is a Cashier of a specific store
+    function isStoreCashier(userId, storeId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.storeId == storeId;
+    }
+    
+    // Helper function to check if the user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isSuperAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
-    }
-
-    function isAdmin(storeId) {
-      let storeAdmins = get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
-      return request.auth.uid in storeAdmins;
-    }
-
-    function isCashier(storeId) {
-      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-      return user.role == 'cashier' && user.storeId == storeId;
-    }
-
     // --- Global Settings ---
+
+    // App Settings (fees, promo, etc.) can only be read by any signed-in user, but only written by Super Admins.
     match /appSettings/{setting} {
-      // Hanya Super Admin yang bisa membaca dan mengubah pengaturan global.
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    match /redemptionOptions/{promoId} {
-      // Semua pengguna bisa membaca promo, tapi hanya super admin yang bisa mengubah.
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    // --- User & Store Management ---
-    match /users/{userId} {
-      // Izinkan pembuatan akun saat registrasi (unauthenticated write is tricky, secure with Cloud Function ideally)
-      allow create: if request.auth.uid == userId;
-      // Pengguna bisa baca/update data sendiri. Superadmin/Admin bisa baca/update data user di bawahnya.
-      allow read, update: if isSignedIn() && (
-                            request.auth.uid == userId ||
-                            isSuperAdmin()
-                          );
-      // Hanya superadmin yang bisa hapus user.
-      allow delete: if isSuperAdmin();
-    }
-
-    match /stores/{storeId} {
-      // Semua user terautentikasi bisa baca daftar toko (untuk login).
-      allow read: if isSignedIn();
-      // Hanya superadmin yang bisa buat/update/hapus toko.
-      allow create, update, delete: if isSuperAdmin();
+      allow write: if isSuperAdmin(request.auth.uid);
     }
     
-    // --- Platform-wide Stats ---
+    // Platform-wide statistics can only be read by super admins.
+    // In a real scenario, this would be written by a trusted Cloud Function.
     match /platform/stats {
-      // Hanya super admin yang bisa baca statistik platform.
-      allow read: if isSuperAdmin();
-      // Tidak ada client yang boleh menulis, ini hanya untuk Cloud Function.
-      allow write: if false;
+        allow read: if isSuperAdmin(request.auth.uid);
+        allow write: if false; // Only Cloud Functions should write here
     }
 
+    // Redemption options are public to read for all users, but only admins/superadmins can manage them.
+    match /redemptionOptions/{optionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin(request.auth.uid);
+    }
 
-    // --- Store-Specific Subcollections ---
-    // Aturan ini berlaku untuk semua sub-koleksi yang polanya `*_<storeId>`.
-    // Contoh: products_store_001, transactions_store_001, dll.
-    match /{collection}_{storeId}/{docId} {
-      // Read: Boleh jika user adalah SuperAdmin, atau Admin/Kasir dari toko tersebut.
-      allow read: if isSignedIn() && (
-                    isSuperAdmin() ||
-                    isAdmin(storeId) ||
-                    isCashier(storeId)
-                  );
-      // Create, Update, Delete: Boleh jika user adalah SuperAdmin atau Admin toko.
-      allow create, update, delete: if isSignedIn() && (
-                                      isSuperAdmin() ||
-                                      isAdmin(storeId)
-                                    );
-      // Pengecualian: Kasir boleh membuat transaksi baru.
-      allow create: if isSignedIn() &&
-                      collection == 'transactions' &&
-                      (isCashier(storeId) || isAdmin(storeId) || isSuperAdmin());
+    // --- User and Store Management ---
+
+    // Any user can read their own data. Super Admins can read anyone's data.
+    // Users can be created during registration. Updates are restricted.
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId || isSuperAdmin(request.auth.uid);
+      allow create: if request.auth.uid == userId; // Allow user creation on signup
+      allow update: if request.auth.uid == userId || isSuperAdmin(request.auth.uid); // Allow user to update their own profile, or SuperAdmin to update any
+      allow delete: if isSuperAdmin(request.auth.uid);
     }
     
+    // All signed-in users can read the list of stores (for the login dropdown).
+    // Creating/Updating stores is restricted to admins of that store or superadmins.
+    match /stores/{storeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // Allow store creation on registration
+      allow update: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // --- Special Case: Transactions ---
+    // We need to allow cashiers to CREATE transactions. This specific rule overrides the general one below.
+    match /transactions_{storeId}/{transactionId} {
+        allow create: if isSuperAdmin(request.auth.uid) || 
+                         isStoreAdmin(request.auth.uid, storeId) ||
+                         isStoreCashier(request.auth.uid, storeId);
+        allow read, update, delete: if isSuperAdmin(request.auth.uid) || 
+                               isStoreAdmin(request.auth.uid, storeId);
+    }
+
+    // --- Store-Specific Sub-collections (Products, Customers, etc.) ---
+    match /{collection}/{docId} {
+      // This rule applies to collections like products_storeId, customers_storeId, tables_storeId, etc.
+      // It specifically excludes 'transactions_{storeId}' which is handled above.
+      allow read: if collection.split('_')[0] != 'transactions' && (
+                     isSuperAdmin(request.auth.uid) || 
+                     isStoreAdmin(request.auth.uid, collection.split('_')[1]) || 
+                     isStoreCashier(request.auth.uid, collection.split('_')[1])
+                   );
+
+      allow write: if collection.split('_')[0] != 'transactions' && (
+                      isSuperAdmin(request.auth.uid) || 
+                      isStoreAdmin(request.auth.uid, collection.split('_')[1])
+                    );
+    }
+    
+    // --- Pending Orders ---
+    // Anyone in a store can create a pending order.
     match /pendingOrders/{orderId} {
-      // Siapa saja yang login di toko bisa baca dan buat pending order.
-      allow read, create: if isSignedIn();
-      // Hanya admin/superadmin yang bisa hapus.
-      allow delete: if isSuperAdmin() || isAdmin(get(/databases/$(database)/documents/pendingOrders/$(orderId)).data.storeId);
+        allow read, create: if isSignedIn();
+        allow update, delete: if isSuperAdmin(request.auth.uid) || 
+                                 isStoreAdmin(request.auth.uid, resource.data.storeId) ||
+                                 isStoreCashier(request.auth.uid, resource.data.storeId);
     }
   }
 }
