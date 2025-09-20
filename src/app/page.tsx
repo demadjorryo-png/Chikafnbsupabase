@@ -20,9 +20,11 @@ export default function WelcomePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
        <div className="flex flex-col items-center gap-4 text-center">
-            <UtensilsCrossed className="h-20 w-20 animate-pulse-slow text-primary" />
+            <div className="rounded-lg border-4 border-primary p-4">
+                <UtensilsCrossed className="h-20 w-20 animate-pulse-slow text-primary" />
+            </div>
             <h1 className="font-headline text-3xl font-bold tracking-wider text-foreground">
-                CHIKA POS F&amp;B
+                CHIKA POS F&B
             </h1>
       </div>
     </div>
