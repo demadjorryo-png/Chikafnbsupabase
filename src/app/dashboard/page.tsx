@@ -8,6 +8,7 @@ import { Header } from '@/components/dashboard/header';
 import { SidebarInset } from '@/components/ui/sidebar';
 import Overview from '@/app/dashboard/views/overview';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
+import SuperAdminOverview from '@/app/dashboard/views/superadmin-overview';
 import POS from '@/app/dashboard/views/pos';
 import Products from '@/app/dashboard/views/products';
 import Customers from '@/app/dashboard/views/customers';
@@ -158,8 +159,9 @@ function DashboardContent() {
     }
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
-  const view = searchParams.get('view') || (currentUser?.role === 'superadmin' ? 'platform-control' : 'pos');
+  const isAdmin = currentUser?.role === 'admin';
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : 'pos');
   
   if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings' && view !== 'platform-control')) {
     return <DashboardSkeleton />;
@@ -180,6 +182,9 @@ function DashboardContent() {
       case 'platform-control':
         return <PlatformControl allStores={stores} allUsers={users} isLoading={isDataLoading} />;
       case 'overview':
+        if (isSuperAdmin) {
+            return <SuperAdminOverview allStores={stores} allUsers={users} isLoading={isDataLoading} />;
+        }
         if (isAdmin) {
           return <AdminOverview
                     transactions={transactions} 
@@ -276,8 +281,12 @@ function DashboardContent() {
       'platform-control': 'Kontrol Platform',
     }[view] || 'Manajemen Meja';
     
-    if (isAdmin && view === 'overview' && currentUser?.role !== 'superadmin') {
+    if (isAdmin && !isSuperAdmin && view === 'overview') {
         return `Admin Overview`;
+    }
+    
+    if (isSuperAdmin && view === 'overview') {
+        return `Platform Overview`;
     }
 
     return baseTitle;
@@ -323,3 +332,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    
