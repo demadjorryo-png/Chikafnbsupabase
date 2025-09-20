@@ -286,7 +286,7 @@ function DashboardContent() {
     }
     
     if (isSuperAdmin && view === 'overview') {
-        return `Platform Overview`;
+        return `Overview Platform`;
     }
 
     return baseTitle;
@@ -332,5 +332,3 @@ function DashboardSkeleton() {
         </div>
     )
 }
-
-    
