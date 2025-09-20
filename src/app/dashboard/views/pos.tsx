@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -569,7 +568,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                             Tambahkan pelanggan baru ke dalam sistem.
                             </DialogDescription>
                         </DialogHeader>
-                        {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore}/>}
+                        <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
                         </DialogContent>
                     </Dialog>
                 </div>

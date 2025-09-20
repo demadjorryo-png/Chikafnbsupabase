@@ -26,10 +26,10 @@ import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import * as React from 'react';
 import { Loader, ScanBarcode } from 'lucide-react';
-import type { UserRole, Store } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { BarcodeScanner } from './barcode-scanner';
+import { useAuth } from '@/contexts/auth-context';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) =>
@@ -59,12 +59,11 @@ const FormSchema = z
 type AddCustomerFormProps = {
   setDialogOpen: (open: boolean) => void;
   onCustomerAdded?: () => void;
-  userRole: UserRole;
-  activeStore: Store;
 };
 
-export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, activeStore }: AddCustomerFormProps) {
+export function AddCustomerForm({ setDialogOpen, onCustomerAdded }: AddCustomerFormProps) {
   const { toast } = useToast();
+  const { currentUser, activeStore } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
 
@@ -88,6 +87,15 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded, userRole, acti
   };
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
+    if (!activeStore) {
+        toast({
+            variant: 'destructive',
+            title: 'Toko Tidak Aktif',
+            description: 'Tidak ada toko yang aktif untuk menambahkan pelanggan.'
+        });
+        return;
+    }
+      
     setIsLoading(true);
     const birthDate = (data.birthYear && data.birthMonth && data.birthDay) 
         ? `${data.birthYear}-${data.birthMonth}-${data.birthDay}` 
