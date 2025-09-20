@@ -1,20 +1,15 @@
 {
-  "background_color": "#333333",
-  "description": "Fitur Unggulan Chika POS: Lebih dari Sekadar Kasir, Ini Partner Bisnis Cerdas Anda!",
+  "background_color": "#1E1E1E",
+  "description": "Fitur Unggulan Chika POS: Lebih dari Sekadar Kasir, Ini Partner Bisnis Cerdas Anda! Tinggalkan cara lama dan sambut era baru dalam mengelola bisnis F&B Anda. Chika POS hadir dengan fitur-fitur revolusioner yang didukung Chika AI untuk tidak hanya mempermudah operasional, tetapi juga secara aktif menumbuhkan bisnis Anda.",
   "dir": "ltr",
   "display": "standalone",
-  "name": "Kasir POS Chika F&B",
+  "name": "Kasir POS Chika FnB",
   "orientation": "any",
   "scope": "/",
-  "short_name": "Chika POS F&B",
+  "short_name": "Kasir Chika FnB",
   "start_url": "/login",
-  "theme_color": "#333333",
+  "theme_color": "#1E1E1E",
   "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -24,6 +19,11 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
