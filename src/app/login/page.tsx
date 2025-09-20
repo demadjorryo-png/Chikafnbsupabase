@@ -22,6 +22,8 @@ import { ChikaChatDialog } from '@/components/dashboard/chika-chat-dialog';
 import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { auth } from '@/lib/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 
 export default function LoginPage() {
@@ -63,6 +65,29 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const userEmail = prompt("Silakan masukkan alamat email Anda untuk mereset password:");
+    if (userEmail) {
+        try {
+            await sendPasswordResetEmail(auth, userEmail);
+            toast({
+                title: 'Email Terkirim!',
+                description: 'Silakan periksa kotak masuk email Anda untuk instruksi reset password.',
+            });
+        } catch (error: any) {
+            let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = "Email yang Anda masukkan tidak terdaftar.";
+            }
+            toast({
+                variant: 'destructive',
+                title: 'Gagal Mengirim Email',
+                description: errorMessage,
+            });
+        }
+    }
+  };
+
   return (
     <>
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -82,7 +107,12 @@ export default function LoginPage() {
                   <Input id="email" type="email" placeholder='admin@kafechika.com' value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline focus:outline-none">
+                        Lupa Password?
+                    </button>
+                  </div>
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full" disabled={isLoginLoading}>
