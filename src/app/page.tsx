@@ -22,12 +22,12 @@ export default function WelcomePage() {
             <Image 
                 src="/icon.svg" 
                 alt="App Icon" 
-                width={64} 
-                height={64} 
-                className="h-16 w-16 animate-pulse-slow"
+                width={80} 
+                height={80} 
+                className="h-20 w-20 animate-pulse-slow"
             />
             <h1 className="font-headline text-3xl font-bold tracking-wider text-foreground">
-                CHIKA F&B
+                CHIKA POS F&B
             </h1>
       </div>
     </div>
