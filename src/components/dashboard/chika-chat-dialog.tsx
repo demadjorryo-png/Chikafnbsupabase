@@ -37,17 +37,15 @@ type Message = {
 };
 
 const businessAnalystExampleQuestions = [
-    "Produk apa yang paling tidak laku bulan ini?",
-    "Bagaimana cara meningkatkan omset?",
+    "Bagaimana cara meningkatkan omset toko saya?",
     "Beri saya ide promo untuk akhir pekan.",
-    "Berapa total pendapatan bulan lalu?",
+    "Produk apa yang paling tidak laku bulan ini?",
 ];
 
 const appConsultantExampleQuestions = [
     "Saya mau buat aplikasi kasir untuk coffee shop.",
     "Bisa bantu saya bikin aplikasi untuk barbershop?",
-    "Apa saja yang perlu disiapkan untuk membuat aplikasi custom?",
-    "Berapa perkiraan biayanya?",
+    "Berapa perkiraan biaya pembuatan aplikasi custom?",
 ];
 
 type ChikaChatDialogProps = {
