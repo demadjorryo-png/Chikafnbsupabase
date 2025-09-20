@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -26,13 +25,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Building2, Users, DollarSign, TrendingUp, ShoppingCart, Crown } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-import type { Store, User, Transaction } from '@/lib/types';
+import { Building2, Users, DollarSign, ShoppingCart, Crown } from 'lucide-react';
+import type { PlatformStats } from '@/lib/platform-stats';
+import { getPlatformStats } from '@/lib/platform-stats';
 import { Skeleton } from '@/components/ui/skeleton';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 
 const chartConfig = {
@@ -43,74 +39,23 @@ const chartConfig = {
 };
 
 type SuperAdminOverviewProps = {
-    allStores: Store[];
-    allUsers: User[];
+    allStores: { id: string, name: string }[];
+    allUsers: { id: string }[];
     isLoading: boolean;
 };
 
-type PlatformData = {
-    totalRevenue: number;
-    totalTransactions: number;
-    monthlyGrowthData: { month: string; revenue: number }[];
-    topStores: { store: Store; totalRevenue: number }[];
-};
 
 export default function SuperAdminOverview({ allStores, allUsers, isLoading: isAuthLoading }: SuperAdminOverviewProps) {
-    const [platformData, setPlatformData] = React.useState<PlatformData | null>(null);
+    const [platformData, setPlatformData] = React.useState<PlatformStats | null>(null);
     const [isDataLoading, setIsDataLoading] = React.useState(true);
 
     React.useEffect(() => {
         const fetchPlatformData = async () => {
             if (isAuthLoading) return;
             setIsDataLoading(true);
-
             try {
-                const transactionPromises = allStores.map(store => getDocs(query(collection(db, `transactions_${store.id}`))));
-                const transactionSnapshots = await Promise.all(transactionPromises);
-
-                const allTransactions = transactionSnapshots.flatMap((snapshot, index) => 
-                    snapshot.docs.map(doc => ({ ...doc.data(), storeId: allStores[index].id } as Transaction))
-                );
-
-                const now = new Date();
-                const monthlyData: { month: string; revenue: number }[] = [];
-                for (let i = 5; i >= 0; i--) {
-                    const targetMonth = subMonths(now, i);
-                    const start = startOfMonth(targetMonth);
-                    const end = endOfMonth(targetMonth);
-                    const monthName = format(targetMonth, 'MMM', { locale: idLocale });
-                    
-                    const monthlyRevenue = allTransactions
-                        .filter(t => isWithinInterval(new Date(t.createdAt), { start, end }))
-                        .reduce((sum, t) => sum + t.totalAmount, 0);
-                        
-                    monthlyData.push({ month: monthName, revenue: monthlyRevenue });
-                }
-
-                const storeRevenue: Record<string, number> = {};
-                allTransactions.forEach(tx => {
-                    if (!storeRevenue[tx.storeId]) {
-                        storeRevenue[tx.storeId] = 0;
-                    }
-                    storeRevenue[tx.storeId] += tx.totalAmount;
-                });
-
-                const topStores = Object.entries(storeRevenue)
-                    .map(([storeId, totalRevenue]) => ({
-                        store: allStores.find(s => s.id === storeId)!,
-                        totalRevenue,
-                    }))
-                    .filter(item => item.store)
-                    .sort((a, b) => b.totalRevenue - a.totalRevenue)
-                    .slice(0, 5);
-                
-                setPlatformData({
-                    totalRevenue: allTransactions.reduce((sum, t) => sum + t.totalAmount, 0),
-                    totalTransactions: allTransactions.length,
-                    monthlyGrowthData: monthlyData,
-                    topStores: topStores
-                });
-
+                const stats = await getPlatformStats();
+                setPlatformData(stats);
             } catch (error) {
                 console.error("Error fetching platform-wide data:", error);
             } finally {
@@ -119,14 +64,14 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
         };
 
         fetchPlatformData();
-    }, [isAuthLoading, allStores]);
+    }, [isAuthLoading]);
     
     if (isAuthLoading || isDataLoading) {
         return <SuperAdminOverviewSkeleton />
     }
     
     if (!platformData) {
-        return <Card><CardHeader><CardTitle>Data tidak tersedia</CardTitle></CardHeader></Card>
+        return <Card><CardHeader><CardTitle>Data statistik tidak tersedia</CardTitle><CardDescription>Pastikan Cloud Function untuk agregasi data sudah berjalan dan menyimpan hasilnya di dokumen 'platform/stats'.</CardDescription></CardHeader></Card>
     }
 
     return (
@@ -199,7 +144,7 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
                         <CardTitle className="font-headline tracking-wider flex items-center gap-2">
                            <Crown className="text-primary" /> Toko Performa Terbaik
                         </CardTitle>
-                        <CardDescription>Berdasarkan total pendapatan sepanjang waktu.</CardDescription>
+                        <CardDescription>Berdasarkan total pendapatan.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -210,12 +155,12 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {platformData.topStores.map(({ store, totalRevenue }, index) => (
-                                <TableRow key={store.id}>
+                                {platformData.topStores.map(({ storeName, totalRevenue }, index) => (
+                                <TableRow key={storeName}>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <span className="font-bold w-4">{index + 1}.</span>
-                                            <div className="font-medium">{store.name}</div>
+                                            <div className="font-medium">{storeName}</div>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
@@ -278,5 +223,3 @@ function SuperAdminOverviewSkeleton() {
         </div>
     )
 }
-
-    
