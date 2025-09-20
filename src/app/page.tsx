@@ -33,8 +33,8 @@ export default function WelcomePage() {
                 />
             </svg>
 
-          <h1 className="font-headline text-6xl font-bold tracking-wider text-foreground">
-            Chika
+          <h1 className="font-headline text-4xl font-bold tracking-wider text-foreground">
+            KASIR POS CHIKA
           </h1>
       </div>
     </div>
