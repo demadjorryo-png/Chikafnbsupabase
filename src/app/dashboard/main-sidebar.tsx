@@ -48,7 +48,8 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentView = searchParams.get('view') || 'pos';
+  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : 'pos';
+  const currentView = searchParams.get('view') || defaultView;
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
@@ -74,7 +75,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       view: 'overview',
       label: 'Overview',
       icon: <LayoutGrid />,
-      roles: ['admin', 'cashier'],
+      roles: ['admin', 'cashier', 'superadmin'],
     },
     {
       view: 'pos',
