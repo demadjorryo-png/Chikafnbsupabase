@@ -24,10 +24,10 @@ export default function WelcomePage() {
                 alt="App Icon" 
                 width={64} 
                 height={64} 
-                className="h-16 w-16 animate-pulse-slow opacity-50"
+                className="h-16 w-16 animate-pulse-slow"
             />
             <h1 className="font-headline text-3xl font-bold tracking-wider text-foreground">
-                Chika POS FnB
+                CHIKA F&B
             </h1>
       </div>
     </div>
