@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -119,7 +120,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Daftar Pelanggan Baru
                   </DialogTitle>
                   <DialogDescription>
-                    Tambahkan pelanggan baru ke dalam komunitas {activeStore?.name || 'Anda'}.
+                    Tambahkan pelanggan baru dan Dapatkan Fitur Menarik Chika AI
                   </DialogDescription>
                 </DialogHeader>
                 <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} />

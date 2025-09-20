@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -537,7 +538,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                             Daftar Pelanggan Baru
                             </DialogTitle>
                             <DialogDescription>
-                            Tambahkan pelanggan baru ke dalam sistem.
+                              Tambahkan pelanggan baru dan Dapatkan Fitur Menarik Chika AI
                             </DialogDescription>
                         </DialogHeader>
                         <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
