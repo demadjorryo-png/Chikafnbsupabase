@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { UtensilsCrossed } from 'lucide-react';
+import Image from 'next/image';
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -19,7 +19,13 @@ export default function WelcomePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
        <div className="flex flex-col items-center gap-4 text-center">
-            <UtensilsCrossed className="h-16 w-16 animate-pulse-slow text-primary/50" />
+            <Image 
+                src="/icon.svg" 
+                alt="App Icon" 
+                width={64} 
+                height={64} 
+                className="h-16 w-16 animate-pulse-slow opacity-50"
+            />
             <h1 className="font-headline text-3xl font-bold tracking-wider text-foreground">
                 Chika POS FnB
             </h1>
