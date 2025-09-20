@@ -44,7 +44,7 @@ service cloud.firestore {
     // Redemption options are public to read for all users, but only admins/superadmins can manage them.
     match /redemptionOptions/{optionId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSuperAdmin(request.auth.uid);
+      allow create, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId);
     }
 
     // --- User and Store Management ---
@@ -67,30 +67,18 @@ service cloud.firestore {
       allow delete: if isSuperAdmin(request.auth.uid);
     }
 
-    // --- Special Case: Transactions ---
-    // We need to allow cashiers to CREATE transactions. This specific rule overrides the general one below.
-    match /transactions_{storeId}/{transactionId} {
-        allow create: if isSuperAdmin(request.auth.uid) || 
-                         isStoreAdmin(request.auth.uid, storeId) ||
-                         isStoreCashier(request.auth.uid, storeId);
-        allow read, update, delete: if isSuperAdmin(request.auth.uid) || 
-                               isStoreAdmin(request.auth.uid, storeId);
+    // --- Store-Specific Sub-collections ---
+    
+    // Products, Customers, Challenges can be managed by Store Admins and read by Cashiers.
+    match /(products|customers|challenges|tables)_{storeId}/{docId} {
+      allow read: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId);
+      allow write: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId);
     }
 
-    // --- Store-Specific Sub-collections (Products, Customers, etc.) ---
-    match /{collection}/{docId} {
-      // This rule applies to collections like products_storeId, customers_storeId, tables_storeId, etc.
-      // It specifically excludes 'transactions_{storeId}' which is handled above.
-      allow read: if collection.split('_')[0] != 'transactions' && (
-                     isSuperAdmin(request.auth.uid) || 
-                     isStoreAdmin(request.auth.uid, collection.split('_')[1]) || 
-                     isStoreCashier(request.auth.uid, collection.split('_')[1])
-                   );
-
-      allow write: if collection.split('_')[0] != 'transactions' && (
-                      isSuperAdmin(request.auth.uid) || 
-                      isStoreAdmin(request.auth.uid, collection.split('_')[1])
-                    );
+    // Transactions can be created by Cashiers, but only read/managed by Admins.
+    match /transactions_{storeId}/{transactionId} {
+      allow read, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId);
+      allow create: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId);
     }
     
     // --- Pending Orders ---
