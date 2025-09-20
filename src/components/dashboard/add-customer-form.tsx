@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +62,7 @@ type AddCustomerFormProps = {
 
 export function AddCustomerForm({ setDialogOpen, onCustomerAdded }: AddCustomerFormProps) {
   const { toast } = useToast();
-  const { currentUser, activeStore } = useAuth();
+  const { activeStore } = useAuth(); // Mengambil activeStore dari context
   const [isLoading, setIsLoading] = React.useState(false);
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
 

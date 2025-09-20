@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -39,7 +38,6 @@ import {
 } from '@/components/ui/dialog';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/contexts/auth-context';
 
 type CustomersProps = {
     customers: Customer[];
@@ -80,7 +78,6 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
 }
 
 export default function Customers({ customers, onDataChange, isLoading }: CustomersProps) {
-  const { currentUser, activeStore } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
 
@@ -123,7 +120,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                     Tambahkan pelanggan baru ke dalam sistem.
                   </DialogDescription>
                 </DialogHeader>
-                {currentUser && activeStore && <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} userRole={currentUser.role} activeStore={activeStore} />}
+                <AddCustomerForm setDialogOpen={setIsAddDialogOpen} onCustomerAdded={handleCustomerAdded} />
               </DialogContent>
             </Dialog>
           </div>
