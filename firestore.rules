@@ -3,112 +3,89 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is a Super Admin
-    function isSuperAdmin(userId) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.role == 'superadmin';
+    // --- FUNGSI BANTUAN UTAMA ---
+    
+    function isSuperAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
     }
 
-    // Helper function to check if a user is an Admin of a specific store
-    function isStoreAdmin(userId, storeId) {
-      return exists(/databases/$(database)/documents/stores/$(storeId)) &&
-             userId in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
+    function isStoreAdmin(storeId) {
+      return request.auth != null && request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
     }
 
-    // Helper function to check if a user is a Cashier of a specific store
-    function isStoreCashier(userId, storeId) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.storeId == storeId;
+    function isStoreMember(storeId) {
+        // A user is a member if they are a superadmin, a store admin, or their user document points to that storeId.
+        return request.auth != null && (
+            isSuperAdmin() ||
+            isStoreAdmin(storeId) ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId
+        );
     }
     
-    // Helper function to check if the user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- Global Settings ---
+    // --- ATURAN GLOBAL ---
 
-    // App Settings (fees, promo, etc.) can only be read by any signed-in user, but only written by Super Admins.
     match /appSettings/{setting} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin(request.auth.uid);
+      allow write: if isSuperAdmin();
     }
     
-    // Platform-wide statistics can only be read by super admins.
-    // In a real scenario, this would be written by a trusted Cloud Function.
     match /platform/stats {
-        allow read: if isSuperAdmin(request.auth.uid);
-        allow write: if false; // Only Cloud Functions should write here
+        allow read: if isSuperAdmin();
+        allow write: if false; 
     }
 
-    // Redemption options are public to read for all users, but only admins/superadmins can manage them.
     match /redemptionOptions/{optionId} {
       allow read: if isSignedIn();
-      // Allow admins to manage promotions as well
-      allow create, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, request.resource.data.storeId);
+      allow write: if isSuperAdmin();
+    }
+    
+    match /pendingOrders/{orderId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        // Allow update/delete only if the user is a member of the store the order belongs to.
+        allow update, delete: if isStoreMember(resource.data.storeId);
     }
 
-    // --- User and Store Management ---
+    // --- ATURAN PENGGUNA & TOKO ---
 
-    // All signed-in users can read user data (for display purposes like cashier name in transactions).
-    // A user can only update their own data. SuperAdmins can manage all users.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if request.auth.uid == userId; // Allow user creation on signup
-      allow update: if request.auth.uid == userId || isSuperAdmin(request.auth.uid); // Allow user to update their own profile, or SuperAdmin to update any
-      allow delete: if isSuperAdmin(request.auth.uid);
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId; 
+      allow delete: if isSuperAdmin();
     }
     
-    // All signed-in users can read the list of stores (for the login dropdown).
-    // Creating/Updating stores is restricted to admins of that store or superadmins.
     match /stores/{storeId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); // Allow store creation on registration
-      allow update: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-      allow delete: if isSuperAdmin(request.auth.uid);
+      allow create: if isSignedIn(); 
+      allow update: if isStoreAdmin(storeId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
-    // --- Store-Specific Sub-collections ---
-    match /products_{storeId}/{productId} {
-      allow read: if isSignedIn();
-      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-    }
-    match /customers_{storeId}/{customerId} {
-      allow read: if isSignedIn();
-      // Allow cashiers to create customers
-      allow create: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
-      allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-    }
-     match /tables_{storeId}/{tableId} {
-      allow read: if isSignedIn();
-      // Admins can create and delete tables
-      allow create, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-      // Both Admins and Cashiers can update tables (e.g., change status)
-      allow update: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
-    }
-     match /challenges_{storeId}/{challengeId} {
-      allow read: if isSignedIn();
-      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-    }
-     match /appliedStrategies_{storeId}/{strategyId} {
-      allow read: if isSignedIn();
-      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-    }
-    
-    // --- Special Case: Transactions ---
-    // Cashiers can only create and read transactions. Admins can manage them fully.
-    match /transactions_{storeId}/{transactionId} {
-        allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-        allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-    }
-    
-    // --- Pending Orders ---
-    // Anyone in a store can create a pending order.
-    match /pendingOrders/{orderId} {
-        allow read, create: if isSignedIn();
-        allow update, delete: if isSuperAdmin(request.auth.uid) || 
-                                 isStoreAdmin(request.auth.uid, resource.data.storeId) ||
-                                 isStoreCashier(request.auth.uid, resource.data.storeId);
+    // --- ATURAN SUB-KOLEKSI TOKO ---
+    // Aturan ini mengamankan SEMUA sub-koleksi di bawah sebuah toko 
+    // (misal: /stores/{storeId}/products/{productId})
+    match /stores/{storeId}/{subcollection}/{docId} {
+        
+        function isTransaction() {
+            return subcollection == 'transactions';
+        }
+
+        // BACA: Semua anggota toko (admin/kasir) bisa membaca.
+        allow read: if isStoreMember(storeId);
+        
+        // BUAT: Admin bisa membuat apa saja. Kasir HANYA bisa membuat transaksi.
+        allow create: if isStoreAdmin(storeId) || isSuperAdmin() || (isTransaction() && isStoreMember(storeId));
+
+        // UBAH: Admin bisa mengubah apa saja. Kasir HANYA bisa mengubah meja (untuk status) dan transaksi.
+        allow update: if isStoreAdmin(storeId) || isSuperAdmin() || ((subcollection == 'tables' || isTransaction()) && isStoreMember(storeId));
+
+        // HAPUS: Hanya Admin yang bisa menghapus.
+        allow delete: if isStoreAdmin(storeId) || isSuperAdmin();
     }
   }
 }

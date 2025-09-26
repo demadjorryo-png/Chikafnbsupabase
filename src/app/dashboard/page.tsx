@@ -97,10 +97,10 @@ function DashboardContent() {
     
     try {
         const storeId = activeStore.id;
-        const productCollectionName = `products_${storeId}`;
-        const customerCollectionName = `customers_${storeId}`;
-        const transactionCollectionName = `transactions_${storeId}`;
-        const tableCollectionName = `tables_${storeId}`;
+        const productCollectionRef = collection(db, 'stores', storeId, 'products');
+        const customerCollectionRef = collection(db, 'stores', storeId, 'customers');
+        const transactionCollectionRef = collection(db, 'stores', storeId, 'transactions');
+        const tableCollectionRef = collection(db, 'stores', storeId, 'tables');
 
         const [
             storesSnapshot,
@@ -113,13 +113,13 @@ function DashboardContent() {
             tablesSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(collection(db, productCollectionName), orderBy('name'))),
-            getDocs(query(collection(db, customerCollectionName), orderBy('name'))),
+            getDocs(query(productCollectionRef, orderBy('name'))),
+            getDocs(query(customerCollectionRef, orderBy('name'))),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
-            getDocs(query(collection(db, transactionCollectionName), orderBy('createdAt', 'desc'))),
-            getDocs(query(collection(db, tableCollectionName), orderBy('name'))),
+            getDocs(query(transactionCollectionRef, orderBy('createdAt', 'desc'))),
+            getDocs(query(tableCollectionRef, orderBy('name'))),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
