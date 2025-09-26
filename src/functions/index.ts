@@ -1,76 +1,83 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import * as admin from "firebase-admin";
 
+// Inisialisasi Firebase Admin SDK (hanya sekali)
 admin.initializeApp();
-
 const db = admin.firestore();
 
-// Note: Ensure this Cloud Function is deployed to Firebase.
-// You can deploy using the Firebase CLI: `firebase deploy --only functions`
+
+// =========================================================================================
+// BAGIAN FUNGSI PENDAFTARAN PENGGUNA BARU
+// =========================================================================================
 
 export const createUser = onCall(async (request) => {
     const { email, password, displayName, storeName, whatsapp } = request.data;
 
+    // Pastikan data yang dibutuhkan ada
+    if (!email || !password || !displayName || !storeName) {
+        throw new HttpsError('invalid-argument', 'Please provide all required fields.');
+    }
+
     try {
-        // 1. Create user in Firebase Auth
+        // 1. Buat pengguna di Firebase Auth
         const userRecord = await admin.auth().createUser({
             email: email,
             password: password,
             displayName: displayName,
         });
 
-        // 2. Create store document in Firestore
-        const storeRef = db.collection('stores').doc();
+        // 2. Buat dokumen toko di Firestore
+        const storeRef = db.collection('stores').doc(); // Auto-generate ID
         await storeRef.set({
             name: storeName,
             location: 'Indonesia',
-            pradanaTokenBalance: 50.00,
+            pradanaTokenBalance: 50.00, // Saldo token awal
             adminUids: [userRecord.uid],
             createdAt: new Date().toISOString(),
         });
 
-        // 3. Create user document in Firestore
+        // 3. Buat dokumen pengguna di Firestore
         const userRef = db.collection('users').doc(userRecord.uid);
         await userRef.set({
             name: displayName,
             email: email,
-            whatsapp: whatsapp,
+            whatsapp: whatsapp || null, // Simpan null jika tidak ada
             role: 'admin',
             status: 'active',
-            storeId: storeRef.id, // Admins can also have a primary storeId
+            storeId: storeRef.id,
         });
 
-        // 4. Set custom claims for the user
+        // 4. Atur custom claims untuk pengguna (penting untuk security rules)
         await admin.auth().setCustomUserClaims(userRecord.uid, {
             role: 'admin',
             storeId: storeRef.id,
         });
         
-        logger.info(`Successfully created new admin user: ${displayName} (${email}) for store: ${storeName}`);
+        logger.info(`Sukses membuat pengguna baru: ${displayName} (${email}) untuk toko: ${storeName}`);
 
-        return { success: true, uid: userRecord.uid };
+        return { success: true, uid: userRecord.uid, storeId: storeRef.id };
 
     } catch (error: any) {
-        logger.error('Error creating new user:', error);
+        logger.error('Gagal membuat pengguna baru:', error);
 
-        // If user was created in Auth but something else failed, delete the Auth user
+        // Jika pengguna Auth sudah dibuat tapi langkah lain gagal, hapus pengguna Auth tersebut.
         if (error.code !== 'auth/email-already-exists') {
-             const user = await admin.auth().getUserByEmail(email).catch(() => null);
-             if (user) {
-                 await admin.auth().deleteUser(user.uid);
-                 logger.warn(`Cleaned up orphaned auth user: ${email}`);
-             }
+            const user = await admin.auth().getUserByEmail(email).catch(() => null);
+            if (user) {
+                await admin.auth().deleteUser(user.uid);
+                logger.warn(`Membersihkan pengguna auth yatim: ${email}`);
+            }
         }
         
+        // Kirim error yang mudah dimengerti ke aplikasi klien
         if (error.code === 'auth/email-already-exists') {
-            throw new HttpsError('already-exists', 'This email is already registered.');
+            throw new HttpsError('already-exists', 'Email ini sudah terdaftar. Silakan gunakan email lain.');
         }
-        throw new HttpsError('internal', 'An error occurred while creating the user.');
+        throw new HttpsError('internal', 'Terjadi kesalahan saat membuat pengguna. Silakan coba lagi.');
     }
 });
-
 
 export const createEmployee = onCall(async (request) => {
     // Check if the caller is an admin
