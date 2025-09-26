@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -9,10 +8,6 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWith
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs, updateDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
-
-// This will temporarily hold registration info for a new user
-// between the register() call and the onAuthStateChanged trigger.
-let newRegistrationInfo: { name: string; storeName: string; whatsapp: string } | null = null;
 
 interface AuthContextType {
   currentUser: User | null;
@@ -53,45 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         let userDocSnap = await getDoc(userDocRef);
 
-        // **Create-on-first-signin logic**
-        // If user doc doesn't exist, it's a new registration.
-        if (!userDocSnap.exists() && newRegistrationInfo) {
-          console.log("New user detected, creating documents...");
-          const { name, storeName, whatsapp } = newRegistrationInfo;
-          
-          const batch = writeBatch(db);
-
-          // 1. Create the store document
-          const storeRef = doc(collection(db, "stores"));
-          batch.set(storeRef, {
-              name: storeName,
-              location: 'Indonesia',
-              pradanaTokenBalance: 50.00,
-              adminUids: [firebaseUser.uid],
-              createdAt: new Date().toISOString(),
-          });
-          
-          // 2. Create the user document
-          batch.set(userDocRef, {
-              name: name,
-              email: firebaseUser.email,
-              whatsapp: whatsapp,
-              role: 'admin',
-              status: 'active',
-              storeId: storeRef.id,
-          });
-
-          await batch.commit();
-          console.log("Documents created successfully for new user.");
-
-          // Clear the temp registration info
-          newRegistrationInfo = null;
-          
-          // Re-fetch the user document
-          userDocSnap = await getDoc(userDocRef);
-        }
-
-
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
           
@@ -120,9 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
         } else {
-           // This case should ideally not be hit with the new logic, but is kept as a safeguard.
            console.error("User document not found for UID:", firebaseUser.uid);
-           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri.' });
+           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri, silakan coba login kembali.' });
            await signOut(auth);
         }
       } catch (error: any) {
@@ -147,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
-    newRegistrationInfo = null; // Clear any stale registration info
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
      toast({
@@ -157,20 +111,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
-    // Temporarily store the registration info.
-    // This will be picked up by the onAuthStateChanged listener.
-    newRegistrationInfo = { name, storeName, whatsapp };
-    
+    let userCredential;
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        // onAuthStateChanged will now fire and handle the document creation.
-         toast({
+        // 1. Create user in Firebase Auth
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newUser = userCredential.user;
+
+        // 2. Create store and user documents in Firestore
+        const batch = writeBatch(db);
+
+        const storeRef = doc(collection(db, "stores"));
+        batch.set(storeRef, {
+            name: storeName,
+            location: 'Indonesia',
+            pradanaTokenBalance: 50.00,
+            adminUids: [newUser.uid],
+            createdAt: new Date().toISOString(),
+        });
+
+        const userRef = doc(db, "users", newUser.uid);
+        batch.set(userRef, {
+            name: name,
+            email: newUser.email,
+            whatsapp: whatsapp,
+            role: 'admin',
+            status: 'active',
+            storeId: storeRef.id,
+        });
+        
+        // 3. Commit the batch
+        await batch.commit();
+
+        toast({
             title: 'Registrasi Berhasil!',
             description: `Selamat datang, ${name}! Toko Anda "${storeName}" sedang disiapkan.`,
         });
+        // onAuthStateChanged will automatically handle the session.
+
     } catch (error: any) {
-        newRegistrationInfo = null; // Clean up on failure
         console.error("Registration failed:", error);
+
+        // Cleanup: If auth user was created but firestore failed, delete the auth user
+        if (userCredential) {
+            try {
+                await deleteUser(userCredential.user);
+                console.log("Orphaned auth user deleted.");
+            } catch (deleteError) {
+                console.error("Failed to delete orphaned auth user:", deleteError);
+            }
+        }
         
         if (error.code === 'auth/email-already-in-use') {
             throw new Error('Email ini sudah terdaftar. Silakan gunakan email lain.');
@@ -179,12 +168,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+
   const logout = async () => {
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
     setPradanaTokenBalance(0);
-    newRegistrationInfo = null; // Clear on logout
     toast({
       title: 'Logout Berhasil',
       description: 'Anda telah berhasil keluar.',
