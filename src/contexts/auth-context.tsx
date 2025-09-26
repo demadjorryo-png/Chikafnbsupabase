@@ -5,8 +5,8 @@
 import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
@@ -22,9 +22,6 @@ interface AuthContextType {
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
-
-// Temporary state to hold new user info during registration
-let newRegistrationInfo: { name: string, storeName: string, whatsapp: string } | null = null;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
@@ -46,44 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeStore]);
 
-
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
       try {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        let userDocSnap = await getDoc(userDocRef);
+        const userDocSnap = await getDoc(userDocRef);
 
-        // If user document doesn't exist, it's a new registration.
-        if (!userDocSnap.exists() && newRegistrationInfo) {
-            console.log("New user detected, creating documents...");
-            
-            // 1. Create the store document
-            const storeRef = await addDoc(collection(db, "stores"), {
-                name: newRegistrationInfo.storeName,
-                location: 'Indonesia',
-                pradanaTokenBalance: 50.00,
-                adminUids: [firebaseUser.uid],
-                createdAt: new Date().toISOString(),
-            });
-
-            // 2. Create the user document
-            const newUser: Omit<User, 'id'> = {
-                name: newRegistrationInfo.name,
-                email: firebaseUser.email!,
-                whatsapp: newRegistrationInfo.whatsapp,
-                role: 'admin',
-                status: 'active',
-                storeId: storeRef.id,
-            };
-            await setDoc(userDocRef, newUser);
-
-            // 3. Send notifications
-            // ... (Notification logic can be moved to a Cloud Function triggered by user creation for more reliability)
-
-            userDocSnap = await getDoc(userDocRef); // Re-fetch the newly created doc
-            newRegistrationInfo = null; // Clear registration info
-        }
-        
         if (userDocSnap.exists()) {
           const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
           
@@ -120,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
         } else {
-           console.error("User document not found and could not be created for UID:", firebaseUser.uid);
-           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri, silakan coba login kembali.' });
+           console.error("User document not found for UID:", firebaseUser.uid);
+           toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri.' });
            await signOut(auth);
         }
       } catch (error: any) {
@@ -146,7 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
-    newRegistrationInfo = null; // Clear any stale registration data
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
      toast({
@@ -156,20 +120,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
-    // Store registration info temporarily
-    newRegistrationInfo = { name, storeName, whatsapp };
-    
-    // Create user in Firebase Auth. onAuthStateChanged will handle document creation.
-    await createUserWithEmailAndPassword(auth, email, password);
+    let storeRef;
+    try {
+        // Step 1: Create the store document first.
+        storeRef = await addDoc(collection(db, "stores"), {
+            name: storeName,
+            location: 'Indonesia',
+            pradanaTokenBalance: 50.00,
+            adminUids: [], // We'll add the UID after the user is created.
+            createdAt: new Date().toISOString(),
+        });
 
-    toast({
-        title: 'Registrasi Berhasil!',
-        description: `Selamat datang, ${name}! Toko Anda "${storeName}" sedang disiapkan.`,
-    });
+        // Step 2: Create the user in Firebase Auth.
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newUser = userCredential.user;
+
+        // Step 3: Now create the user document in Firestore with the new UID and storeId.
+        const userDocRef = doc(db, 'users', newUser.uid);
+        await setDoc(userDocRef, {
+            name: name,
+            email: email,
+            whatsapp: whatsapp,
+            role: 'admin',
+            status: 'active',
+            storeId: storeRef.id,
+        });
+
+        // Step 4: Finally, update the store with the admin's UID.
+        await updateDoc(storeRef, {
+            adminUids: [newUser.uid],
+        });
+
+        toast({
+            title: 'Registrasi Berhasil!',
+            description: `Selamat datang, ${name}! Toko Anda "${storeName}" sedang disiapkan.`,
+        });
+
+    } catch (error: any) {
+        console.error("Registration failed:", error);
+        
+        // Cleanup: If store was created but user auth failed, delete the store.
+        if (storeRef) {
+            await deleteDoc(storeRef);
+        }
+        
+        // Provide specific error message to the user.
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error('Email ini sudah terdaftar. Silakan gunakan email lain.');
+        }
+        throw new Error('Terjadi kesalahan saat pendaftaran.');
+    }
   };
 
   const logout = async () => {
-    newRegistrationInfo = null;
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
