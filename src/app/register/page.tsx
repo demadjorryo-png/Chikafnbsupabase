@@ -17,7 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader, Eye, EyeOff, ScanBarcode } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import {
   Form,
@@ -32,6 +31,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useAuth } from '@/contexts/auth-context';
 
 
 const FormSchema = z.object({
@@ -48,7 +49,7 @@ export default function RegisterPage() {
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { register } = useAuth();
+  const { login } = useAuth();
   
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -75,11 +76,34 @@ export default function RegisterPage() {
   const handleRegister = async (values: z.infer<typeof FormSchema>) => {
     setIsLoading(true);
     try {
-      await register(values.name, values.storeName, values.email, values.password, values.whatsapp);
-      router.push('/dashboard');
+        const functions = getFunctions();
+        const createUser = httpsCallable(functions, 'createUser');
+        
+        const result: any = await createUser({
+            email: values.email,
+            password: values.password,
+            displayName: values.name,
+            storeName: values.storeName,
+            whatsapp: values.whatsapp,
+        });
+
+        if (result.data.error) {
+            throw new Error(result.data.error);
+        }
+        
+        // After successful creation via cloud function, log the user in
+        await login(values.email, values.password);
+        
+        toast({
+            title: 'Registrasi Berhasil!',
+            description: `Selamat datang, ${values.name}! Toko Anda "${values.storeName}" telah dibuat.`,
+        });
+
+        router.push('/dashboard');
+
     } catch (error: any) {
       let description = 'Terjadi kesalahan saat pendaftaran.';
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.message.includes('email-already-in-use') || error.message.includes('EMAIL_EXISTS')) {
         description = 'Email yang Anda masukkan sudah terdaftar. Silakan gunakan email lain.';
       }
       toast({ variant: 'destructive', title: 'Pendaftaran Gagal', description: description });
