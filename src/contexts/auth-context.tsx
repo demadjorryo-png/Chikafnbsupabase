@@ -23,6 +23,9 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
+// Temporary state to hold new user info during registration
+let newRegistrationInfo: { name: string, storeName: string, whatsapp: string } | null = null;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [activeStore, setActiveStore] = React.useState<Store | null>(null);
@@ -47,14 +50,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
       try {
-        // Try to get user document.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         let userDocSnap = await getDoc(userDocRef);
 
-        // Retry mechanism for registration lag
-        if (!userDocSnap.exists()) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            userDocSnap = await getDoc(userDocRef);
+        // If user document doesn't exist, it's a new registration.
+        if (!userDocSnap.exists() && newRegistrationInfo) {
+            console.log("New user detected, creating documents...");
+            
+            // 1. Create the store document
+            const storeRef = await addDoc(collection(db, "stores"), {
+                name: newRegistrationInfo.storeName,
+                location: 'Indonesia',
+                pradanaTokenBalance: 50.00,
+                adminUids: [firebaseUser.uid],
+                createdAt: new Date().toISOString(),
+            });
+
+            // 2. Create the user document
+            const newUser: Omit<User, 'id'> = {
+                name: newRegistrationInfo.name,
+                email: firebaseUser.email!,
+                whatsapp: newRegistrationInfo.whatsapp,
+                role: 'admin',
+                status: 'active',
+                storeId: storeRef.id,
+            };
+            await setDoc(userDocRef, newUser);
+
+            // 3. Send notifications
+            // ... (Notification logic can be moved to a Cloud Function triggered by user creation for more reliability)
+
+            userDocSnap = await getDoc(userDocRef); // Re-fetch the newly created doc
+            newRegistrationInfo = null; // Clear registration info
         }
         
         if (userDocSnap.exists()) {
@@ -66,8 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           let storeId: string | undefined = userData.storeId;
           
-          if (!storeId) {
-             // If user has no storeId (they are likely an admin), find the first store they are an admin of.
+          if (!storeId && (userData.role === 'admin' || userData.role === 'cashier')) {
              const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
              const storeSnapshot = await getDocs(storeQuery);
              if (!storeSnapshot.empty) {
@@ -87,8 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                  throw new Error(`Toko dengan ID ${storeId} tidak ditemukan.`);
             }
           } else if (userData.role === 'superadmin') {
-              // Superadmin might not have a storeId, which is fine. They operate globally.
-              // We'll set a placeholder/null store for them.
               setCurrentUser(userData);
               setActiveStore(null);
           } else {
@@ -96,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
         } else {
-           console.error("User document not found in Firestore after retry for UID:", firebaseUser.uid);
+           console.error("User document not found and could not be created for UID:", firebaseUser.uid);
            toast({ variant: 'destructive', title: 'Gagal Memuat Sesi', description: 'Data pengguna tidak ditemukan. Sesi akan diakhiri, silakan coba login kembali.' });
            await signOut(auth);
         }
@@ -122,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
+    newRegistrationInfo = null; // Clear any stale registration data
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
      toast({
@@ -131,91 +156,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
+    // Store registration info temporarily
+    newRegistrationInfo = { name, storeName, whatsapp };
     
-    // 1. Create user in Firebase Auth. This will trigger onAuthStateChanged.
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-
-    // 2. Create the store document in Firestore
-    const storeRef = await addDoc(collection(db, "stores"), {
-        name: storeName,
-        location: 'Indonesia',
-        pradanaTokenBalance: 50.00,
-        adminUids: [firebaseUser.uid],
-        createdAt: new Date().toISOString(),
-    });
-
-    // 3. Create the user document in Firestore, linking them to the new store
-    const userDocRef = doc(db, "users", firebaseUser.uid);
-    await setDoc(userDocRef, {
-        name: name,
-        email: email,
-        whatsapp: whatsapp,
-        role: 'admin',
-        status: 'active',
-        storeId: storeRef.id, // Explicitly link admin to their first store
-    });
-    
-    // 4. Send notifications
-    try {
-        const whatsappSettings = await getWhatsappSettings();
-        const { deviceId, adminGroup } = whatsappSettings;
-
-        if (!deviceId || !adminGroup) {
-            console.warn("WhatsApp settings (deviceId or adminGroup) are not configured. Skipping notifications.");
-            return;
-        }
-
-        const adminMessage = `Pendaftaran Baru Kasir POS Chika!
-----------------------------------
-Nama: ${name}
-Nama Toko: ${storeName}
-Email: ${email}
-No. WhatsApp: ${whatsapp}
-----------------------------------
-Mohon segera verifikasi dan berikan sambutan.`;
-
-        const welcomeMessage = `*Pendaftaran Akun Kasir POS Chika Anda Berhasil!*
-
-Halo ${name}, selamat datang!
-
-Berikut adalah detail akun Anda untuk toko *${storeName}*:
-- *Nama Lengkap:* ${name}
-- *Nama Toko:* ${storeName}
-- *Email (untuk login):* ${email}
-- *Nomor WhatsApp:* ${whatsapp}
-
-*PENTING:* Untuk keamanan akun Anda, kami *tidak mengirimkan password* Anda melalui pesan ini. Mohon simpan password yang telah Anda buat di tempat yang aman.
-
-Anda mendapatkan bonus saldo awal *50 Pradana Token* untuk memulai.
-
-Silakan login dan mulai kelola bisnis Anda dengan Kasir POS Chika.
-
-Terima kasih!
-Tim Kasir POS Chika`;
-        
-        const adminWebhookUrl = `https://app.whacenter.com/api/sendGroup?device_id=${deviceId}&group=${encodeURIComponent(adminGroup)}&message=${encodeURIComponent(adminMessage)}`;
-        
-        const formattedWhatsapp = whatsapp.startsWith('0') ? `62${whatsapp.substring(1)}` : whatsapp;
-        const userWebhookUrl = `https://app.whacenter.com/api/send?device_id=${deviceId}&number=${formattedWhatsapp}&message=${encodeURIComponent(welcomeMessage)}`;
-
-        await Promise.allSettled([
-            fetch(adminWebhookUrl),
-            fetch(userWebhookUrl)
-        ]);
-
-    } catch (webhookError) {
-        console.error("Gagal mengirim notifikasi webhook:", webhookError);
-    }
+    // Create user in Firebase Auth. onAuthStateChanged will handle document creation.
+    await createUserWithEmailAndPassword(auth, email, password);
 
     toast({
         title: 'Registrasi Berhasil!',
-        description: `Selamat datang, ${name}! Toko Anda "${storeName}" telah dibuat dengan saldo 50 token.`,
+        description: `Selamat datang, ${name}! Toko Anda "${storeName}" sedang disiapkan.`,
     });
-    // The onAuthStateChanged listener will now handle setting the session.
   };
 
   const logout = async () => {
+    newRegistrationInfo = null;
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
