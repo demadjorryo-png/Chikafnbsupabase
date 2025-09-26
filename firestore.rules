@@ -1,91 +1,90 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNGSI BANTUAN UTAMA ---
-    
-    function isSuperAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
-    }
+    // --- FUNGSI BANTUAN ---
 
-    function isStoreAdmin(storeId) {
-      return request.auth != null && request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
-    }
-
-    function isStoreMember(storeId) {
-        // A user is a member if they are a superadmin, a store admin, or their user document points to that storeId.
-        return request.auth != null && (
-            isSuperAdmin() ||
-            isStoreAdmin(storeId) ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId
-        );
-    }
-    
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getUserData().role == 'superadmin';
+    }
+    
+    function isStoreAdmin(storeId) {
+      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
+    }
+
+    function isUserOfStore(storeId) {
+      return isSignedIn() && (getUserData().storeId == storeId || isStoreAdmin(storeId) || isSuperAdmin());
+    }
+
     // --- ATURAN GLOBAL ---
-
-    match /appSettings/{setting} {
-      allow read: if isSignedIn();
+    
+    // Siapapun bisa membaca pengaturan aplikasi umum seperti promo login
+    match /appSettings/{docId} {
+      allow read: if true;
+      // Hanya superadmin yang boleh mengubah pengaturan global
       allow write: if isSuperAdmin();
     }
     
-    match /platform/stats {
-        allow read: if isSuperAdmin();
-        allow write: if false; 
-    }
-
-    match /redemptionOptions/{optionId} {
+    // Aturan untuk opsi penukaran poin, bisa dibaca semua orang, ditulis oleh admin
+    match /redemptionOptions/{promoId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-    
-    match /pendingOrders/{orderId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
-        // Allow update/delete only if the user is a member of the store the order belongs to.
-        allow update, delete: if isStoreMember(resource.data.storeId);
+      allow write: if isSuperAdmin() || isStoreAdmin(resource.data.storeId);
     }
 
-    // --- ATURAN PENGGUNA & TOKO ---
-
+    // --- ATURAN PENGGUNA ---
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId; 
+      // Izinkan pengguna membaca profilnya sendiri, atau jika dia admin/superadmin
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(getUserData().storeId));
+      // Izinkan pengguna membuat profilnya sendiri (saat registrasi)
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Izinkan pengguna mengubah profilnya sendiri ATAU jika requester adalah admin tokonya/superadmin.
+      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(resource.data.storeId));
+      // Hanya superadmin yang boleh menghapus user
       allow delete: if isSuperAdmin();
     }
     
+
+    // --- ATURAN DATA TOKO ---
+
+    // Aturan untuk dokumen toko itu sendiri
     match /stores/{storeId} {
+      // Semua pengguna yang terautentikasi bisa membaca detail toko.
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); 
+      // Hanya admin dari toko tersebut atau superadmin yang bisa mengubah detail toko.
       allow update: if isStoreAdmin(storeId) || isSuperAdmin();
-      allow delete: if isSuperAdmin();
+      // Hanya superadmin yang bisa membuat atau menghapus toko
+      allow create, delete: if isSuperAdmin();
     }
 
-    // --- ATURAN SUB-KOLEKSI TOKO ---
-    // Aturan ini mengamankan SEMUA sub-koleksi di bawah sebuah toko 
-    // (misal: /stores/{storeId}/products/{productId})
-    match /stores/{storeId}/{subcollection}/{docId} {
-        
-        function isTransaction() {
-            return subcollection == 'transactions';
-        }
-
-        // BACA: Semua anggota toko (admin/kasir) bisa membaca.
-        allow read: if isStoreMember(storeId);
-        
-        // BUAT: Admin bisa membuat apa saja. Kasir HANYA bisa membuat transaksi.
-        allow create: if isStoreAdmin(storeId) || isSuperAdmin() || (isTransaction() && isStoreMember(storeId));
-
-        // UBAH: Admin bisa mengubah apa saja. Kasir HANYA bisa mengubah meja (untuk status) dan transaksi.
-        allow update: if isStoreAdmin(storeId) || isSuperAdmin() || ((subcollection == 'tables' || isTransaction()) && isStoreMember(storeId));
-
-        // HAPUS: Hanya Admin yang bisa menghapus.
-        allow delete: if isStoreAdmin(storeId) || isSuperAdmin();
+    // Aturan untuk semua sub-koleksi di dalam sebuah toko
+    match /stores/{storeId}/{subcollection}/{docId=**} {
+      // Baca: Diizinkan jika pengguna adalah bagian dari toko tersebut (admin/kasir) atau superadmin.
+      allow read: if isUserOfStore(storeId);
+      
+      // Tulis (Buat, Ubah, Hapus): Diizinkan HANYA jika pengguna adalah admin dari toko tersebut atau superadmin.
+      // Kasir tidak bisa mengubah produk, meja, pelanggan, dll secara langsung.
+      // Operasi kasir (seperti membuat transaksi) ditangani oleh aturan yang lebih spesifik di bawah.
+      allow write: if isStoreAdmin(storeId) || isSuperAdmin();
+    }
+    
+    // Aturan spesifik untuk Transaksi, menimpa aturan umum di atas.
+    match /stores/{storeId}/transactions/{transactionId} {
+       // Siapa pun di dalam toko bisa membaca transaksi.
+       allow read: if isUserOfStore(storeId);
+       // Siapa pun di dalam toko bisa MEMBUAT transaksi baru. Ini penting untuk kasir.
+       allow create: if isUserOfStore(storeId);
+       // Hanya admin yang bisa MENGUBAH atau MENGHAPUS transaksi (misal: untuk refund).
+       allow update, delete: if isStoreAdmin(storeId) || isSuperAdmin();
     }
   }
 }
