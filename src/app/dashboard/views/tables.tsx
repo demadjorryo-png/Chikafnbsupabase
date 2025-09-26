@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -62,7 +60,7 @@ type TablesProps = {
 
 export default function Tables({ tables, onDataChange, isLoading, onPrintRequest }: TablesProps) {
   const { currentUser, activeStore } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const { toast } = useToast();
   const router = useRouter();
 
@@ -91,12 +89,12 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     }
     setIsProcessing(true);
 
-    const tableCollectionName = `tables_${activeStore.id}`;
     const batch = writeBatch(db);
+    const tablesCollectionRef = collection(db, 'stores', activeStore.id, 'tables');
 
     for (let i = 1; i <= tableCount; i++) {
         const newTableName = `${tablePrefix} ${i}`;
-        const newTableRef = doc(collection(db, tableCollectionName));
+        const newTableRef = doc(tablesCollectionRef);
         batch.set(newTableRef, {
             name: newTableName,
             capacity: bulkCapacity,
@@ -126,9 +124,8 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     }
     setIsProcessing(true);
 
-    const tableCollectionName = `tables_${activeStore.id}`;
     try {
-        await addDoc(collection(db, tableCollectionName), {
+        await addDoc(collection(db, 'stores', activeStore.id, 'tables'), {
             name: tableName,
             capacity: tableCapacity,
             status: 'Tersedia',
@@ -154,8 +151,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     }
     setIsProcessing(true);
 
-    const tableCollectionName = `tables_${activeStore.id}`;
-    const tableRef = doc(db, tableCollectionName, selectedTable.id);
+    const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
     
     try {
         await updateDoc(tableRef, { name: tableName, capacity: tableCapacity });
@@ -173,8 +169,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
   const handleDeleteTable = async () => {
     if (!activeStore || !selectedTable) return;
     setIsProcessing(true);
-    const tableCollectionName = `tables_${activeStore.id}`;
-    const tableRef = doc(db, tableCollectionName, selectedTable.id);
+    const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
     
     try {
       await deleteDoc(tableRef);
@@ -192,14 +187,12 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
   const handleClearTable = async () => {
     if (!activeStore || !selectedTable || !currentUser) return;
     setIsProcessing(true);
-     const tableCollectionName = `tables_${activeStore.id}`;
-     const tableRef = doc(db, tableCollectionName, selectedTable.id);
+     const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
      
      try {
         // Find the latest transaction for this table to print the receipt
-        const transactionCollectionName = `transactions_${activeStore.id}`;
         const q = query(
-            collection(db, transactionCollectionName), 
+            collection(db, 'stores', activeStore.id, 'transactions'), 
             where("tableId", "==", selectedTable.id),
             orderBy("createdAt", "desc"),
             limit(1)
@@ -252,8 +245,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
 
   const handleChangeStatus = async (table: Table, newStatus: TableStatus) => {
     if (!activeStore) return;
-    const tableCollectionName = `tables_${activeStore.id}`;
-    const tableRef = doc(db, tableCollectionName, table.id);
+    const tableRef = doc(db, 'stores', activeStore.id, 'tables', table.id);
     try {
         await updateDoc(tableRef, { status: newStatus });
         toast({ title: `Status meja ${table.name} diubah menjadi ${newStatus}` });
@@ -556,5 +548,3 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     </>
   );
 }
-
-    

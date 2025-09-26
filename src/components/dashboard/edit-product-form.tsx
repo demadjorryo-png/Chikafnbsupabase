@@ -77,15 +77,14 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
-    const productCollectionName = `products_${activeStore.id.replace('store_', '')}`;
-    const productRef = doc(db, productCollectionName, product.id);
+    const productRef = doc(db, 'stores', activeStore.id, 'products', product.id);
 
     try {
         await updateDoc(productRef, {
             name: data.name,
             category: data.category,
             price: data.price,
-            costPrice: userRole === 'admin' ? data.costPrice : product.costPrice,
+            costPrice: (userRole === 'admin' || userRole === 'superadmin') ? data.costPrice : product.costPrice,
             'attributes.brand': data.brand,
             'attributes.barcode': data.barcode || '',
         });
@@ -185,7 +184,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             )}
           />
           
-          {userRole === 'admin' && (
+          {(userRole === 'admin' || userRole === 'superadmin') && (
               <FormField
                   control={form.control}
                   name="costPrice"

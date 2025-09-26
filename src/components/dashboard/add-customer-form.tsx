@@ -101,11 +101,9 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded }: AddCustomerF
         : new Date(0).toISOString().split('T')[0]; // Default date if not provided
         
     const avatarUrl = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
-    
-    const customerCollectionName = `customers_${activeStore.id}`;
 
     try {
-        await addDoc(collection(db, customerCollectionName), {
+        await addDoc(collection(db, 'stores', activeStore.id, 'customers'), {
             name: data.name,
             phone: data.phone,
             birthDate: birthDate,

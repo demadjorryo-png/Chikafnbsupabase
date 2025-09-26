@@ -84,10 +84,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
     const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
     
-    const productCollectionName = `products_${activeStore.id}`;
-
     try {
-        await addDoc(collection(db, productCollectionName), {
+        await addDoc(collection(db, 'stores', activeStore.id, 'products'), {
             name: data.name,
             category: data.category,
             price: data.price,

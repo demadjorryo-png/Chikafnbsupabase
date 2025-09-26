@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -65,7 +64,7 @@ type ProductsProps = {
     isLoading: boolean;
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier'; storeName: string; }) {
+function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier' | 'superadmin'; storeName: string; }) {
     if (!product) return null;
 
     return (
@@ -145,7 +144,7 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
 export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -166,8 +165,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${currentStoreId}`;
-    const productRef = doc(db, productCollectionName, productId);
+    const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
 
     try {
       await updateDoc(productRef, { stock: newStock });
@@ -202,9 +200,8 @@ export default function Products({ products, onDataChange, isLoading }: Products
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${currentStoreId}`;
     try {
-        await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
+        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
         toast({
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
@@ -305,32 +302,34 @@ export default function Products({ products, onDataChange, isLoading }: Products
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                      Tambah Produk
-                    </span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">
-                      Tambah Produk Baru
-                    </DialogTitle>
-                    <DialogDescription>
-                      Menambahkan produk baru ke inventaris {activeStore?.name}.
-                    </DialogDescription>
-                  </DialogHeader>
-                  {activeStore && <AddProductForm 
-                    setDialogOpen={setIsAddDialogOpen} 
-                    userRole={userRole} 
-                    onProductAdded={handleDataUpdate}
-                    activeStore={activeStore}
-                  />}
-                </DialogContent>
-              </Dialog>
+              {isAdmin && (
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                    <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Tambah Produk
+                        </span>
+                    </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="font-headline tracking-wider">
+                        Tambah Produk Baru
+                        </DialogTitle>
+                        <DialogDescription>
+                        Menambahkan produk baru ke inventaris {activeStore?.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {activeStore && <AddProductForm 
+                        setDialogOpen={setIsAddDialogOpen} 
+                        userRole={userRole} 
+                        onProductAdded={handleDataUpdate}
+                        activeStore={activeStore}
+                    />}
+                    </DialogContent>
+                </Dialog>
+              )}
               
             </div>
           </div>
@@ -450,4 +449,3 @@ export default function Products({ products, onDataChange, isLoading }: Products
     </div>
   );
 }
-

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -292,10 +291,6 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     setIsProcessingCheckout(true);
     
     const storeId = activeStore.id;
-    const productCollectionName = `products_${storeId}`;
-    const customerCollectionName = `customers_${storeId}`;
-    const transactionCollectionName = `transactions_${storeId}`;
-    const tableCollectionName = `tables_${storeId}`;
     
     try {
       let finalTransactionData: Transaction | null = null;
@@ -306,11 +301,11 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
-            ref: doc(db, productCollectionName, item.productId),
+            ref: doc(db, 'stores', storeId, 'products', item.productId),
             item: item,
           }));
         
-        const customerRef = selectedCustomer ? doc(db, customerCollectionName, selectedCustomer.id) : null;
+        const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
   
         const productDocs = await Promise.all(
           productReads.map(p => transaction.get(p.ref))
@@ -360,7 +355,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
-        const newTransactionRef = doc(collection(db, transactionCollectionName));
+        const newTransactionRef = doc(collection(db, 'stores', storeId, 'transactions'));
         const transactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: activeStore.id,
@@ -380,7 +375,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         };
         transaction.set(newTransactionRef, transactionData);
         
-        const tableRef = doc(db, tableCollectionName, selectedTableId);
+        const tableRef = doc(db, 'stores', storeId, 'tables', selectedTableId);
         transaction.update(tableRef, {
             status: 'Terisi',
             currentOrder: {
