@@ -69,29 +69,22 @@ export default function Employees() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, 'users');
-
-      // Get the store document to find all admins.
-      const storeDocRef = doc(db, 'stores', activeStore.id);
-      const storeDoc = await getDoc(storeDocRef);
-      const adminUids = storeDoc.exists() ? (storeDoc.data() as Store).adminUids || [] : [];
       
       // Query for cashiers assigned to this store.
       const cashiersQuery = query(usersRef, where("storeId", "==", activeStore.id));
       
-      // Query for admins of this store.
-      const adminsQuery = adminUids.length > 0
-        ? query(usersRef, where('__name__', 'in', adminUids))
-        : null;
+      // Since adminUids are stored on the store doc, we can use that to find admins.
+      const adminUids = activeStore.adminUids || [];
 
       const [cashiersSnapshot, adminsSnapshot] = await Promise.all([
         getDocs(cashiersQuery),
-        adminsQuery ? getDocs(adminsQuery) : Promise.resolve(null)
+        adminUids.length > 0 ? getDocs(query(usersRef, where('__name__', 'in', adminUids))) : Promise.resolve({ docs: [] })
       ]);
 
       const firestoreCashiers = cashiersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      const firestoreAdmins = adminsSnapshot ? adminsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)) : [];
+      const firestoreAdmins = adminsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
-      // Combine and remove duplicates
+      // Combine and remove duplicates, as an admin might also have a storeId set.
       const allUsersMap = new Map<string, User>();
       firestoreCashiers.forEach(u => allUsersMap.set(u.id, u));
       firestoreAdmins.forEach(u => allUsersMap.set(u.id, u));
@@ -111,8 +104,10 @@ export default function Employees() {
   }, [activeStore, toast]);
 
   React.useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if(activeStore) {
+        fetchUsers();
+    }
+  }, [activeStore, fetchUsers]);
 
 
   const handleEditClick = (user: User) => {

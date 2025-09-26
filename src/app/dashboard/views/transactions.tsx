@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -230,7 +231,10 @@ export default function Transactions({ transactions, stores, users, customers, o
 
         if (transactionToComplete.tableId) {
             const tableRef = doc(db, 'stores', activeStore.id, 'tables', transactionToComplete.tableId);
-            batch.update(tableRef, { status: 'Selesai Dibayar' });
+            const tableDoc = await getDoc(tableRef);
+            if (tableDoc.exists()) {
+                batch.update(tableRef, { status: 'Selesai Dibayar' });
+            }
         }
         
         await batch.commit();

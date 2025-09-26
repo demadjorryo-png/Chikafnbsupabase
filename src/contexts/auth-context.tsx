@@ -64,16 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               throw new Error('Akun Anda tidak aktif. Silakan hubungi admin.');
           }
 
-          let storeId: string | null = sessionStorage.getItem('activeStoreId');
+          let storeId: string | undefined = userData.storeId;
           
           if (!storeId) {
-             // If no storeId in session, find the first one they are admin of
+             // If user has no storeId (they are likely an admin), find the first store they are an admin of.
              const storeQuery = query(collection(db, "stores"), where("adminUids", "array-contains", userData.id));
              const storeSnapshot = await getDocs(storeQuery);
              if (!storeSnapshot.empty) {
                  storeId = storeSnapshot.docs[0].id;
-             } else if (userData.role === 'cashier' && userData.storeId) {
-                 storeId = userData.storeId;
              }
           }
 
@@ -85,10 +83,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setCurrentUser(userData);
                 setActiveStore(storeData);
                 setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-                sessionStorage.setItem('activeStoreId', storeData.id);
             } else {
                  throw new Error(`Toko dengan ID ${storeId} tidak ditemukan.`);
             }
+          } else if (userData.role === 'superadmin') {
+              // Superadmin might not have a storeId, which is fine. They operate globally.
+              // We'll set a placeholder/null store for them.
+              setCurrentUser(userData);
+              setActiveStore(null);
           } else {
               throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda.');
           }
@@ -104,12 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
-        sessionStorage.removeItem('activeStoreId');
       }
     } else {
       setCurrentUser(null);
       setActiveStore(null);
-      sessionStorage.removeItem('activeStoreId');
     }
     setIsLoading(false);
   }, [toast]);
@@ -122,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const login = async (email: string, password: string) => {
-    sessionStorage.removeItem('activeStoreId'); // Clear old store on new login
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
      toast({
@@ -132,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, storeName: string, email: string, password: string, whatsapp: string) => {
-    sessionStorage.removeItem('activeStoreId'); // Clear old store
     
     // 1. Create user in Firebase Auth. This will trigger onAuthStateChanged.
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -146,10 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminUids: [firebaseUser.uid],
         createdAt: new Date().toISOString(),
     });
-    
-    sessionStorage.setItem('activeStoreId', storeRef.id);
 
-    // 3. Create the user document in Firestore
+    // 3. Create the user document in Firestore, linking them to the new store
     const userDocRef = doc(db, "users", firebaseUser.uid);
     await setDoc(userDocRef, {
         name: name,
@@ -157,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         whatsapp: whatsapp,
         role: 'admin',
         status: 'active',
+        storeId: storeRef.id, // Explicitly link admin to their first store
     });
     
     // 4. Send notifications
@@ -223,7 +220,6 @@ Tim Kasir POS Chika`;
     setCurrentUser(null);
     setActiveStore(null);
     setPradanaTokenBalance(0);
-    sessionStorage.removeItem('activeStoreId');
     toast({
       title: 'Logout Berhasil',
       description: 'Anda telah berhasil keluar.',

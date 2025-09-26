@@ -70,7 +70,7 @@ type PromotionsProps = {
 
 export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
   const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
@@ -206,12 +206,14 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
+     if (!activeStore) return;
      try {
         const docRef = await addDoc(collection(db, "redemptionOptions"), {
             description: rec.description,
             pointsRequired: rec.pointsRequired,
             value: rec.value,
             isActive: false, // New promos from AI are inactive by default
+            storeId: activeStore.id,
         });
 
         const newPromotion: RedemptionOption = {
