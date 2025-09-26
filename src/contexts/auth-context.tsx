@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
       try {
+        // Force refresh the token to get the latest custom claims.
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const claims = idTokenResult.claims;
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -58,6 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Akun Anda tidak aktif. Silakan hubungi admin.');
         }
 
+        setCurrentUser(userData);
+
         const storeId = claims.storeId as string | undefined;
 
         if (storeId) {
@@ -65,29 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const storeDocSnap = await getDoc(storeDocRef);
           if (storeDocSnap.exists()) {
               const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
-              setCurrentUser(userData);
               setActiveStore(storeData);
               setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
           } else {
-               throw new Error(`Toko dengan ID ${storeId} tidak ditemukan.`);
+               throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
           }
-        } else if (claims.role === 'admin') {
-            // Admin might not have a storeId claim, find store via adminUids
-            const storesQuery = query(collection(db, 'stores'), where('adminUids', 'array-contains', firebaseUser.uid));
-            const storesSnapshot = await getDocs(storesQuery);
-            if (!storesSnapshot.empty) {
-                // For simplicity, assign the first store found. 
-                // A multi-store admin would need a store-switcher UI.
-                const storeDoc = storesSnapshot.docs[0];
-                const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
-                setCurrentUser(userData);
-                setActiveStore(storeData);
-                setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-            } else {
-                throw new Error('Anda adalah admin, tetapi tidak terdaftar di toko manapun.');
-            }
         } else if (claims.role === 'superadmin') {
-            setCurrentUser(userData);
+            // Superadmin has no active store by default.
             setActiveStore(null);
         } else {
             throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
