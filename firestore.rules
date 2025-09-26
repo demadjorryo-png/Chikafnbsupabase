@@ -49,10 +49,9 @@ service cloud.firestore {
 
     // --- User and Store Management ---
 
-    // Any user can read their own data. Super Admins can read anyone's data.
-    // Users can be created during registration. Updates are restricted.
+    // Any signed-in user can read the user list (for names, etc.), but can only update their own data.
     match /users/{userId} {
-      allow read: if request.auth.uid == userId || isSuperAdmin(request.auth.uid);
+      allow read: if isSignedIn();
       allow create: if request.auth.uid == userId; // Allow user creation on signup
       allow update: if request.auth.uid == userId || isSuperAdmin(request.auth.uid); // Allow user to update their own profile, or SuperAdmin to update any
       allow delete: if isSuperAdmin(request.auth.uid);
@@ -67,18 +66,27 @@ service cloud.firestore {
       allow delete: if isSuperAdmin(request.auth.uid);
     }
 
-    // --- Store-Specific Sub-collections ---
-    
-    // Products, Customers, Challenges can be managed by Store Admins and read by Cashiers.
-    match /(products|customers|challenges|tables)_{storeId}/{docId} {
-      allow read: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId);
-      allow write: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId);
+    // --- Store-Specific Sub-collections (Products, Customers, Transactions, etc.) ---
+    match /products_{storeId}/{docId} {
+      allow read: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-
-    // Transactions can be created by Cashiers, but only read/managed by Admins.
-    match /transactions_{storeId}/{transactionId} {
-      allow read, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId);
-      allow create: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId);
+    match /customers_{storeId}/{docId} {
+      allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+      allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    }
+    match /transactions_{storeId}/{docId} {
+      allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+      allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    }
+     match /tables_{storeId}/{docId} {
+      allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    }
+    match /challenges_{storeId}/{docId} {
+       allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    }
+     match /appliedStrategies_{storeId}/{docId} {
+       allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
     
     // --- Pending Orders ---
