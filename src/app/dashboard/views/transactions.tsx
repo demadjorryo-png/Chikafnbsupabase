@@ -222,16 +222,14 @@ export default function Transactions({ transactions, stores, users, customers, o
     
     setCompletingTransactionId(transactionToComplete.id);
 
-    const transactionCollectionName = `transactions_${activeStore.id}`;
-    const transactionRef = doc(db, transactionCollectionName, transactionToComplete.id);
-
     try {
         const batch = writeBatch(db);
+        
+        const transactionRef = doc(db, 'stores', activeStore.id, 'transactions', transactionToComplete.id);
         batch.update(transactionRef, { status: 'Selesai' });
 
         if (transactionToComplete.tableId) {
-            const tableCollectionName = `tables_${activeStore.id}`;
-            const tableRef = doc(db, tableCollectionName, transactionToComplete.tableId);
+            const tableRef = doc(db, 'stores', activeStore.id, 'tables', transactionToComplete.tableId);
             batch.update(tableRef, { status: 'Selesai Dibayar' });
         }
         

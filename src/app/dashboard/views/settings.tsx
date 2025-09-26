@@ -98,7 +98,7 @@ export default function Settings() {
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
-  const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle',> | null>(null);
+  const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle'> | null>(null);
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
@@ -116,7 +116,7 @@ export default function Settings() {
     }
   }, [activeStore]);
 
-  const passwordForm = useForm<z.infer<typeof PasswordFormSchema,>>({
+  const passwordForm = useForm<z.infer<typeof PasswordFormSchema>>({
     resolver: zodResolver(PasswordFormSchema),
     defaultValues: {
       currentPassword: '',
@@ -126,7 +126,7 @@ export default function Settings() {
   });
 
   const handlePasswordChange = async (
-    values: z.infer<typeof PasswordFormSchema,>
+    values: z.infer<typeof PasswordFormSchema>
   ) => {
     setIsPasswordChangeLoading(true);
     const user = auth.currentUser;
@@ -375,7 +375,7 @@ export default function Settings() {
                   )}
                 />
                 <FormField
-                  control={passwordForm.control}
+                  control={form.control}
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>

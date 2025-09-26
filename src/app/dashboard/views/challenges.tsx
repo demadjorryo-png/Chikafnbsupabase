@@ -107,10 +107,9 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
         return;
     }
     setIsSaving(true);
-    const challengeCollectionName = `challenges_${activeStore.id}`;
     
     try {
-        await addDoc(collection(db, challengeCollectionName), {
+        await addDoc(collection(db, 'stores', activeStore.id, 'challenges'), {
             startDate: formatISO(date.from),
             endDate: formatISO(date.to),
             period: generatedChallenges.period,

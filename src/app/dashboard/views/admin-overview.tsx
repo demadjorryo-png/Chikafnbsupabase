@@ -89,8 +89,7 @@ export default function AdminOverview({ transactions, products, customers, onDat
     if (!activeStore) return;
     const fetchStrategies = async () => {
         try {
-            const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
-            const querySnapshot = await getDocs(collection(db, strategyCollectionName));
+            const querySnapshot = await getDocs(collection(db, 'stores', activeStore.id, 'appliedStrategies'));
             const strategies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppliedStrategy));
             setAppliedStrategies(strategies);
         } catch (error) {
@@ -214,11 +213,9 @@ export default function AdminOverview({ transactions, products, customers, onDat
       appliedDate: formatISO(new Date()),
       status: 'active' as const,
     };
-    
-    const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
 
     try {
-        const docRef = await addDoc(collection(db, strategyCollectionName), newStrategyData);
+        const docRef = await addDoc(collection(db, 'stores', activeStore.id, 'appliedStrategies'), newStrategyData);
         setAppliedStrategies(prev => [...prev, { id: docRef.id, ...newStrategyData }]);
         toast({
             title: 'Strategi Diterapkan!',
@@ -236,9 +233,8 @@ export default function AdminOverview({ transactions, products, customers, onDat
 
   const handleCompleteStrategy = async (id: string) => {
     if (!activeStore) return;
-    const strategyCollectionName = `appliedStrategies_${activeStore.id}`;
     try {
-        await deleteDoc(doc(db, strategyCollectionName, id));
+        await deleteDoc(doc(db, 'stores', activeStore.id, 'appliedStrategies', id));
         setAppliedStrategies(prev => prev.filter(s => s.id !== id));
         toast({
             title: 'Strategi Selesai!',
