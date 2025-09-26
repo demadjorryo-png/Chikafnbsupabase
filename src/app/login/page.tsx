@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
-import { Loader, Sparkles, LogIn, Megaphone } from 'lucide-react';
+import { Loader, Sparkles, LogIn, Megaphone, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ChikaChatDialog } from '@/components/dashboard/chika-chat-dialog';
 import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
@@ -29,6 +29,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
   const [isLoginLoading, setIsLoginLoading] = React.useState(false);
   const [isConsultDialogOpen, setIsConsultDialogOpen] = React.useState(false);
   const [promoSettings, setPromoSettings] = React.useState<LoginPromoSettings>(defaultLoginPromoSettings);
@@ -113,7 +114,18 @@ export default function LoginPage() {
                         Lupa Password?
                     </button>
                   </div>
-                  <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <div className="relative">
+                    <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                        onClick={() => setShowPassword(!showPassword)}
+                    >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoginLoading}>
                   {isLoginLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
