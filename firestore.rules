@@ -44,12 +44,13 @@ service cloud.firestore {
     // Redemption options are public to read for all users, but only admins/superadmins can manage them.
     match /redemptionOptions/{optionId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId);
+      allow create, update, delete: if isSuperAdmin(request.auth.uid) || isStoreAdmin(request.auth.uid, request.resource.data.storeId);
     }
 
     // --- User and Store Management ---
 
-    // Any signed-in user can read the user list (for names, etc.), but can only update their own data.
+    // All signed-in users can read user data (for display purposes like cashier name in transactions).
+    // A user can only update their own data. SuperAdmins can manage all users.
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if request.auth.uid == userId; // Allow user creation on signup
@@ -66,27 +67,33 @@ service cloud.firestore {
       allow delete: if isSuperAdmin(request.auth.uid);
     }
 
-    // --- Store-Specific Sub-collections (Products, Customers, Transactions, etc.) ---
-    match /products_{storeId}/{docId} {
-      allow read: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    // --- Store-Specific Sub-collections (Products, Customers, Tables, etc.) ---
+    match /products_{storeId}/{productId} {
+      allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-    match /customers_{storeId}/{docId} {
-      allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-      allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    match /customers_{storeId}/{customerId} {
+      allow read: if isSignedIn();
+      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
     }
-    match /transactions_{storeId}/{docId} {
-      allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
-      allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+     match /tables_{storeId}/{tableId} {
+      allow read: if isSignedIn();
+      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
     }
-     match /tables_{storeId}/{docId} {
-      allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+     match /challenges_{storeId}/{challengeId} {
+      allow read: if isSignedIn();
+      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-    match /challenges_{storeId}/{docId} {
-       allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+     match /appliedStrategies_{storeId}/{strategyId} {
+      allow read: if isSignedIn();
+      allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-     match /appliedStrategies_{storeId}/{docId} {
-       allow read, write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+    
+    // --- Special Case: Transactions ---
+    // Cashiers can only create and read transactions. Admins can manage them fully.
+    match /transactions_{storeId}/{transactionId} {
+        allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
+        allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
     
     // --- Pending Orders ---
