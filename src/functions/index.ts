@@ -39,7 +39,7 @@ export const createUser = onCall(async (request) => {
             whatsapp: whatsapp,
             role: 'admin',
             status: 'active',
-            storeId: storeRef.id,
+            storeId: storeRef.id, // Admins can also have a primary storeId
         });
 
         // 4. Set custom claims for the user
@@ -48,7 +48,7 @@ export const createUser = onCall(async (request) => {
             storeId: storeRef.id,
         });
         
-        logger.info(`Successfully created new user: ${displayName} (${email}) for store: ${storeName}`);
+        logger.info(`Successfully created new admin user: ${displayName} (${email}) for store: ${storeName}`);
 
         return { success: true, uid: userRecord.uid };
 
@@ -64,10 +64,60 @@ export const createUser = onCall(async (request) => {
              }
         }
         
-        // Re-throw a user-friendly error to the client
         if (error.code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
         throw new HttpsError('internal', 'An error occurred while creating the user.');
+    }
+});
+
+
+export const createEmployee = onCall(async (request) => {
+    // Check if the caller is an admin
+    if (!request.auth || !['admin', 'superadmin'].includes(request.auth.token.role)) {
+        throw new HttpsError('permission-denied', 'Only admins or superadmins can create employees.');
+    }
+
+    const { email, password, name, role, storeId } = request.data;
+    
+    if (!email || !password || !name || !role || !storeId) {
+        throw new HttpsError('invalid-argument', 'Missing required employee data.');
+    }
+
+    try {
+        const userRecord = await admin.auth().createUser({
+            email,
+            password,
+            displayName: name,
+        });
+
+        await admin.auth().setCustomUserClaims(userRecord.uid, { role, storeId });
+
+        await db.collection('users').doc(userRecord.uid).set({
+            name,
+            email,
+            role,
+            storeId,
+            status: 'active',
+        });
+        
+        // If the new user is an admin, add them to the store's adminUids array
+        if (role === 'admin') {
+            const storeRef = db.collection('stores').doc(storeId);
+            await storeRef.update({
+                adminUids: admin.firestore.FieldValue.arrayUnion(userRecord.uid)
+            });
+        }
+
+        logger.info(`Successfully created new employee: ${name} (${email}) for store: ${storeId}`);
+
+        return { success: true, uid: userRecord.uid };
+    } catch (error: any) {
+        logger.error(`Error creating employee by ${request.auth?.uid}:`, error);
+
+         if (error.code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', 'This email is already registered.');
+        }
+        throw new HttpsError('internal', 'An internal error occurred while creating the employee.');
     }
 });

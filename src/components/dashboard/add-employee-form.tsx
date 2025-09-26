@@ -21,9 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import * as React from 'react';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -72,45 +70,19 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
       setIsLoading(true);
       
       try {
-        // Since we can't have multiple auth instances, we'll create the user
-        // but need to be careful about the currently logged-in admin session.
-        // A backend function is the most robust way to handle this in production.
-        // For now, we rely on the client-side SDK's behavior.
+        const functions = getFunctions();
+        const createEmployee = httpsCallable(functions, 'createEmployee');
         
-        // This is a temporary auth instance to create a new user without logging out the admin
-        const tempAuth = auth; 
-        const originalUser = tempAuth.currentUser;
-
-        // Check if email is already in use in Firebase Auth
-        const q = query(collection(db, "users"), where("email", "==", data.email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            toast({
-                variant: 'destructive',
-                title: 'Email Sudah Digunakan',
-                description: "Email ini sudah terdaftar. Silakan gunakan email lain.",
-            });
-            setIsLoading(false);
-            return;
-        }
-
-        const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, data.password);
-        const newUser = userCredential.user;
-
-        // Add user to firestore
-        await setDoc(doc(db, "users", newUser.uid), {
-            name: data.name,
+        const result: any = await createEmployee({
             email: data.email,
+            password: data.password,
+            name: data.name,
             role: data.role,
-            status: 'active',
-            storeId: activeStore.id, // Associate user with the current active store
+            storeId: activeStore.id,
         });
-        
-        // This part is crucial: we re-sign-in the original admin user
-        if (originalUser && tempAuth.currentUser?.uid !== originalUser.uid) {
-           // This is a simplified re-auth. In a real app, you might need to prompt the admin for password again.
-           // Or ideally, use Firebase Admin SDK on a backend to create users.
+
+        if (result.data.error) {
+            throw new Error(result.data.error);
         }
 
         toast({
@@ -124,10 +96,10 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
       } catch (error: any) {
         console.error("Error adding employee:", error);
         let errorMessage = "Gagal menambahkan karyawan. Silakan coba lagi.";
-        if (error.code === 'auth/email-already-in-use') {
+        if (error.message.includes('already-exists')) {
             errorMessage = "Email ini sudah digunakan. Silakan pilih email lain.";
-        } else if (error.code === 'auth/weak-password') {
-            errorMessage = "Password terlalu lemah. Gunakan minimal 8 karakter.";
+        } else if (error.message.includes('permission-denied')) {
+            errorMessage = "Anda tidak memiliki izin untuk melakukan tindakan ini.";
         }
         
         toast({
