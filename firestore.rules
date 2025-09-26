@@ -68,30 +68,30 @@ service cloud.firestore {
     }
 
     // --- Store-Specific Sub-collections (Products, Customers, Tables, etc.) ---
-    match /products_{storeId}/{productId} {
+    match /products/{storeId}/{productId} {
       allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-    match /customers_{storeId}/{customerId} {
+    match /customers/{storeId}/{customerId} {
       allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
     }
-     match /tables_{storeId}/{tableId} {
+     match /tables/{storeId}/{tableId} {
       allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid) || isStoreCashier(request.auth.uid, storeId);
     }
-     match /challenges_{storeId}/{challengeId} {
+     match /challenges/{storeId}/{challengeId} {
       allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
-     match /appliedStrategies_{storeId}/{strategyId} {
+     match /appliedStrategies/{storeId}/{strategyId} {
       allow read: if isSignedIn();
       allow write: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
     
     // --- Special Case: Transactions ---
     // Cashiers can only create and read transactions. Admins can manage them fully.
-    match /transactions_{storeId}/{transactionId} {
+    match /transactions/{storeId}/{transactionId} {
         allow read, create: if isStoreAdmin(request.auth.uid, storeId) || isStoreCashier(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
         allow update, delete: if isStoreAdmin(request.auth.uid, storeId) || isSuperAdmin(request.auth.uid);
     }
