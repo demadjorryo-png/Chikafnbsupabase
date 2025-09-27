@@ -59,11 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        // Handle superadmin case first
+        // SUPERADMIN PATH: Superadmin does not have a store.
         if (claims.role === 'superadmin') {
             setActiveStore(null);
             setPradanaTokenBalance(0);
-        } else {
+        } 
+        // OTHER ROLES PATH: Must have a storeId.
+        else {
             const storeId = claims.storeId as string | undefined;
             if (storeId) {
                 const storeDocRef = doc(db, 'stores', storeId);
