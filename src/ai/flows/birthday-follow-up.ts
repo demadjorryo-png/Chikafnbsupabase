@@ -41,6 +41,7 @@ export async function getBirthdayFollowUp(
 
 const prompt = ai.definePrompt({
   name: 'birthdayFollowUpPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: {schema: BirthdayFollowUpInputSchema},
   output: {schema: BirthdayFollowUpOutputSchema},
   prompt: `You are Chika AI, a friendly assistant for Kasir POS Chika.

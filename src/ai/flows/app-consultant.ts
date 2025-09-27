@@ -42,6 +42,7 @@ export async function consultWithChika(
 
 const prompt = ai.definePrompt({
   name: 'appConsultantPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: AppConsultantInputSchema },
   output: { schema: AppConsultantOutputSchema },
   prompt: `Anda adalah "Chika", asisten AI serbaguna untuk Rio Pradana, seorang konsultan spesialis aplikasi F&B. Tugas Anda adalah membantu calon klien.

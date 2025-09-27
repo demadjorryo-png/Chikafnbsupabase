@@ -49,6 +49,7 @@ export async function getLoyaltyPointRecommendation(
 
 const prompt = ai.definePrompt({
   name: 'loyaltyPointRecommendationPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: {schema: LoyaltyPointRecommendationInputSchema},
   output: {schema: LoyaltyPointRecommendationOutputSchema},
   prompt: `You are an expert in loyalty programs and customer engagement. A customer has {{loyaltyPoints}} loyalty points and is making a purchase of Rp {{totalPurchaseAmount}}. Here are the available redemption options:

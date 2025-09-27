@@ -33,6 +33,7 @@ export async function askChika(
 
 const prompt = ai.definePrompt({
   name: 'businessAnalystPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: ChikaAnalystInputSchema },
   output: { schema: ChikaAnalystOutputSchema },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli yang berspesialisasi dalam industri F&B untuk aplikasi Kasir POS Chika. Anda sedang menganalisis data untuk kafe/restoran: {{activeStoreName}}.

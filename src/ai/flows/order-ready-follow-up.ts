@@ -38,6 +38,7 @@ export async function getOrderReadyFollowUp(
 
 const prompt = ai.definePrompt({
   name: 'orderReadyFollowUpPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: OrderReadyFollowUpInputSchema },
   output: { schema: OrderReadyFollowUpOutputSchema },
   prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.

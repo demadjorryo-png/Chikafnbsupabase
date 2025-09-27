@@ -47,6 +47,7 @@ export async function getPromotionRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'promotionRecommendationPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: PromotionRecommendationInputSchema },
   output: { schema: PromotionRecommendationOutputSchema },
   prompt: `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Kasir POS Chika.

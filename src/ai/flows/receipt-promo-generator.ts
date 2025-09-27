@@ -29,6 +29,7 @@ export async function getReceiptPromo(
 
 const prompt = ai.definePrompt({
   name: 'receiptPromoPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: ReceiptPromoInputSchema },
   output: { schema: ReceiptPromoOutputSchema },
   prompt: `Anda adalah Chika AI, seorang copywriter kreatif untuk "Kasir POS Chika".

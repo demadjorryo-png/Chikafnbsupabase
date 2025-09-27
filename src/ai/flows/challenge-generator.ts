@@ -45,6 +45,7 @@ const ChallengeGeneratorGptOutputSchema = z.object({
 
 const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
   prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk aplikasi "Kasir POS Chika".

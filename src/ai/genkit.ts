@@ -1,11 +1,10 @@
-import {configureGenkit, genkit} from 'genkit';
+import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
-// Configure Genkit globally with the desired model and safety settings.
+// Configure Genkit globally by creating a single configured instance.
 // This ensures all AI flows use this configuration by default.
-configureGenkit({
+export const ai = genkit({
   plugins: [googleAI()],
-  model: 'googleai/gemini-1.5-flash',
   safetySettings: [
     {
       category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
@@ -26,6 +25,3 @@ configureGenkit({
   ],
   logLevel: 'debug', // Optional: for better debugging
 });
-
-// Export a standard Genkit instance for use in flows.
-export const ai = genkit();

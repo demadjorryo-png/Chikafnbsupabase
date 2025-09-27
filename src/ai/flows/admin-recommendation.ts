@@ -33,6 +33,7 @@ export async function getAdminRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'adminRecommendationPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: AdminRecommendationInputSchema },
   output: { schema: AdminRecommendationOutputSchema },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika.
