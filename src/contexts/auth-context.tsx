@@ -60,15 +60,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        // SUPERADMIN PATH: Superadmin does not have a store. Handle this case first and exit.
+        // SUPERADMIN PATH: This path must be completely separate and must exit early.
         if (claims.role === 'superadmin') {
             setActiveStore(null);
             setPradanaTokenBalance(0);
             setIsLoading(false);
-            return; // Exit the function for superadmin
+            return; // EXIT EARLY for superadmin
         } 
         
-        // OTHER ROLES PATH: Must have a storeId.
+        // OTHER ROLES (admin, cashier) PATH: Must have a storeId.
         const storeId = claims.storeId as string | undefined;
         if (storeId) {
             const storeDocRef = doc(db, 'stores', storeId);
