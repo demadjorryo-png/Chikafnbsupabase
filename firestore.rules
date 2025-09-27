@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -12,7 +13,7 @@ service cloud.firestore {
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
+
     function isSuperAdmin() {
       return isSignedIn() && getUserData().role == 'superadmin';
     }
@@ -22,15 +23,7 @@ service cloud.firestore {
     }
 
     function isUserOfStore(storeId) {
-        // A user is part of a store if:
-        // 1. They are a superadmin.
-        // 2. They are listed as an admin for that store.
-        // 3. Their user document has a matching storeId (for cashiers).
-        return isSignedIn() && (
-            isSuperAdmin() ||
-            isStoreAdmin(storeId) ||
-            getUserData().storeId == storeId
-        );
+      return isSignedIn() && (getUserData().storeId == storeId || isStoreAdmin(storeId) || isSuperAdmin());
     }
 
     // --- ATURAN GLOBAL ---
@@ -42,24 +35,20 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
     
-    // Aturan untuk opsi penukaran poin, bisa dibaca semua orang, ditulis oleh admin/superadmin
+    // Aturan untuk opsi penukaran poin, bisa dibaca semua orang, ditulis oleh admin
     match /redemptionOptions/{promoId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin() || (isStoreAdmin(resource.data.storeId));
+      allow write: if isSuperAdmin() || isStoreAdmin(resource.data.storeId);
     }
 
     // --- ATURAN PENGGUNA ---
     match /users/{userId} {
       // Izinkan pengguna membaca profilnya sendiri, atau jika dia admin/superadmin
       allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(getUserData().storeId));
-      
-      // Izinkan pengguna yang sudah login (termasuk Cloud Function) untuk membuat dokumen pengguna baru.
-      // Ini penting untuk alur registrasi.
-      allow create: if isSignedIn();
-
+      // Izinkan pembuatan pengguna baru (ditangani oleh Cloud Function).
+      allow create: if true;
       // Izinkan pengguna mengubah profilnya sendiri ATAU jika requester adalah admin tokonya/superadmin.
       allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(resource.data.storeId));
-
       // Hanya superadmin yang boleh menghapus user
       allow delete: if isSuperAdmin();
     }
@@ -97,5 +86,16 @@ service cloud.firestore {
        // Hanya admin yang bisa MENGUBAH atau MENGHAPUS transaksi (misal: untuk refund).
        allow update, delete: if isStoreAdmin(storeId) || isSuperAdmin();
     }
-  }
+  // --- ATURAN UNTUK CLOUD FUNCTION (MIDTRANS TOP UP) ---
+
+// Koleksi ini digunakan untuk memicu Cloud Function.
+// Pengguna diizinkan membuat dokumen permintaan top up.
+match /topUpRequests/{requestId} {
+   // Pengguna hanya bisa membuat permintaan baru.
+   // Cloud function akan membaca ini, memproses pembayaran, lalu menghapusnya atau menandainya.
+   allow create: if isSignedIn();
+   // Tidak ada yang boleh membaca atau mengubah permintaan dari sisi klien setelah dibuat.
+   allow read, update, delete: if false;
+}
+}
 }
