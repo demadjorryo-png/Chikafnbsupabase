@@ -416,12 +416,12 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-             {isLoading ? (
+           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                     <Skeleton key={i} className="w-full h-32 rounded-lg" />
                 ))
-            ) : tables.map(table => (
+            ) : (tables || []).map(table => (
               <Card 
                 key={table.id}
                 onClick={() => handleTableClick(table)}

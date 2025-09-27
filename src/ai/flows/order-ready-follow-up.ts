@@ -30,12 +30,6 @@ const OrderReadyFollowUpOutputSchema = z.object({
 });
 export type OrderReadyFollowUpOutput = z.infer<typeof OrderReadyFollowUpOutputSchema>;
 
-export async function getOrderReadyFollowUp(
-  input: OrderReadyFollowUpInput
-): Promise<OrderReadyFollowUpOutput> {
-  return orderReadyFollowUpFlow(input);
-}
-
 const prompt = ai.definePrompt({
   name: 'orderReadyFollowUpPrompt',
   model: 'googleai/gemini-1.5-flash',
@@ -93,3 +87,29 @@ const orderReadyFollowUpFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export async function getOrderReadyFollowUp(
+  input: OrderReadyFollowUpInput
+): Promise<OrderReadyFollowUpOutput> {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      // Call the defined flow
+      return await orderReadyFollowUpFlow(input);
+    } catch (error) {
+      attempts++;
+      console.warn(`Attempt ${attempts} failed for order ready flow. Retrying...`, error);
+      if (attempts >= maxAttempts) {
+        console.error('Error in order ready flow after multiple attempts:', error);
+        throw error;
+      }
+      // Wait for 1 second before the next attempt
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  
+  // This should not be reached, but it satisfies TypeScript's requirement for a return path.
+  throw new Error('Failed to get order ready follow up after multiple attempts.');
+}

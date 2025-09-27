@@ -1,3 +1,4 @@
+
 // --- Impor untuk fungsi V2 (disarankan) ---
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
@@ -82,33 +83,72 @@ export const createUser = onCall(async (request) => {
 });
 
 export const createEmployee = onCall(async (request) => {
-    // Check if the caller is an admin
+    // Check if the caller is an admin or superadmin
     if (!request.auth || !['admin', 'superadmin'].includes(request.auth.token.role)) {
         throw new HttpsError('permission-denied', 'Only admins or superadmins can create employees.');
     }
-    
-    let { email, password, name, role, storeId } = request.data;
+
+    const { email, password, name, role } = request.data;
+    let { storeId } = request.data;
     const callerRole = request.auth.token.role;
 
-    // If caller is superadmin, they MUST provide the storeId in the request.
-    // If caller is admin, they can only create employees for their own store.
-    if (callerRole === 'admin') {
-        storeId = request.auth.token.storeId;
+    // Basic validation for common fields
+    if (!email || !password || !name || !role) {
+        throw new HttpsError('invalid-argument', 'Missing required fields: email, password, name, role.');
     }
+
+    // --- Superadmin Creation Logic ---
+    if (role === 'superadmin') {
+        // Only existing superadmins can create other superadmins
+        if (callerRole !== 'superadmin') {
+            throw new HttpsError('permission-denied', 'Only a superadmin can create another superadmin.');
+        }
+
+        try {
+            const userRecord = await admin.auth().createUser({ email, password, displayName: name });
+            
+            // Set custom claims WITHOUT storeId
+            await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'superadmin' });
+
+            // Create user document in Firestore WITHOUT storeId
+            await db.collection('users').doc(userRecord.uid).set({
+                name,
+                email,
+                role: 'superadmin',
+                status: 'active',
+            });
+
+            logger.info(`Successfully created new superadmin: ${name} (${email}) by ${request.auth?.uid}`);
+            return { success: true, uid: userRecord.uid };
+
+        } catch (error) {
+            logger.error(`Error creating superadmin by ${request.auth?.uid}:`, error);
+            if ((error as any).code === 'auth/email-already-exists') {
+                throw new HttpsError('already-exists', 'This email is already registered.');
+            }
+            throw new HttpsError('internal', 'An internal error occurred while creating the superadmin.');
+        }
+    }
+
+    // --- Regular Employee (Admin/Cashier) Creation Logic ---
     
-    if (!email || !password || !name || !role || !storeId) {
-        throw new HttpsError('invalid-argument', 'Missing required employee data.');
+    // Determine storeId
+    if (callerRole === 'admin') {
+        storeId = request.auth.token.storeId; // Admin can only act on their own store
+    }
+
+    // Validate that storeId is present for non-superadmin roles
+    if (!storeId) {
+        throw new HttpsError('invalid-argument', 'storeId is required to create an admin or cashier.');
     }
 
     try {
-        const userRecord = await admin.auth().createUser({
-            email,
-            password,
-            displayName: name,
-        });
+        const userRecord = await admin.auth().createUser({ email, password, displayName: name });
 
+        // Set custom claims WITH storeId
         await admin.auth().setCustomUserClaims(userRecord.uid, { role, storeId });
 
+        // Create user document in Firestore WITH storeId
         await db.collection('users').doc(userRecord.uid).set({
             name,
             email,
@@ -117,6 +157,7 @@ export const createEmployee = onCall(async (request) => {
             status: 'active',
         });
         
+        // If the new employee is an admin, add them to the store's admin list
         if (role === 'admin') {
             const storeRef = db.collection('stores').doc(storeId);
             await storeRef.update({
@@ -125,12 +166,11 @@ export const createEmployee = onCall(async (request) => {
         }
 
         logger.info(`Successfully created new employee: ${name} (${email}) for store: ${storeId}`);
-
         return { success: true, uid: userRecord.uid };
+
     } catch (error) {
         logger.error(`Error creating employee by ${request.auth?.uid}:`, error);
-
-         if ((error as any).code === 'auth/email-already-exists') {
+        if ((error as any).code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
         throw new HttpsError('internal', 'An internal error occurred while creating the employee.');

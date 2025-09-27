@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [activeStore]);
 
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
+    setIsLoading(true);
     if (firebaseUser) {
       try {
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userDocSnap = await getDoc(userDocRef);
 
         if (!userDocSnap.exists()) {
-           throw new Error("User document not found in Firestore.");
+           throw new Error("Dokumen pengguna tidak ditemukan di Firestore.");
         }
         
         const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
@@ -91,12 +92,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
+      } finally {
+        setIsLoading(false);
       }
     } else {
       setCurrentUser(null);
       setActiveStore(null);
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [toast]);
 
 

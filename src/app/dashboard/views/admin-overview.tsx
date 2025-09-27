@@ -24,7 +24,6 @@ import {
 import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +34,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { AppliedStrategy } from '@/lib/types';
+import type { AppliedStrategy, Product, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
@@ -47,9 +46,14 @@ const chartConfig = {
   },
 };
 
-export default function AdminOverview() {
+interface AdminOverviewProps {
+    transactions: Transaction[];
+    products: Product[];
+}
+
+export default function AdminOverview({ transactions, products }: AdminOverviewProps) {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const { transactions, products, feeSettings } = useDashboard();
+  const { dashboardData, feeSettings, refreshData } = useDashboard();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -100,25 +104,25 @@ export default function AdminOverview() {
       const end = endOfMonth(targetMonth);
       const monthName = format(targetMonth, 'MMM', { locale: idLocale });
       
-      const monthlyRevenue = transactions
+      const monthlyRevenue = (transactions || [])
         .filter(t => isWithinInterval(new Date(t.createdAt), { start, end }))
         .reduce((sum, t) => sum + t.totalAmount, 0);
         
       monthlyData.push({ month: monthName, revenue: monthlyRevenue });
     }
 
-    const totalRevenue = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+    const totalRevenue = (transactions || []).reduce((sum, t) => sum + t.totalAmount, 0);
     
-    const totalCost = transactions.reduce((sum, t) => {
+    const totalCost = (transactions || []).reduce((sum, t) => {
       return sum + t.items.reduce((itemSum, item) => {
-        const product = products.find(p => p.id === item.productId);
+        const product = (products || []).find(p => p.id === item.productId);
         return itemSum + ((product?.costPrice || 0) * item.quantity);
       }, 0);
     }, 0);
 
     const grossProfit = totalRevenue - totalCost;
 
-    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfMonth(now), end: endOfMonth(now) }));
+    const thisMonthTransactions = (transactions || []).filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfMonth(now), end: endOfMonth(now) }));
 
     const calculateProductSales = (txs: any[]) => {
       const sales: Record<string, number> = {};
@@ -144,7 +148,7 @@ export default function AdminOverview() {
   }, [transactions, products, idLocale]);
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore) return;
+    if (!activeStore || !feeSettings) return;
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
@@ -157,16 +161,27 @@ export default function AdminOverview() {
     const lastMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 2]?.revenue || 0;
 
     try {
-        const result = await getAdminRecommendations({
-            totalRevenueLastWeek: thisMonthRevenue / 4, 
-            totalRevenueLastMonth: lastMonthRevenue,
-            topSellingProducts: topProductsThisMonth.map(([name]) => name),
-            worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
+        const response = await fetch('/api/recommendations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                totalRevenueLastWeek: thisMonthRevenue / 4,
+                totalRevenueLastMonth: lastMonthRevenue,
+                topSellingProducts: topProductsThisMonth.map(([name]) => name),
+                worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
+            }),
         });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const result = await response.json();
         setRecommendations(result);
         refreshPradanaTokenBalance();
     } catch (error) {
         console.error("Error generating recommendations:", error);
+        toast({ variant: 'destructive', title: 'Gagal Mendapatkan Rekomendasi', description: 'Terjadi kesalahan saat berkomunikasi dengan AI.' });
     } finally {
         setIsLoading(false);
     }
@@ -254,7 +269,7 @@ export default function AdminOverview() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline tracking-wider">Metrik Kinerja Toko</CardTitle>
-                <CardDescription>Ringkasan performa toko {activeStore?.name} secara keseluruhan.</CardDescription>
+                <CardDescription>Ringkasan performa toko ${activeStore?.name} secara keseluruhan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex items-center gap-4 rounded-md border p-4">
@@ -283,9 +298,9 @@ export default function AdminOverview() {
                 <CardDescription>Dapatkan saran strategis mingguan dan bulanan untuk mendorong pertumbuhan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
+                <Button onClick={handleGenerateRecommendations} disabled={isLoading || !feeSettings}>
                     {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
+                    {feeSettings ? `Buat Rekomendasi Baru (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
                 </Button>
 
                 {recommendations && (
@@ -393,7 +408,7 @@ export default function AdminOverview() {
       <Card>
         <CardHeader>
             <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
-            <CardDescription>Unduh data transaksi dari toko {activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
+            <CardDescription>Unduh data transaksi dari toko ${activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
             <div className="grid gap-2 w-full sm:w-auto">

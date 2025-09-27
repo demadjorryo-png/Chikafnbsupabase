@@ -9,15 +9,17 @@ import type { User, RedemptionOption, Product, Store, Customer, Transaction, Pen
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 
 interface DashboardContextType {
-  stores: Store[];
-  products: Product[];
-  customers: Customer[];
-  transactions: Transaction[];
-  pendingOrders: PendingOrder[];
-  users: User[];
-  redemptionOptions: RedemptionOption[];
-  tables: Table[];
-  feeSettings: TransactionFeeSettings;
+  dashboardData: {
+    stores: Store[];
+    products: Product[];
+    customers: Customer[];
+    transactions: Transaction[];
+    pendingOrders: PendingOrder[];
+    users: User[];
+    redemptionOptions: RedemptionOption[];
+    tables: Table[];
+    feeSettings: TransactionFeeSettings;
+  };
   isLoading: boolean;
   refreshData: () => void;
 }
@@ -141,15 +143,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [isAuthLoading, currentUser, activeStore, refreshData, toast]);
 
   const value = {
-    stores,
-    products,
-    customers,
-    transactions,
-    pendingOrders,
-    users,
-    redemptionOptions,
-    tables,
-    feeSettings,
+    dashboardData: {
+        stores,
+        products,
+        customers,
+        transactions,
+        pendingOrders,
+        users,
+        redemptionOptions,
+        tables,
+        feeSettings,
+    },
     isLoading,
     refreshData,
   };

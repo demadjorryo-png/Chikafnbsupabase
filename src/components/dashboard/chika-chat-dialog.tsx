@@ -20,7 +20,6 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
-import { consultWithChika } from '@/ai/flows/app-consultant';
 import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
@@ -190,10 +189,20 @@ Terima kasih!`;
   
   const handleAppConsultant = async (userInput: string, currentMessages: Message[]) => {
      try {
-        const result = await consultWithChika({
-            conversationHistory: currentMessages.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n'),
-            userInput: userInput,
+        const response = await fetch('/api/consult', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                conversationHistory: currentMessages,
+                userInput: userInput,
+            }),
         });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const result = await response.json();
 
         const updatedMessages: Message[] = [...currentMessages, { id: Date.now() + 1, sender: 'ai', text: result.response }];
         setMessages(updatedMessages);

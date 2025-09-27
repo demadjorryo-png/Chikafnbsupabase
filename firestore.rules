@@ -53,6 +53,17 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
     
+    // --- ATURAN PESANAN TERTUNDA (PENDING ORDERS) ---
+    match /pendingOrders/{orderId} {
+      // Izinkan baca jika pengguna adalah bagian dari toko yang terkait dengan pesanan ini.
+      allow read: if isUserOfStore(get(/databases/$(database)/documents/pendingOrders/$(orderId)).data.storeId);
+      
+      // Izinkan buat dan hapus jika pengguna adalah bagian dari toko.
+      allow create, delete: if isUserOfStore(request.resource.data.storeId);
+      
+      // Jangan izinkan pembaruan langsung, untuk menjaga integritas data.
+      allow update: if false;
+    }
 
     // --- ATURAN DATA TOKO ---
 

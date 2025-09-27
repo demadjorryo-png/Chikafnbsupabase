@@ -51,14 +51,32 @@ Tugas Anda adalah memberikan rekomendasi strategis mingguan dan bulanan untuk ad
 Data Kinerja:
 - Total Pendapatan Minggu Lalu: Rp {{totalRevenueLastWeek}}
 - Total Pendapatan Bulan Lalu: Rp {{totalRevenueLastMonth}}
+{{#if topSellingProducts.length}}
 - Produk Terlaris: {{#each topSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if worstSellingProducts.length}}
 - Produk Kurang Laris: {{#each worstSellingProducts}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{else}}
+- Produk Kurang Laris: Tidak ada data produk yang berkinerja buruk secara signifikan.
+{{/if}}
 
 Berdasarkan data ini:
-1.  Buat **rekomendasi mingguan** yang berfokus pada tindakan jangka pendek. Contoh: Sarankan promosi 'bundling' untuk produk yang kurang laris dengan produk terlaris, atau adakan acara 'happy hour' pada hari-hari sepi.
-2.  Buat **rekomendasi bulanan** yang berfokus pada strategi jangka panjang. Contoh: Sarankan untuk mengurangi stok produk yang kurang laris dan bernegosiasi dengan pemasok untuk harga yang lebih baik pada produk terlaris, atau usulkan program loyalitas baru.
 
-Gunakan nada yang profesional namun memotivasi.`,
+1.  Buat **rekomendasi mingguan** yang berfokus pada tindakan jangka pendek.
+    {{#if worstSellingProducts.length}}
+    Contoh: Sarankan promosi 'bundling' untuk produk yang kurang laris dengan produk terlaris, atau adakan acara 'happy hour' pada hari-hari sepi.
+    {{else}}
+    Contoh: Karena semua produk berkinerja baik, sarankan untuk fokus pada peningkatan interaksi pelanggan, seperti meminta ulasan atau menjalankan promosi di media sosial untuk meningkatkan kunjungan.
+    {{/if}}
+
+2.  Buat **rekomendasi bulanan** yang berfokus pada strategi jangka panjang.
+    {{#if worstSellingProducts.length}}
+    Contoh: Sarankan untuk mengurangi stok produk yang kurang laris dan bernegosiasi dengan pemasok untuk harga yang lebih baik pada produk terlaris, atau usulkan program loyalitas baru.
+    {{else}}
+    Contoh: Sarankan untuk mengeksplorasi kategori produk baru yang komplementer atau berinvestasi dalam program loyalitas untuk mempertahankan momentum penjualan yang positif.
+    {{/if}}
+
+Pastikan rekomendasi Anda berbeda untuk mingguan dan bulanan. Gunakan nada yang profesional namun memotivasi.`,
 });
 
 const adminRecommendationFlow = ai.defineFlow(

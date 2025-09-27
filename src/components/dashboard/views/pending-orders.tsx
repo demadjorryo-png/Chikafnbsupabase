@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem } from '@/lib/types';
+import type { Product, Customer, CartItem, PendingOrder } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -44,7 +44,7 @@ import {
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
@@ -57,8 +57,9 @@ type PendingOrdersProps = {
 };
 
 export default function PendingOrders({ products, customers, onDataChange, isLoading }: PendingOrdersProps) {
-  const { activeStore, currentUser } = useAuth();
+  const { activeStore } = useAuth();
   const [pendingList, setPendingList] = React.useState<CartItem[]>([]);
+  const [realtimeOrders, setRealtimeOrders] = React.useState<PendingOrder[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [manualItemName, setManualItemName] = React.useState('');
@@ -66,6 +67,33 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
   const { toast } = useToast();
   
   const currentStoreId = activeStore?.id || '';
+
+  React.useEffect(() => {
+    if (!currentStoreId) return;
+
+    const q = query(collection(db, "pendingOrders"), where("storeId", "==", currentStoreId));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const updatedOrders: PendingOrder[] = [];
+        snapshot.forEach((doc) => {
+            updatedOrders.push({ id: doc.id, ...doc.data() } as PendingOrder);
+        });
+        setRealtimeOrders(updatedOrders);
+        toast({
+          title: "Pesanan Diperbarui",
+          description: "Daftar pesanan tertunda telah diperbarui secara real-time.",
+        });
+    }, (error) => {
+        console.error("Error listening to pending orders:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Memperbarui Pesanan',
+            description: 'Tidak dapat memuat pembaruan pesanan secara real-time.'
+        });
+    });
+
+    return () => unsubscribe();
+  }, [currentStoreId, toast]);
 
   const customerOptions = customers.map((c) => ({
     value: c.id,

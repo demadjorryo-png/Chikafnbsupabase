@@ -67,19 +67,7 @@ function CheckoutReceiptDialog({ transaction, users, open, onOpenChange }: { tra
 
 function DashboardContent() {
   const { currentUser, pradanaTokenBalance } = useAuth();
-  const {
-    stores,
-    products,
-    customers,
-    transactions,
-    pendingOrders,
-    users,
-    redemptionOptions,
-    tables,
-    feeSettings,
-    isLoading,
-    refreshData,
-  } = useDashboard();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
   const searchParams = useSearchParams();
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
 
@@ -87,14 +75,16 @@ function DashboardContent() {
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : (isAdmin ? 'overview' : 'pos'));
   
-  if (isLoading) {
+  if (isLoading || !dashboardData) {
     return <DashboardSkeleton />;
   }
+
+  const { products, customers, tables, feeSettings, users, transactions } = dashboardData;
 
   const renderView = () => {
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics', 'platform-control'];
     if (currentUser?.role === 'cashier' && unauthorizedCashierViews.includes(view)) {
-        return <Tables onPrintRequest={setTransactionToPrint} />;
+        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
     }
 
     switch (view) {
@@ -111,9 +101,18 @@ function DashboardContent() {
       case 'pos':
         const tableId = searchParams.get('tableId');
         if (tableId) {
-             return <POS onPrintRequest={setTransactionToPrint} />;
+             return <POS 
+                products={products}
+                customers={customers}
+                tables={tables}
+                onDataChange={refreshData}
+                isLoading={isLoading}
+                feeSettings={feeSettings}
+                pradanaTokenBalance={pradanaTokenBalance}
+                onPrintRequest={setTransactionToPrint}
+             />;
         }
-        return <Tables onPrintRequest={setTransactionToPrint} />;
+        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
       case 'products':
         return <Products />;
       case 'customers':
@@ -134,7 +133,7 @@ function DashboardContent() {
         return <ReceiptSettings />;
       default:
         if (isSuperAdmin) return <PlatformControl />;
-        return <Tables onPrintRequest={setTransactionToPrint} />;
+        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
     }
   };
 

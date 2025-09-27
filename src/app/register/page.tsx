@@ -101,7 +101,7 @@ export default function RegisterPage() {
         
         toast({
             title: 'Registrasi Berhasil!',
-            description: `Selamat datang, ${values.name}! Toko Anda "${values.storeName}" telah dibuat.`,
+            description: `Selamat datang, ${values.name}! Toko Anda \"${values.storeName}\" telah dibuat.`,
         });
 
         router.push('/dashboard');
@@ -128,7 +128,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">DAFTAR AKUN BARU</CardTitle>
               <CardDescription>Buat akun admin dan bisnis F&amp;B pertama Anda.</CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleRegister)} className="grid gap-4">
