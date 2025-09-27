@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -18,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { RedemptionOption, User, Transaction } from '@/lib/types';
+import type { RedemptionOption, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target, Save } from 'lucide-react';
@@ -69,8 +68,8 @@ type PromotionsProps = {
 }
 
 export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
-  const { currentUser, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
+  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
@@ -149,8 +148,9 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleGenerateRecommendations = async () => {
+    if (!activeStore) return;
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }
@@ -205,12 +205,14 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
+     if (!activeStore) return;
      try {
         const docRef = await addDoc(collection(db, "redemptionOptions"), {
             description: rec.description,
             pointsRequired: rec.pointsRequired,
             value: rec.value,
             isActive: false, // New promos from AI are inactive by default
+            storeId: activeStore.id,
         });
 
         const newPromotion: RedemptionOption = {

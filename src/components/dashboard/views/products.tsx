@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -18,11 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, Store, ProductCategory } from '@/lib/types';
+import type { Product, ProductCategory, Store } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -62,39 +60,63 @@ import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
     products: Product[];
-    stores: Store[];
     onDataChange: () => void;
     isLoading: boolean;
 };
 
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier'; storeName: string; }) {
-    if (!product) return null;
+function StockInput({ product, onStockChange, isUpdating }: { product: Product; onStockChange: (productId: string, newStock: number) => void; isUpdating: boolean; }) {
+  const [currentStock, setCurrentStock] = React.useState(product.stock);
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">{product.name}</DialogTitle>
-                    <DialogDescription>
-                        SKU: {product.attributes.barcode || 'N/A'}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2 py-4 text-sm">
-                   <div><strong>Merek:</strong> {product.attributes.brand}</div>
-                   <div className="flex items-center gap-1"><strong>Kategori:</strong> <Badge variant="outline">{product.category}</Badge></div>
-                   <div><strong>Stok di {storeName}:</strong> {product.stock}</div>
-                   {userRole === 'admin' && <div><strong>Harga Pokok:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
-                   <div><strong>Harga Jual:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+  React.useEffect(() => {
+    // Sync with external changes
+    setCurrentStock(product.stock);
+  }, [product.stock]);
+
+  const handleBlur = () => {
+    if (currentStock !== product.stock) {
+      onStockChange(product.id, currentStock);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (currentStock !== product.stock) {
+        onStockChange(product.id, currentStock);
+      }
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+  
+  const getStockColorClass = (stock: number): string => {
+    if (stock < 3) return 'text-destructive';
+    if (stock < 10) return 'text-yellow-500';
+    if (stock < 20) return '';
+    return 'text-green-600';
+  };
+
+  return (
+    <div className="flex items-center justify-center">
+      {isUpdating ? 
+        <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
+        <Input 
+            type="number"
+            value={currentStock}
+            onBlur={handleBlur}
+            onChange={(e) => setCurrentStock(Number(e.target.value))}
+            onKeyDown={handleKeyDown}
+            onFocus={(e) => e.target.select()}
+            className={cn('w-20 h-7 text-center', getStockColorClass(currentStock))}
+        />
+      }
+    </div>
+  );
 }
 
-export default function Products({ products, stores, onDataChange, isLoading }: ProductsProps) {
+
+export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
   const { currentUser, activeStore } = useAuth();
   const userRole = currentUser?.role || 'cashier';
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -110,15 +132,12 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   const currentStoreId = activeStore?.id;
 
 
-  const handleStockChange = async (productId: string, currentStock: number, adjustment: 1 | -1) => {
-    if (!currentStoreId) return;
-    const newStock = currentStock + adjustment;
-    if (newStock < 0) return;
+  const handleStockChange = async (productId: string, newStock: number) => {
+    if (!currentStoreId || newStock < 0) return;
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
-    const productRef = doc(db, productCollectionName, productId);
+    const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
 
     try {
       await updateDoc(productRef, { stock: newStock });
@@ -136,10 +155,6 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   };
 
 
-  const handleViewDetails = (product: Product) => {
-    setSelectedProduct(product);
-  };
-  
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product);
     setIsEditDialogOpen(true);
@@ -153,9 +168,8 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${currentStoreId.replace('store_', '')}`;
     try {
-        await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
+        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
         toast({
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
@@ -203,13 +217,6 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
   }, [products]);
-
-  const getStockColorClass = (stock: number): string => {
-    if (stock < 3) return 'text-destructive';
-    if (stock < 10) return 'text-yellow-500';
-    if (stock < 20) return '';
-    return 'text-green-600';
-  };
 
 
   return (
@@ -265,30 +272,30 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
               
               {isAdmin && (
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                  <DialogTrigger asChild>
+                    <DialogTrigger asChild>
                     <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                         Tambah Produk
-                      </span>
+                        </span>
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">
+                        <DialogTitle className="font-headline tracking-wider">
                         Tambah Produk Baru
-                      </DialogTitle>
-                      <DialogDescription>
+                        </DialogTitle>
+                        <DialogDescription>
                         Menambahkan produk baru ke inventaris {activeStore?.name}.
-                      </DialogDescription>
+                        </DialogDescription>
                     </DialogHeader>
                     {activeStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
-                      onProductAdded={handleDataUpdate}
-                      activeStore={activeStore}
+                        setDialogOpen={setIsAddDialogOpen} 
+                        userRole={userRole} 
+                        onProductAdded={handleDataUpdate}
+                        activeStore={activeStore}
                     />}
-                  </DialogContent>
+                    </DialogContent>
                 </Dialog>
               )}
               
@@ -319,41 +326,21 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
                 ))
               ) : (
                 filteredProducts.map((product) => (
-                  <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
+                  <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                      {isAdmin ? (
-                        <div className="flex items-center justify-center gap-2">
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, -1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
-                                {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
-                            </span>
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, 1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                      ) : (
-                        <span className={cn(getStockColorClass(product.stock))}>
-                            {product.stock}
-                        </span>
-                      )}
+                       {isAdmin ? (
+                         <StockInput 
+                          product={product} 
+                          onStockChange={handleStockChange}
+                          isUpdating={updatingStock === product.id}
+                         />
+                       ) : (
+                         product.stock
+                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
@@ -382,16 +369,6 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
           </Table>
         </CardContent>
       </Card>
-
-      {selectedProduct && activeStore && (
-        <ProductDetailsDialog
-          product={selectedProduct}
-          open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
-          onOpenChange={() => setSelectedProduct(null)}
-          userRole={userRole}
-          storeName={activeStore.name}
-        />
-      )}
   
       {selectedProduct && isEditDialogOpen && activeStore && (
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -434,5 +411,3 @@ export default function Products({ products, stores, onDataChange, isLoading }: 
     </div>
   );
 }
-
-    

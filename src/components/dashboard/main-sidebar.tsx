@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -13,12 +13,10 @@ import {
 import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
-  ShoppingCart,
   BookOpenCheck,
   Contact2,
   LogOut,
   Settings,
-  ClipboardList,
   History,
   Users,
   Trophy,
@@ -42,10 +40,11 @@ type MainSidebarProps = {
 }
 
 export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, activeStore, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : 'pos';
+  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : (currentUser?.role === 'admin' ? 'overview' : 'pos');
   const currentView = searchParams.get('view') || defaultView;
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
@@ -57,7 +56,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       newParams.delete('tableName');
     }
     newParams.set('view', view);
-    router.push(`/dashboard?${newParams.toString()}`);
+    router.push(`${pathname}?${newParams.toString()}`);
   };
 
   const handleLogout = async () => {

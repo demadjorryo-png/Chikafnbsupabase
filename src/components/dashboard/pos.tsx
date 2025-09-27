@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction, Table } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -20,13 +20,14 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
-  Printer,
   Plus,
   Gift,
   Coins,
+  Armchair,
+  Bell,
 } from 'lucide-react';
 import {
-  Table,
+  Table as ShadcnTable,
   TableBody,
   TableCell,
   TableHead,
@@ -42,7 +43,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -51,20 +51,22 @@ import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt } from '@/components/dashboard/receipt';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference, increment } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Switch } from '@/components/ui/switch';
 
 type POSProps = {
     products: Product[];
     customers: Customer[];
+    tables: Table[];
     onDataChange: () => void;
     isLoading: boolean;
     feeSettings: TransactionFeeSettings;
@@ -72,8 +74,32 @@ type POSProps = {
     onPrintRequest: (transaction: Transaction) => void;
 };
 
-export default function POS({ products, customers, onDataChange, isLoading, feeSettings, pradanaTokenBalance, onPrintRequest }: POSProps) {
+
+export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance, onPrintRequest }: POSProps) {
   const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const [selectedTableId, setSelectedTableId] = React.useState(() => searchParams.get('tableId'));
+  const [selectedTableName, setSelectedTableName] = React.useState(() => searchParams.get('tableName'));
+
+  React.useEffect(() => {
+    const currentView = searchParams.get('view');
+    if (currentView !== 'pos' || !searchParams.has('tableId')) {
+        if (selectedTableId) {
+            setSelectedTableId(null);
+            setSelectedTableName(null);
+        }
+    } else {
+        const tableIdFromParams = searchParams.get('tableId');
+        if (tableIdFromParams !== selectedTableId) {
+            setSelectedTableId(tableIdFromParams);
+            setSelectedTableName(searchParams.get('tableName'));
+        }
+    }
+  }, [searchParams, selectedTableId]);
+
+
   const [isProcessingCheckout, setIsProcessingCheckout] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | undefined>(undefined);
@@ -84,6 +110,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const [discountType, setDiscountType] = React.useState<'percent' | 'nominal'>('percent');
   const [discountValue, setDiscountValue] = React.useState(0);
   const [pointsToRedeem, setPointsToRedeem] = React.useState(0);
+  const [isDineIn, setIsDineIn] = React.useState(true); // Default to true for table orders
   const { toast } = useToast();
   
   const customerOptions = customers.map((c) => ({
@@ -200,7 +227,9 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (currentUser?.role === 'admin') return 0; // Admin doesn't pay fee
+    // Only cashiers pay fees, admins don't.
+    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') return 0;
+    
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
     const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp);
@@ -230,8 +259,8 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       toast({ variant: 'destructive', title: 'Keranjang Kosong', description: 'Silakan tambahkan produk ke keranjang.' });
       return;
     }
-    if (!currentUser || !activeStore) {
-        toast({ variant: 'destructive', title: 'Sesi Tidak Valid', description: 'Data staff atau toko tidak ditemukan. Silakan login ulang.' });
+    if (!currentUser || !activeStore || !selectedTableId) {
+        toast({ variant: 'destructive', title: 'Sesi atau Meja Tidak Valid', description: 'Data staff, toko, atau meja tidak ditemukan. Silakan pilih meja dari halaman utama.' });
         return;
     }
 
@@ -247,9 +276,6 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
     setIsProcessingCheckout(true);
     
     const storeId = activeStore.id;
-    const productCollectionName = `products_${storeId}`;
-    const customerCollectionName = `customers_${storeId}`;
-    const transactionCollectionName = `transactions_${storeId}`;
     
     try {
       let finalTransactionData: Transaction | null = null;
@@ -260,18 +286,18 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
-            ref: doc(db, productCollectionName, item.productId),
+            ref: doc(db, 'stores', storeId, 'products', item.productId),
             item: item,
           }));
         
-        const customerRef = selectedCustomer ? doc(db, customerCollectionName, selectedCustomer.id) : null;
+        const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
   
         const productDocs = await Promise.all(
           productReads.map(p => transaction.get(p.ref))
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        if (currentUser.role !== 'admin') {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
             const storeTokenDoc = await transaction.get(storeRef);
             const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
             if (currentTokenBalance < transactionFee) {
@@ -305,7 +331,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
         }
 
-        if (currentUser.role !== 'admin') {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
             transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
         }
         
@@ -317,12 +343,12 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
         }
         
-        const newTransactionRef = doc(collection(db, transactionCollectionName));
+        const newTransactionRef = doc(collection(db, 'stores', storeId, 'transactions'));
         const transactionData: Transaction = {
             id: newTransactionRef.id,
             storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
-            customerName: selectedCustomer?.name || 'Guest',
+            customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
             staffId: currentUser.id,
             createdAt: new Date().toISOString(),
             subtotal: subtotal,
@@ -332,19 +358,31 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
-            status: 'Selesai',
+            status: 'Diproses', // All table orders are processed
+            tableId: selectedTableId,
         };
         transaction.set(newTransactionRef, transactionData);
+        
+        const tableRef = doc(db, 'stores', storeId, 'tables', selectedTableId);
+        transaction.update(tableRef, {
+            status: 'Terisi',
+            currentOrder: {
+                items: cart,
+                totalAmount: totalAmount,
+                orderTime: new Date().toISOString(),
+            }
+        });
+        
         finalTransactionData = transactionData;
       });
 
-      toast({ title: "Checkout Berhasil!", description: "Transaksi telah disimpan." });
+      toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
       
-      if(finalTransactionData) {
+      if (finalTransactionData) {
         onPrintRequest(finalTransactionData);
       }
       
-      if (currentUser.role !== 'admin') {
+      if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
         refreshPradanaTokenBalance();
       }
       
@@ -352,7 +390,11 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
       setDiscountValue(0);
       setPointsToRedeem(0);
       setSelectedCustomer(undefined);
-      onDataChange(); 
+      onDataChange();
+      
+      const params = new URLSearchParams();
+      params.set('view', 'pos');
+      router.push(`/dashboard?${params.toString()}`);
 
     } catch (error) {
       console.error("Checkout failed:", error);
@@ -391,7 +433,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
           </CardHeader>
           <ScrollArea className="h-[calc(100vh-220px)]">
             <CardContent className="p-0">
-               <Table>
+               <ShadcnTable>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Produk</TableHead>
@@ -443,7 +485,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                     );
                   })}
                 </TableBody>
-              </Table>
+              </ShadcnTable>
             </CardContent>
           </ScrollArea>
         </Card>
@@ -452,41 +494,52 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
         <Card>
           <CardHeader>
             <CardTitle className="font-headline tracking-wider">
-              Pesanan Saat Ini
+              {selectedTableId ? `Pesanan untuk ${selectedTableName}` : 'Pesanan Saat Ini'}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Combobox
-                options={customerOptions}
-                value={selectedCustomer?.id}
-                onValueChange={(value) => {
-                  setSelectedCustomer(customers.find((c) => c.id === value));
-                  setPointsToRedeem(0); // Reset points when customer changes
-                }}
-                placeholder="Cari pelanggan..."
-                searchPlaceholder="Cari nama pelanggan..."
-                notFoundText="Pelanggan tidak ditemukan."
-              />
-              <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">
-                      Daftar Pelanggan Baru
-                    </DialogTitle>
-                    <DialogDescription>
-                      Tambahkan pelanggan baru ke dalam sistem.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
-                </DialogContent>
-              </Dialog>
+             <div className="grid grid-cols-1 gap-2">
+                 <div className="flex items-center gap-2">
+                    <Combobox
+                        options={customerOptions}
+                        value={selectedCustomer?.id}
+                        onValueChange={(value) => {
+                        setSelectedCustomer(customers.find((c) => c.id === value));
+                        setPointsToRedeem(0); // Reset points when customer changes
+                        }}
+                        placeholder="Cari pelanggan..."
+                        searchPlaceholder="Cari nama pelanggan..."
+                        notFoundText="Pelanggan tidak ditemukan."
+                    />
+                    <Dialog open={isMemberDialogOpen} onOpenChange={setIsMemberDialogOpen}>
+                        <DialogTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <UserPlus className="h-4 w-4" />
+                        </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle className="font-headline tracking-wider">
+                            Daftar Pelanggan Baru
+                            </DialogTitle>
+                            <DialogDescription>
+                            Tambahkan pelanggan baru ke dalam sistem.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <AddCustomerForm setDialogOpen={setIsMemberDialogOpen} onCustomerAdded={handleCustomerAdded} />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
+
+
+            {selectedTableId && !selectedCustomer && (
+                <div className="flex items-center gap-2 rounded-md border border-dashed p-3">
+                    <Armchair className="h-5 w-5 text-muted-foreground" />
+                    <p className="font-medium text-muted-foreground">Mode Pesanan Meja</p>
+                </div>
+            )}
+
 
             {selectedCustomer && (
               <div className="flex items-center justify-between rounded-lg border bg-card p-3">
@@ -540,7 +593,13 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                       >
                         <MinusCircle className="h-4 w-4" />
                       </Button>
-                      <span className="w-4 text-center">{item.quantity}</span>
+                      <Input
+                        type="number"
+                        className="w-14 h-8 text-center"
+                        value={item.quantity}
+                        onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
+                      />
                       <Button
                         variant="ghost"
                         size="icon"
@@ -571,6 +630,13 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
             </ScrollArea>
             <Separator />
             <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Coins className="h-4 w-4"/> Saldo Token Toko
+                </span>
+                <span>{pradanaTokenBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+              </div>
+              <Separator className="my-1"/>
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span>Rp {subtotal.toLocaleString('id-ID')}</span>
@@ -628,7 +694,7 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
                  <span className="flex items-center gap-1 text-destructive"><Gift className="h-3 w-3" /> Poin Ditukar</span>
                 <span className="text-destructive">- {pointsToRedeem.toLocaleString('id-ID')} pts</span>
               </div>
-              {currentUser?.role !== 'admin' && transactionFee > 0 && (
+              {transactionFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span className="flex items-center gap-1 text-destructive"><Coins className="h-3 w-3" /> Biaya Transaksi</span>
                     <span className="text-destructive">- {transactionFee.toFixed(2)} Token</span>
@@ -645,12 +711,23 @@ export default function POS({ products, customers, onDataChange, isLoading, feeS
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
+             <div className="flex items-center justify-between rounded-md border p-3">
+                <Label htmlFor="dine-in-switch" className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Sajikan di Sini (Dine-in)</span>
+                </Label>
+                <Switch id="dine-in-switch" checked={isDineIn} onCheckedChange={setIsDineIn} disabled={!!selectedTableId}/>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
                 <Button variant={paymentMethod === 'Cash' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Cash')}>Tunai</Button>
                 <Button variant={paymentMethod === 'Card' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('Card')}>Kartu</Button>
                 <Button variant={paymentMethod === 'QRIS' ? 'default' : 'secondary'} onClick={() => setPaymentMethod('QRIS')}>QRIS</Button>
             </div>
-             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>Checkout</Button>
+            
+             <Button size="lg" className="w-full font-headline text-lg tracking-wider" onClick={handleCheckout} disabled={isProcessingCheckout || isLoading}>
+                Buat Pesanan & Bayar
+             </Button>
           </CardContent>
         </Card>
       </div>

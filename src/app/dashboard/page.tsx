@@ -80,6 +80,7 @@ function DashboardContent() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [pendingOrders, setPendingOrders] = React.useState<PendingOrder[]>([]);
   const [users, setUsers] = React.useState<User[]>([]);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const [tables, setTables] = React.useState<Table[]>([]);
@@ -90,14 +91,14 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
+    // Superadmin doesn't need an activeStore but currentUser is required.
     if (!currentUser) return;
-    // For non-superadmins, activeStore is required.
+    // Other roles require an activeStore.
     if (currentUser.role !== 'superadmin' && !activeStore) return;
-    
+
     setIsDataLoading(true);
     
     try {
-        const isSuperAdmin = currentUser.role === 'superadmin';
         const storeId = activeStore?.id;
         
         let productCollectionRef, customerCollectionRef, transactionCollectionRef, tableCollectionRef;
@@ -117,6 +118,7 @@ function DashboardContent() {
             redemptionOptionsSnapshot,
             feeSettingsData,
             transactionsSnapshot,
+            pendingOrdersSnapshot,
             tablesSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
@@ -126,6 +128,7 @@ function DashboardContent() {
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
             storeId ? getDocs(query(transactionCollectionRef, orderBy('createdAt', 'desc'))) : Promise.resolve({ docs: [] }),
+            getDocs(query(collection(db, 'pendingOrders'))),
             storeId ? getDocs(query(tableCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
         ]);
 
@@ -139,6 +142,7 @@ function DashboardContent() {
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         
         setTransactions(transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        setPendingOrders(pendingOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder)));
         setTables(tablesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Table)));
         
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
@@ -167,15 +171,15 @@ function DashboardContent() {
         return;
     }
     
-    // Superadmin doesn't need an active store to fetch data
+    // Superadmin can fetch data without an active store.
     if (currentUser.role === 'superadmin') {
         fetchAllData();
     } 
-    // Other roles need an active store
+    // Other roles need an active store to fetch data.
     else if (activeStore) {
         fetchAllData();
     }
-    // If other roles don't have an active store yet, wait.
+    // If other roles don't have an active store yet, we don't fetch.
     else {
         setIsDataLoading(false);
     }
@@ -183,7 +187,7 @@ function DashboardContent() {
 
   const isAdmin = currentUser?.role === 'admin';
   const isSuperAdmin = currentUser?.role === 'superadmin';
-  const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : 'pos');
+  const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : (isAdmin ? 'overview' : 'pos'));
   
   if (isAuthLoading || (isDataLoading && !isSuperAdmin)) {
     return <DashboardSkeleton />;
@@ -219,7 +223,8 @@ function DashboardContent() {
         return <Overview 
               transactions={transactions} 
               users={users} 
-              customers={customers} 
+              customers={customers}
+              pendingOrders={pendingOrders}
               onDataChange={fetchAllData}
               feeSettings={feeSettings}
             />;
@@ -256,7 +261,7 @@ function DashboardContent() {
       case 'employees':
         return <Employees />;
       case 'transactions':
-        return <Transactions transactions={transactions} stores={stores} users={users} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} onPrintRequest={setTransactionToPrint} />;
+        return <Transactions transactions={transactions} users={users} customers={customers} onDataChange={fetchAllData} isLoading={isDataLoading} onPrintRequest={setTransactionToPrint} />;
       case 'settings':
         return <Settings />;
       case 'challenges':
