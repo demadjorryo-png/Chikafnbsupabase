@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -13,65 +12,89 @@ service cloud.firestore {
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
+    
     function isSuperAdmin() {
-      // Pastikan ada properti 'role' untuk mencegah error
-      return isSignedIn() && getUserData().get('role', '') == 'superadmin';
+      return isSignedIn() && getUserData().role == 'superadmin';
     }
     
     function isStoreAdmin(storeId) {
-      // Memastikan 'adminUids' ada dan merupakan list
-      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.get('adminUids', []);
+      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.adminUids;
     }
 
     function isUserOfStore(storeId) {
-      // Logika yang diperbaiki:
-      // Pengguna adalah bagian dari toko jika salah satu dari kondisi berikut terpenuhi:
-      // 1. Dia adalah superadmin.
-      // 2. Dia adalah admin dari toko tersebut.
-      // 3. 'storeId' di profilnya cocok dengan storeId yang diakses (untuk kasir).
-      return isSignedIn() && (isSuperAdmin() || isStoreAdmin(storeId) || getUserData().get('storeId', '') == storeId);
+        // A user is part of a store if:
+        // 1. They are a superadmin.
+        // 2. They are listed as an admin for that store.
+        // 3. Their user document has a matching storeId (for cashiers).
+        return isSignedIn() && (
+            isSuperAdmin() ||
+            isStoreAdmin(storeId) ||
+            getUserData().storeId == storeId
+        );
     }
 
     // --- ATURAN GLOBAL ---
     
+    // Siapapun bisa membaca pengaturan aplikasi umum seperti promo login
     match /appSettings/{docId} {
       allow read: if true;
+      // Hanya superadmin yang boleh mengubah pengaturan global
       allow write: if isSuperAdmin();
     }
     
+    // Aturan untuk opsi penukaran poin, bisa dibaca semua orang, ditulis oleh admin/superadmin
     match /redemptionOptions/{promoId} {
       allow read: if isSignedIn();
-      // Izinkan tulis jika superadmin, atau jika admin toko yang sedang membuat/mengubah promo.
-      // Untuk 'create', 'resource' merujuk pada data yang AKAN dibuat.
-      allow write: if isSuperAdmin() || isStoreAdmin(request.resource.data.storeId);
+      allow write: if isSuperAdmin() || (isStoreAdmin(resource.data.storeId));
     }
 
     // --- ATURAN PENGGUNA ---
     match /users/{userId} {
+      // Izinkan pengguna membaca profilnya sendiri, atau jika dia admin/superadmin
       allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(getUserData().storeId));
-      allow create: if isSignedIn(); // Disederhanakan, registrasi ditangani oleh Cloud Function.
+      
+      // Izinkan pengguna yang sudah login (termasuk Cloud Function) untuk membuat dokumen pengguna baru.
+      // Ini penting untuk alur registrasi.
+      allow create: if isSignedIn();
+
+      // Izinkan pengguna mengubah profilnya sendiri ATAU jika requester adalah admin tokonya/superadmin.
       allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isStoreAdmin(resource.data.storeId));
+
+      // Hanya superadmin yang boleh menghapus user
       allow delete: if isSuperAdmin();
     }
     
 
     // --- ATURAN DATA TOKO ---
 
+    // Aturan untuk dokumen toko itu sendiri
     match /stores/{storeId} {
+      // Semua pengguna yang terautentikasi bisa membaca detail toko.
       allow read: if isSignedIn();
+      // Hanya admin dari toko tersebut atau superadmin yang bisa mengubah detail toko.
       allow update: if isStoreAdmin(storeId) || isSuperAdmin();
+      // Hanya superadmin yang bisa membuat atau menghapus toko
       allow create, delete: if isSuperAdmin();
     }
 
+    // Aturan untuk semua sub-koleksi di dalam sebuah toko
     match /stores/{storeId}/{subcollection}/{docId=**} {
+      // Baca: Diizinkan jika pengguna adalah bagian dari toko tersebut (admin/kasir) atau superadmin.
       allow read: if isUserOfStore(storeId);
+      
+      // Tulis (Buat, Ubah, Hapus): Diizinkan HANYA jika pengguna adalah admin dari toko tersebut atau superadmin.
+      // Kasir tidak bisa mengubah produk, meja, pelanggan, dll secara langsung.
+      // Operasi kasir (seperti membuat transaksi) ditangani oleh aturan yang lebih spesifik di bawah.
       allow write: if isStoreAdmin(storeId) || isSuperAdmin();
     }
     
+    // Aturan spesifik untuk Transaksi, menimpa aturan umum di atas.
     match /stores/{storeId}/transactions/{transactionId} {
+       // Siapa pun di dalam toko bisa membaca transaksi.
        allow read: if isUserOfStore(storeId);
+       // Siapa pun di dalam toko bisa MEMBUAT transaksi baru. Ini penting untuk kasir.
        allow create: if isUserOfStore(storeId);
+       // Hanya admin yang bisa MENGUBAH atau MENGHAPUS transaksi (misal: untuk refund).
        allow update, delete: if isStoreAdmin(storeId) || isSuperAdmin();
     }
   }
