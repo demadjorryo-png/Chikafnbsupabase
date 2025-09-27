@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -43,7 +42,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
     if (firebaseUser) {
       try {
-        // Force refresh the token to get the latest custom claims.
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const claims = idTokenResult.claims;
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -61,23 +59,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        const storeId = claims.storeId as string | undefined;
-
-        if (storeId) {
-          const storeDocRef = doc(db, 'stores', storeId);
-          const storeDocSnap = await getDoc(storeDocRef);
-          if (storeDocSnap.exists()) {
-              const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
-              setActiveStore(storeData);
-              setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-          } else {
-               throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
-          }
-        } else if (claims.role === 'superadmin') {
-            // Superadmin has no active store by default.
+        // Handle superadmin case first
+        if (claims.role === 'superadmin') {
             setActiveStore(null);
+            setPradanaTokenBalance(0);
         } else {
-            throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
+            const storeId = claims.storeId as string | undefined;
+            if (storeId) {
+                const storeDocRef = doc(db, 'stores', storeId);
+                const storeDocSnap = await getDoc(storeDocRef);
+                if (storeDocSnap.exists()) {
+                    const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
+                    setActiveStore(storeData);
+                    setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+                } else {
+                    throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
+                }
+            } else {
+                throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
+            }
         }
 
       } catch (error: any) {

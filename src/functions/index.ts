@@ -1,91 +1,197 @@
+// --- Impor untuk fungsi V1 (Midtrans) ---
+import * as functions from "firebase-functions";
 
+// --- Impor untuk fungsi V2 (createUser) - Direkomendasikan untuk fungsi baru ---
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+
+// --- Impor Library Umum ---
 import * as admin from "firebase-admin";
+import * as midtransClient from "midtrans-client";
 
-// Initialize Firebase Admin SDK (only once)
-admin.initializeApp();
-const db = admin.firestore();
-
+// Inisialisasi Firebase Admin SDK (hanya sekali)
+admin.default.initializeApp();
+const db = admin.default.firestore();
 
 // =========================================================================================
-// USER REGISTRATION AND MANAGEMENT FUNCTIONS
+// BAGIAN FUNGSI MIDTRANS (Tidak ada perubahan)
+// =========================================================================================
+
+// --- FUNGSI 1: MEMBUAT TRANSAKSI MIDTRANS SAAT ADA PERMINTAAN TOP UP ---
+export const createMidtransTransaction = functions.firestore
+  .document("topUpRequests/{requestId}")
+  .onCreate(async (snap, context) => {
+    try {
+      const requestData = snap.data();
+      const userId = requestData.userId;
+      const amount = requestData.amount;
+      const requestId = context.params.requestId;
+
+      if (!userId || !amount) {
+        logger.error("Error: userId atau amount tidak ditemukan di dokumen request.");
+        return null;
+      }
+      
+      const coreApi = new midtransClient.CoreApi({
+        isProduction: false,
+        serverKey: functions.config().midtrans.server_key,
+        clientKey: functions.config().midtrans.client_key,
+      });
+
+      const parameter = {
+        payment_type: "gopay",
+        transaction_details: {
+          order_id: requestId,
+          gross_amount: amount,
+        },
+      };
+
+      logger.info(`Membuat transaksi Midtrans untuk order_id: ${requestId}`);
+      const transaction = await coreApi.charge(parameter);
+      logger.info("Berhasil membuat transaksi, response:", transaction);
+
+      return snap.ref.update({
+        status: "PENDING_PAYMENT",
+        midtransResponse: transaction,
+      });
+
+    } catch (error) {
+      logger.error("Gagal membuat transaksi Midtrans:", error);
+      return snap.ref.update({ status: "ERROR", errorMessage: error.message });
+    }
+  });
+
+
+// --- FUNGSI 2: WEBHOOK HANDLER UNTUK MENERIMA NOTIFIKASI DARI MIDTRANS ---
+export const midtransWebhookHandler = functions.https.onRequest(async (req, res) => {
+  const coreApi = new midtransClient.CoreApi({
+    isProduction: false,
+    serverKey: functions.config().midtrans.server_key,
+    clientKey: functions.config().midtrans.client_key,
+  });
+
+  logger.info("Menerima notifikasi webhook dari Midtrans:", req.body);
+
+  try {
+    const notificationJson = req.body;
+    const statusResponse = await coreApi.transaction.notification(notificationJson);
+    
+    const orderId = statusResponse.order_id;
+    const transactionStatus = statusResponse.transaction_status;
+    const fraudStatus = statusResponse.fraud_status;
+
+    logger.info(`Notifikasi untuk order_id: ${orderId}, status: ${transactionStatus}, fraud: ${fraudStatus}`);
+
+    if (transactionStatus == "capture" || transactionStatus == "settlement") {
+      if (fraudStatus == "accept") {
+        const topUpRef = db.collection("topUpRequests").doc(orderId);
+        const topUpDoc = await topUpRef.get();
+
+        if (!topUpDoc.exists) {
+          logger.error(`Error: Dokumen topUpRequest dengan ID ${orderId} tidak ditemukan.`);
+          res.status(404).send("Request not found");
+          return;
+        }
+
+        const topUpData = topUpDoc.data();
+        const userId = topUpData.userId;
+        const amount = topUpData.amount;
+        const tokenAmount = amount; 
+
+        const userRef = db.collection("users").doc(userId);
+        await userRef.update({
+          tokens: admin.firestore.FieldValue.increment(tokenAmount),
+        });
+
+        logger.info(`Sukses! ${tokenAmount} token telah ditambahkan ke user ${userId}`);
+        await topUpRef.update({ status: "SUCCESS" });
+      }
+    } else if (transactionStatus == "cancel" || transactionStatus == "deny" || transactionStatus == "expire") {
+      await db.collection("topUpRequests").doc(orderId).update({ status: "FAILED" });
+      logger.warn(`Transaksi ${orderId} gagal atau kedaluwarsa.`);
+    }
+
+    res.status(200).send("Notification processed successfully.");
+
+  } catch (error) {
+    logger.error("Gagal memproses notifikasi Midtrans:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// =========================================================================================
+// BAGIAN FUNGSI PENDAFTARAN PENGGUNA BARU
 // =========================================================================================
 
 export const createUser = onCall(async (request) => {
     const { email, password, displayName, storeName, whatsapp } = request.data;
 
-    // Ensure required data is present
+    // Pastikan data yang dibutuhkan ada
     if (!email || !password || !displayName || !storeName) {
-        logger.error("Missing required fields for user creation.", { data: request.data });
         throw new HttpsError('invalid-argument', 'Please provide all required fields.');
     }
 
     try {
-        // 1. Create user in Firebase Auth
+        // 1. Buat pengguna di Firebase Auth
         const userRecord = await admin.auth().createUser({
             email: email,
             password: password,
             displayName: displayName,
         });
 
-        // 2. Create store document in Firestore
+        // 2. Buat dokumen toko di Firestore
         const storeRef = db.collection('stores').doc(); // Auto-generate ID
         await storeRef.set({
             name: storeName,
             location: 'Indonesia',
-            pradanaTokenBalance: 50.00, // Initial token balance
+            pradanaTokenBalance: 50.00, // Saldo token awal
             adminUids: [userRecord.uid],
             createdAt: new Date().toISOString(),
         });
 
-        // 3. Create user document in Firestore
+        // 3. Buat dokumen pengguna di Firestore
         const userRef = db.collection('users').doc(userRecord.uid);
         await userRef.set({
             name: displayName,
             email: email,
-            whatsapp: whatsapp || null,
+            whatsapp: whatsapp || null, // Simpan null jika tidak ada
             role: 'admin',
             status: 'active',
             storeId: storeRef.id,
         });
 
-        // 4. Set custom claims for the user (important for security rules)
+        // 4. Atur custom claims untuk pengguna (penting untuk security rules)
         await admin.auth().setCustomUserClaims(userRecord.uid, {
             role: 'admin',
             storeId: storeRef.id,
         });
         
-        logger.info(`Successfully created new user: ${displayName} (${email}) for store: ${storeName}`);
+        logger.info(`Sukses membuat pengguna baru: ${displayName} (${email}) untuk toko: ${storeName}`);
 
         return { success: true, uid: userRecord.uid, storeId: storeRef.id };
 
-    } catch (error) {
-        logger.error('Failed to create new user:', error);
+  } catch (error) {
+        logger.error('Gagal membuat pengguna baru:', error);
 
-        const isErrorObject = typeof error === 'object' && error !== null;
-        const errorCode = isErrorObject && 'code' in error ? (error as {code: unknown}).code : undefined;
-
-        // If Auth user was created but other steps failed, clean up the Auth user.
-        // This prevents "orphan" accounts that don't have Firestore data.
-        if (errorCode !== 'auth/email-already-exists') {
+        // Jika pengguna Auth sudah dibuat tapi langkah lain gagal, hapus pengguna Auth tersebut.
+        if (error.code !== 'auth/email-already-exists') {
             const user = await admin.auth().getUserByEmail(email).catch(() => null);
             if (user) {
                 await admin.auth().deleteUser(user.uid);
-                logger.warn(`Cleaned up orphan auth user: ${email}`);
+                logger.warn(`Membersihkan pengguna auth yatim: ${email}`);
             }
         }
         
-        // Send a user-friendly error to the client application
-        if (errorCode === 'auth/email-already-exists') {
-            throw new HttpsError('already-exists', 'This email is already registered. Please use another email.');
+        // Kirim error yang mudah dimengerti ke aplikasi klien
+        if (error.code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', 'Email ini sudah terdaftar. Silakan gunakan email lain.');
         }
-        throw new HttpsError('internal', 'An error occurred while creating the user. Please try again.');
+        throw new HttpsError('internal', 'Terjadi kesalahan saat membuat pengguna. Silakan coba lagi.');
     }
 });
 
 export const createEmployee = onCall(async (request) => {
-    // Check if the caller is an admin or superadmin
+    // Check if the caller is an admin
     if (!request.auth || !['admin', 'superadmin'].includes(request.auth.token.role)) {
         throw new HttpsError('permission-denied', 'Only admins or superadmins can create employees.');
     }
@@ -93,7 +199,6 @@ export const createEmployee = onCall(async (request) => {
     const { email, password, name, role, storeId } = request.data;
     
     if (!email || !password || !name || !role || !storeId) {
-        logger.error("Missing required employee data.", { data: request.data });
         throw new HttpsError('invalid-argument', 'Missing required employee data.');
     }
 
@@ -125,13 +230,10 @@ export const createEmployee = onCall(async (request) => {
         logger.info(`Successfully created new employee: ${name} (${email}) for store: ${storeId}`);
 
         return { success: true, uid: userRecord.uid };
-    } catch (error) {
+    } catch (error: any) {
         logger.error(`Error creating employee by ${request.auth?.uid}:`, error);
 
-        const isErrorObject = typeof error === 'object' && error !== null;
-        const errorCode = isErrorObject && 'code' in error ? (error as {code: unknown}).code : undefined;
-
-        if (errorCode === 'auth/email-already-exists') {
+         if (error.code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
         throw new HttpsError('internal', 'An internal error occurred while creating the employee.');

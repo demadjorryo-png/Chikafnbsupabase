@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -92,15 +90,24 @@ function DashboardContent() {
   const { toast } = useToast();
 
   const fetchAllData = React.useCallback(async () => {
-    if (!currentUser || !activeStore) return;
+    if (!currentUser) return;
+    // For non-superadmins, activeStore is required.
+    if (currentUser.role !== 'superadmin' && !activeStore) return;
+    
     setIsDataLoading(true);
     
     try {
-        const storeId = activeStore.id;
-        const productCollectionRef = collection(db, 'stores', storeId, 'products');
-        const customerCollectionRef = collection(db, 'stores', storeId, 'customers');
-        const transactionCollectionRef = collection(db, 'stores', storeId, 'transactions');
-        const tableCollectionRef = collection(db, 'stores', storeId, 'tables');
+        const isSuperAdmin = currentUser.role === 'superadmin';
+        const storeId = activeStore?.id;
+        
+        let productCollectionRef, customerCollectionRef, transactionCollectionRef, tableCollectionRef;
+
+        if (storeId) {
+             productCollectionRef = collection(db, 'stores', storeId, 'products');
+             customerCollectionRef = collection(db, 'stores', storeId, 'customers');
+             transactionCollectionRef = collection(db, 'stores', storeId, 'transactions');
+             tableCollectionRef = collection(db, 'stores', storeId, 'tables');
+        }
 
         const [
             storesSnapshot,
@@ -113,13 +120,13 @@ function DashboardContent() {
             tablesSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
-            getDocs(query(productCollectionRef, orderBy('name'))),
-            getDocs(query(customerCollectionRef, orderBy('name'))),
+            storeId ? getDocs(query(productCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
+            storeId ? getDocs(query(customerCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
             getDocs(query(collection(db, 'users'))),
             getDocs(collection(db, 'redemptionOptions')),
             getTransactionFeeSettings(),
-            getDocs(query(transactionCollectionRef, orderBy('createdAt', 'desc'))),
-            getDocs(query(tableCollectionRef, orderBy('name'))),
+            storeId ? getDocs(query(transactionCollectionRef, orderBy('createdAt', 'desc'))) : Promise.resolve({ docs: [] }),
+            storeId ? getDocs(query(tableCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
         ]);
 
         const allStores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
@@ -137,7 +144,9 @@ function DashboardContent() {
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
         setFeeSettings(feeSettingsData);
         
-        refreshPradanaTokenBalance();
+        if (activeStore) {
+            refreshPradanaTokenBalance();
+        }
 
     } catch (error) {
         console.error("Error fetching dashboard data: ", error);
@@ -152,9 +161,22 @@ function DashboardContent() {
   }, [currentUser, activeStore, toast, refreshPradanaTokenBalance]);
   
   React.useEffect(() => {
-    if (!isAuthLoading && currentUser && activeStore) {
+    if (isAuthLoading) return;
+    if (!currentUser) {
+        setIsDataLoading(false);
+        return;
+    }
+    
+    // Superadmin doesn't need an active store to fetch data
+    if (currentUser.role === 'superadmin') {
         fetchAllData();
-    } else if (!isAuthLoading && (!currentUser || !activeStore)) {
+    } 
+    // Other roles need an active store
+    else if (activeStore) {
+        fetchAllData();
+    }
+    // If other roles don't have an active store yet, wait.
+    else {
         setIsDataLoading(false);
     }
   }, [isAuthLoading, currentUser, activeStore, fetchAllData]);
@@ -163,7 +185,7 @@ function DashboardContent() {
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : 'pos');
   
-  if (isAuthLoading || (isDataLoading && view !== 'employees' && view !== 'challenges' && view !== 'settings' && view !== 'platform-control')) {
+  if (isAuthLoading || (isDataLoading && !isSuperAdmin)) {
     return <DashboardSkeleton />;
   }
 
@@ -249,6 +271,7 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings redemptionOptions={redemptionOptions} feeSettings={feeSettings} />;
       default:
+        if (isSuperAdmin) return <PlatformControl allStores={stores} allUsers={users} isLoading={isDataLoading} />;
         return <Tables 
               tables={tables}
               onDataChange={fetchAllData}
