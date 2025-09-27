@@ -59,27 +59,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        // SUPERADMIN PATH: Superadmin does not have a store.
+        // SUPERADMIN PATH: Superadmin does not have a store. Handle this case first and exit.
         if (claims.role === 'superadmin') {
             setActiveStore(null);
             setPradanaTokenBalance(0);
+            setIsLoading(false);
+            return; // Exit the function for superadmin
         } 
+        
         // OTHER ROLES PATH: Must have a storeId.
-        else {
-            const storeId = claims.storeId as string | undefined;
-            if (storeId) {
-                const storeDocRef = doc(db, 'stores', storeId);
-                const storeDocSnap = await getDoc(storeDocRef);
-                if (storeDocSnap.exists()) {
-                    const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
-                    setActiveStore(storeData);
-                    setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-                } else {
-                    throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
-                }
+        const storeId = claims.storeId as string | undefined;
+        if (storeId) {
+            const storeDocRef = doc(db, 'stores', storeId);
+            const storeDocSnap = await getDoc(storeDocRef);
+            if (storeDocSnap.exists()) {
+                const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
+                setActiveStore(storeData);
+                setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
             } else {
-                throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
+                throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
             }
+        } else {
+            // This will now only trigger for non-superadmin users without a storeId claim.
+            throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
         }
 
       } catch (error: any) {
