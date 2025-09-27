@@ -191,37 +191,18 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
      const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
      
      try {
-        // Find the latest transaction for this table to print the receipt
-        const q = query(
-            collection(db, 'stores', activeStore.id, 'transactions'), 
-            where("tableId", "==", selectedTable.id),
-            orderBy("createdAt", "desc"),
-            limit(1)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        let transactionToPrint: Transaction | null = null;
-        if (!querySnapshot.empty) {
-            transactionToPrint = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Transaction;
-        }
-
         await updateDoc(tableRef, {
             status: 'Tersedia',
             currentOrder: null
         });
 
-        toast({ title: `Meja ${selectedTable.name} telah dikosongkan.` });
+        toast({ title: `Meja ${selectedTable.name} telah dibersihkan.` });
         onDataChange();
-        
-        if (transactionToPrint) {
-            onPrintRequest(transactionToPrint);
-        }
-
         closeDialogs();
 
      } catch (error) {
         console.error("Error clearing table:", error);
-        toast({ variant: 'destructive', title: 'Gagal mengosongkan meja', description: (error as Error).message });
+        toast({ variant: 'destructive', title: 'Gagal membersihkan meja', description: (error as Error).message });
      } finally {
         setIsProcessing(false);
      }
@@ -278,7 +259,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
       params.set('tableId', table.id);
       params.set('tableName', table.name);
       router.push(`/dashboard?${params.toString()}`);
-    } else if (table.status === 'Selesai Dibayar') {
+    } else if (table.status === 'Menunggu Dibersihkan') {
         openClearDialog(table);
     }
   }
@@ -291,7 +272,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
             return 'bg-amber-100/10 border-amber-500/30 hover:border-amber-500';
         case 'Dipesan':
             return 'bg-blue-100/10 border-blue-500/30 hover:border-blue-500';
-        case 'Selesai Dibayar':
+        case 'Menunggu Dibersihkan':
             return 'bg-slate-100/10 border-slate-500/30 hover:border-slate-500';
         default:
             return '';
@@ -306,7 +287,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
             return 'bg-amber-500/20 text-amber-800 border-amber-500/50';
         case 'Dipesan':
             return 'bg-blue-500/20 text-blue-800 border-blue-500/50';
-        case 'Selesai Dibayar':
+        case 'Menunggu Dibersihkan':
             return 'bg-slate-500/20 text-slate-800 border-slate-500/50';
         default:
             return '';
@@ -449,7 +430,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
                           <BookMarked className="mr-2 h-4 w-4" /> Tandai Dipesan
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openClearDialog(table)}>
-                          <Printer className="mr-2 h-4 w-4" /> Bayar & Cetak Struk
+                          <SprayCan className="mr-2 h-4 w-4" /> Tandai Siap Digunakan
                         </DropdownMenuItem>
                          <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEditDialog(table)}>
@@ -532,16 +513,16 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
        <AlertDialog open={isClearTableDialogOpen} onOpenChange={(open) => { if (!open) closeDialogs() }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Selesaikan Pembayaran?</AlertDialogTitle>
+            <AlertDialogTitle>Bersihkan Meja?</AlertDialogTitle>
             <AlertDialogDescription>
-                Ini akan menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan mencetak struk terakhir. Pastikan pembayaran sudah diterima.
+                Ini akan menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan siap untuk pelanggan berikutnya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={closeDialogs}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearTable} disabled={isProcessing}>
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-              <Check className="mr-2 h-4 w-4" /> Ya, Selesaikan & Cetak
+              <Check className="mr-2 h-4 w-4" /> Ya, Tandai Siap
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

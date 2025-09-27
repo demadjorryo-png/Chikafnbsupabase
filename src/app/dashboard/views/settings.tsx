@@ -375,7 +375,7 @@ export default function Settings() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={passwordForm.control}
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>

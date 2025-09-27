@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -116,12 +117,12 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const [isDineIn, setIsDineIn] = React.useState(true); // Default to true for table orders
   const { toast } = useToast();
   
-  const customerOptions = customers.map((c) => ({
+  const customerOptions = (customers || []).map((c) => ({
     value: c.id,
     label: c.name,
   }));
 
-  const availableTableOptions = tables
+  const availableTableOptions = (tables || [])
     .filter(t => t.status === 'Tersedia')
     .map((t) => ({
         value: t.id,
@@ -129,7 +130,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     }));
 
   const handleTableSelect = (tableId: string) => {
-    const table = tables.find(t => t.id === tableId);
+    const table = (tables || []).find(t => t.id === tableId);
     if (table) {
         setSelectedTableId(table.id);
         setSelectedTableName(table.name);
@@ -183,7 +184,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       return;
     }
 
-    const product = products.find(p => p.id === productId);
+    const product = (products || []).find(p => p.id === productId);
     if(product && quantity > product.stock) {
         toast({
             variant: 'destructive',
@@ -212,7 +213,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   };
   
   const handleBarcodeScanned = (barcode: string) => {
-    const product = products.find(p => p.attributes.barcode === barcode);
+    const product = (products || []).find(p => p.attributes.barcode === barcode);
     if (product) {
       addToCart(product);
       toast({
@@ -246,6 +247,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
+    if (!feeSettings) return 0;
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
     return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
@@ -265,7 +267,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     setPointsToRedeem(value);
   }
 
-  const filteredProducts = products.filter((product) =>
+  const filteredProducts = (products || []).filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
@@ -370,7 +372,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsToRedeem,
             items: cart,
-            status: 'Diproses', // All table orders are processed
+            status: 'Diproses',
             tableId: selectedTableId,
         };
         transaction.set(newTransactionRef, transactionData);
@@ -514,7 +516,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         options={customerOptions}
                         value={selectedCustomer?.id}
                         onValueChange={(value) => {
-                        setSelectedCustomer(customers.find((c) => c.id === value));
+                        setSelectedCustomer((customers || []).find((c) => c.id === value));
                         setPointsToRedeem(0); // Reset points when customer changes
                         }}
                         placeholder="Cari pelanggan..."
@@ -717,7 +719,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
               </div>
             </div>
             
-            {selectedCustomer && cart.length > 0 && (
+            {selectedCustomer && cart.length > 0 && feeSettings && (
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 

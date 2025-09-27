@@ -231,7 +231,7 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
             const tableRef = doc(db, 'stores', activeStore.id, 'tables', transactionToComplete.tableId);
             const tableDoc = await getDoc(tableRef);
             if (tableDoc.exists()) {
-                batch.update(tableRef, { status: 'Selesai Dibayar' });
+                batch.update(tableRef, { status: 'Menunggu Dibersihkan' });
             }
         }
         
@@ -379,7 +379,7 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={() => handleActionClick(transaction, 'whatsapp')}
-                                        disabled={!getCustomerForTransaction(transaction) || sentWhatsappIds.has(transaction.id)}
+                                        disabled={sentWhatsappIds.has(transaction.id)}
                                     >
                                         <Send className="h-4 w-4"/>
                                         <span className="sr-only">Kirim WhatsApp</span>

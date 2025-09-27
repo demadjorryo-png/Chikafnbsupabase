@@ -60,6 +60,18 @@ export function OrderReadyDialog({
         return;
     }
 
+    if (actionType === 'whatsapp' && (!customer || !customer.phone)) {
+        toast({
+            variant: 'destructive',
+            title: 'Nomor WhatsApp Tidak Ditemukan',
+            description: `Pelanggan "${transaction.customerName}" tidak memiliki nomor telepon yang terdaftar.`,
+        });
+        setIsLoading(false);
+        onOpenChange(false); // Close dialog
+        return;
+    }
+
+
     setIsLoading(true);
 
     try {
