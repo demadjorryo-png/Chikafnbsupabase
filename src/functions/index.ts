@@ -63,8 +63,8 @@ export const createUser = onCall(async (request) => {
     } catch (error) {
         logger.error('Failed to create new user:', error);
 
-        // Check if error is an object with a 'code' property
-        const errorCode = (typeof error === 'object' && error !== null && 'code' in error) ? (error as {code: unknown}).code : undefined;
+        const isErrorObject = typeof error === 'object' && error !== null;
+        const errorCode = isErrorObject && 'code' in error ? (error as {code: unknown}).code : undefined;
 
         // If Auth user was created but other steps failed, clean up the Auth user.
         // This prevents "orphan" accounts that don't have Firestore data.
@@ -128,7 +128,8 @@ export const createEmployee = onCall(async (request) => {
     } catch (error) {
         logger.error(`Error creating employee by ${request.auth?.uid}:`, error);
 
-        const errorCode = (typeof error === 'object' && error !== null && 'code' in error) ? (error as {code: unknown}).code : undefined;
+        const isErrorObject = typeof error === 'object' && error !== null;
+        const errorCode = isErrorObject && 'code' in error ? (error as {code: unknown}).code : undefined;
 
         if (errorCode === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
