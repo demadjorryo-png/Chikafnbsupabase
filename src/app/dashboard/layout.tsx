@@ -1,11 +1,11 @@
 
-
 'use client';
 
 import { FloatingStoreIndicator } from "@/components/dashboard/floating-store-indicator";
 import { ChikaChatButton } from "@/components/dashboard/chika-chat-button";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
+import { DashboardProvider } from "@/contexts/dashboard-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { UtensilsCrossed } from "lucide-react";
@@ -55,7 +55,9 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      {children}
+      <DashboardProvider>
+        {children}
+      </DashboardProvider>
     </AuthGuard>
   );
 }

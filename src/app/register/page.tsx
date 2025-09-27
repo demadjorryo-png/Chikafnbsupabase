@@ -40,7 +40,12 @@ const FormSchema = z.object({
     storeName: z.string().min(3, 'Nama toko minimal 3 karakter.'),
     email: z.string().email('Format email tidak valid.'),
     whatsapp: z.string().min(10, 'Nomor WhatsApp minimal 10 digit.'),
-    password: z.string().min(8, 'Password minimal 8 karakter.'),
+    password: z.string()
+      .min(8, 'Password minimal 8 karakter.')
+      .regex(/[a-z]/, 'Password harus mengandung setidaknya satu huruf kecil.')
+      .regex(/[A-Z]/, 'Password harus mengandung setidaknya satu huruf besar.')
+      .regex(/[0-9]/, 'Password harus mengandung setidaknya satu angka.')
+      .regex(/[^a-zA-Z0-9]/, 'Password harus mengandung setidaknya satu simbol.'),
 });
 
 export default function RegisterPage() {
@@ -123,7 +128,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">DAFTAR AKUN BARU</CardTitle>
               <CardDescription>Buat akun admin dan bisnis F&amp;B pertama Anda.</CardDescription>
-          </CardHeader>
+          </Header>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleRegister)} className="grid gap-4">

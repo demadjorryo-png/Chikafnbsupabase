@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -29,10 +28,9 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Package, Users, TrendingUp, Gift, Sparkles, Loader, Building, UserCheck, Send, Trophy, TrendingDown, Calendar, Moon, Trash2 } from 'lucide-react';
-import { format, formatDistanceToNow, startOfWeek, endOfWeek, eachDayOfInterval, subDays, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Gift, Sparkles, Loader, Send, Trophy, TrendingUp, Calendar, Moon } from 'lucide-react';
+import { format, isWithinInterval, startOfMonth, endOfMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,28 +40,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer, Transaction, User } from '@/lib/types';
+import type { Customer } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
 
 const chartConfig = {
   revenue: {
@@ -72,8 +58,9 @@ const chartConfig = {
   },
 };
 
-function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void, feeSettings: TransactionFeeSettings }) {
-    const { pradanaTokenBalance, refreshPradanaTokenBalance, currentUser, activeStore } = useAuth();
+function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const { pradanaTokenBalance, refreshPradanaTokenBalance, activeStore } = useAuth();
+    const { feeSettings } = useDashboard();
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
@@ -168,22 +155,12 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange, feeSettings }: {
     )
 }
 
-type OverviewProps = {
-  transactions: Transaction[];
-  users: User[];
-  customers: Customer[];
-  onDataChange: () => void;
-  feeSettings: TransactionFeeSettings;
-};
-
-export default function Overview({ transactions, users, customers, onDataChange, feeSettings }: OverviewProps) {
+export default function Overview() {
   const { currentUser, activeStore } = useAuth();
+  const { transactions, users, customers, feeSettings } = useDashboard();
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   
-  const { toast } = useToast();
-  
-  const isAdmin = currentUser?.role === 'admin';
   const storeId = activeStore?.id;
 
   React.useEffect(() => {
@@ -225,7 +202,7 @@ export default function Overview({ transactions, users, customers, onDataChange,
   }, [currentUser, storeId, transactions]);
   
   const employeeSales = React.useMemo(() => {
-    const sales: Record<string, { user: User; totalOmset: number }> = {};
+    const sales: Record<string, { user: any; totalOmset: number }> = {};
     const startOfThisMonth = startOfMonth(new Date());
     const endOfThisMonth = endOfMonth(new Date());
 
@@ -453,7 +430,6 @@ export default function Overview({ transactions, users, customers, onDataChange,
                     setSelectedCustomer(null)
                 }
             }}
-            feeSettings={feeSettings}
         />
       )}
       

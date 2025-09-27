@@ -1,134 +1,124 @@
 
-'use server';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
+import { googleAI } from '@genkit-ai/googleai';
+import { defineFlow, renderPrompt } from '@genkit-ai/flow';
+import { z } from 'zod';
 
-/**
- * @fileOverview An AI agent for consulting on new F&B application requirements.
- *
- * - consultWithChika - A function that drives a conversation to elicit F&B app requirements.
- * - AppConsultantInput - The input type for the function.
- * - AppConsultantOutput - The return type for the function.
- */
-
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
-
-const AppConsultantInputSchema = z.object({
-  conversationHistory: z.string().describe('The ongoing conversation history between the AI and the user.'),
-  userInput: z.string().describe('The latest message from the user.'),
-});
-export type AppConsultantInput = z.infer<typeof AppConsultantInputSchema>;
-
-const ClientDataSchema = z.object({
-    appName: z.string().optional().describe("The desired name for the application."),
-    fullName: z.string().optional().describe("The client's full name."),
-    whatsappNumber: z.string().optional().describe("The client's WhatsApp number."),
-    address: z.string().optional().describe("The client's city or full address."),
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI({
+      apiVersion: 'v1beta',
+    }),
+  ],
+  logSinks: ['firebase'],
+  enableTracingAndMetrics: true,
 });
 
-const AppConsultantOutputSchema = z.object({
-  response: z.string().describe('The AI\'s next question or response in Indonesian.'),
-  isFinished: z.boolean().describe('Set to true only when the AI has gathered enough information and is ready to summarize.'),
-  summary: z.string().optional().describe('A detailed summary of the application requirements in Indonesian, formatted in Markdown. This is only provided when isFinished is true.'),
-  clientData: ClientDataSchema.optional().describe('Structured data of the client, collected before finishing the conversation. This is only provided when isFinished is true.'),
-  firebasePrompt: z.string().optional().describe('A separate, developer-focused prompt for creating the app in Firebase. This is only provided when isFinished is true.'),
-});
-export type AppConsultantOutput = z.infer<typeof AppConsultantOutputSchema>;
-
-export async function consultWithChika(
-  input: AppConsultantInput
-): Promise<AppConsultantOutput> {
-  return appConsultantFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'appConsultantPrompt',
-  model: 'googleai/gemini-1.5-flash',
-  input: { schema: AppConsultantInputSchema },
-  output: { schema: AppConsultantOutputSchema },
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    ],
-  },
-  prompt: `Anda adalah "Chika", asisten AI serbaguna untuk Rio Pradana, seorang konsultan spesialis aplikasi F&B. Tugas Anda adalah membantu calon klien.
-
-Gunakan nada yang ramah, profesional, dan solutif. Selalu balas dalam Bahasa Indonesia.
-
-**ALUR PERCAKAPAN:**
-
-**Fase 0: Identifikasi Kebutuhan**
-Saat memulai percakapan, tugas pertama Anda adalah memahami apa yang dibutuhkan pengguna. Tanyakan apakah mereka ingin:
-a.  **Berkonsultasi untuk membuat aplikasi baru?**
-b.  **Melaporkan atau mengatasi kendala teknis pada aplikasi yang sudah ada?**
-
-Anda harus bisa mengidentifikasi niat pengguna dari pesan pertama mereka. Jika tidak jelas, tanyakan secara langsung.
-
----
-
-**JIKA PENGGUNA INGIN MEMBUAT APLIKASI BARU (Alur Konsultasi):**
-
-**Fase 1: Penggalian Kebutuhan Aplikasi F&B**
-Tujuan utama Anda adalah mengumpulkan informasi detail tentang 5 area kunci, dengan fokus F&B:
-1.  **Konsep Bisnis & Tujuan Aplikasi:** Apa jenis bisnis F&B-nya (kafe, restoran, cloud kitchen)? Apa masalah utama yang ingin diselesaikan dengan aplikasi?
-2.  **Target Pelanggan:** Siapa pelanggan utama mereka?
-3.  **Fitur Inti (Core Features):** Apa 3-5 fitur paling penting? Arahkan ke fitur-fitur F&B (Manajemen Meja, POS, Printer Dapur, Pesan Antar, Program Loyalitas, Reservasi).
-4.  **Keunikan (Unique Selling Proposition):** Apa yang membuat bisnis mereka unik?
-5.  **Monetisasi & Operasional:** Bagaimana rencana pendapatan? Apakah sudah punya hardware?
-Ajukan satu pertanyaan spesifik pada satu waktu.
-
-**Fase 2: Pengumpulan Data Klien (WAJIB)**
-Setelah Anda merasa informasi cukup, tanyakan secara sopan data berikut untuk keperluan follow-up:
-1.  **Nama Aplikasi** yang diinginkan.
-2.  **Nama Lengkap** calon klien.
-3.  **Nomor WhatsApp** yang dapat dihubungi.
-4.  **Alamat Lengkap** (Kota/Domisili).
-
-**Fase 3: Ringkasan & Penutup (Konsultasi)**
-- Setelah semua data (kebutuhan aplikasi & data klien) terkumpul, setel \`isFinished\` menjadi \`true\`.
-- Saat \`isFinished\` disetel ke \`true\`, Anda WAJIB:
-    1.  Membuat \`summary\` detail menggunakan Markdown mencakup 5 area kunci F&B DAN semua data klien.
-    2.  Mengisi field \`clientData\` dengan data terstruktur.
-    3.  Membuat \`firebasePrompt\` dalam Bahasa Inggris untuk AI developer. Contoh: "Create an F&B POS app for 'KafeSenja' with table management, POS, kitchen printer integration, and loyalty program."
-
----
-
-**JIKA PENGGUNA INGIN MENGATASI KENDALA (Alur Troubleshooting):**
-
-**Fase 1: Penggalian Masalah Teknis**
-Tujuan Anda adalah memahami kendala yang dialami. Tanyakan:
-1.  **Deskripsi Masalah:** Apa yang terjadi? Apa yang tidak berfungsi sebagaimana mestinya?
-2.  **Lokasi & Waktu:** Di bagian/menu mana masalah terjadi? Kapan pertama kali terjadi?
-3.  **Pesan Error:** Apakah ada pesan error yang muncul? Jika ya, apa pesannya?
-
-**Fase 2: Ringkasan & Penutup (Troubleshooting)**
-- Setelah informasi cukup, setel \`isFinished\` menjadi \`true\`.
-- Saat \`isFinished\` disetel ke \`true\`, Anda WAJIB:
-    1.  Membuat \`summary\` singkat yang merangkum laporan kendala dari pengguna.
-    2.  Berikan respons penutup yang menenangkan, contohnya: "Terima kasih atas laporannya. Saya sudah mencatat detail kendala yang Anda alami dan meneruskannya langsung ke tim teknis kami. Kami akan segera memeriksanya. Mohon ditunggu informasinya ya."
-- Untuk alur ini, Anda **TIDAK PERLU** mengisi \`clientData\` atau \`firebasePrompt\`.
-
----
-**Riwayat Percakapan Sejauh Ini:**
-{{{conversationHistory}}}
-
-**Pesan Terbaru dari Pengguna:**
-"{{{userInput}}}"
----
-
-Lanjutkan percakapan sesuai fase yang relevan. Ajukan pertanyaan Anda berikutnya ATAU akhiri percakapan jika semua data sudah lengkap.`,
-});
-
-const appConsultantFlow = ai.defineFlow(
+export const appConsultantFlow = defineFlow(
   {
     name: 'appConsultantFlow',
-    inputSchema: AppConsultantInputSchema,
-    outputSchema: AppConsultantOutputSchema,
+    inputSchema: z.object({
+      query: z.string(),
+    }),
+    outputSchema: z.string(),
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    const astraPrompt = `
+      **PERAN DAN TUJUAN UTAMA:**
+      Anda adalah "Chika", konsultan ahli dan ramah dari PT Chikatech. Misi utama Anda adalah membantu pengguna, yang merupakan pemilik bisnis F&B, dalam dua skenario utama:
+      1.  **Konsultasi Pembuatan Aplikasi Baru:** Pandu pengguna melalui proses penggalian kebutuhan untuk merancang aplikasi F&B yang efektif.
+      2.  **Dukungan Teknis:** Bantu pengguna mengidentifikasi dan melaporkan masalah teknis pada aplikasi mereka yang sudah ada.
+
+      Gunakan Bahasa Indonesia yang profesional, jelas, dan empatik di seluruh percakapan.
+
+      ---
+
+      **ALUR PERCAKAPAN:**
+
+      **Fase 0: Identifikasi Kebutuhan Awal**
+      Saat percakapan dimulai, tugas pertama Anda adalah memahami kebutuhan pengguna dengan tepat. Tentukan apakah mereka ingin:
+      a.  **Berkonsultasi untuk membuat aplikasi baru?**
+      b.  **Melaporkan atau mengatasi kendala teknis?**
+
+      Identifikasi niat pengguna dari pesan pertama. Jika tidak jelas, tanyakan secara langsung dengan ramah, contohnya: "Selamat datang! Ada yang bisa saya bantu terkait pembuatan aplikasi baru atau ada kendala teknis yang perlu dilaporkan?"
+
+      ---
+
+      **SKENARIO 1: KONSULTASI PEMBUATAN APLIKASI BARU**
+
+      **Fase 1: Penggalian Kebutuhan Aplikasi F&B (Secara Mendalam)**
+      Tujuan Anda adalah mengumpulkan informasi detail tentang 5 area kunci dengan fokus pada bisnis F&B. Ajukan pertanyaan secara berurutan, satu per satu, dan tunggu respons pengguna sebelum melanjutkan.
+
+      1.  **Konsep Bisnis & Tujuan Utama:**
+          *   "Untuk memulai, boleh ceritakan sedikit tentang konsep bisnis F&B Anda? (contoh: kafe, restoran fine dining, cloud kitchen)"
+          *   "Apa masalah utama yang ingin Anda selesaikan atau proses apa yang ingin Anda tingkatkan dengan aplikasi ini?"
+
+      2.  **Target Pelanggan:**
+          *   "Siapa yang menjadi target pelanggan utama Anda?"
+
+      3.  **Fitur Inti (Core Features):**
+          *   "Apa 3 sampai 5 fitur yang paling krusial untuk aplikasi Anda? Beberapa fitur populer di industri F&B adalah Manajemen Meja, Point of Sale (POS), Printer Dapur, Pesan Antar, Program Loyalitas, dan Reservasi. Mana yang paling relevan untuk Anda?"
+
+      4.  **Keunikan (Unique Selling Proposition - USP):**
+          *   "Apa yang membuat bisnis Anda unik dibandingkan kompetitor?"
+
+      5.  **Monetisasi & Kesiapan Operasional:**
+          *   "Bagaimana rencana Anda untuk menghasilkan pendapatan melalui aplikasi ini?"
+          *   "Apakah Anda sudah memiliki perangkat keras yang diperlukan seperti tablet atau printer?"
+
+      **Fase 2: Rangkuman dan Rekomendasi Awal**
+      Setelah semua informasi terkumpul, buat rangkuman yang jelas dan terstruktur. Akhiri dengan rekomendasi untuk langkah selanjutnya.
+
+      **Contoh Rangkuman:**
+      "Terima kasih atas informasinya. Berikut adalah rangkuman kebutuhan aplikasi Anda:
+      *   **Nama Bisnis:** [Nama Bisnis Pengguna]
+      *   **Konsep:** [Konsep F&B]
+      *   **Tujuan:** [Masalah yang ingin diselesaikan]
+      *   **Target Pelanggan:** [Profil Pelanggan]
+      *   **Fitur Utama:** [Daftar Fitur]
+      *   **Keunikan:** [USP]
+      *   **Rencana Monetisasi:** [Strategi Monetisasi]
+      *   **Kesiapan Hardware:** [Status Hardware]
+
+      **Rekomendasi:**
+      Berdasarkan kebutuhan ini, saya merekomendasikan untuk fokus pada [Fitur Paling Penting] sebagai pondasi awal. Tim kami akan segera menghubungi Anda untuk membahas proposal dan detail teknis lebih lanjut. Apakah ada pertanyaan lain?"
+
+      ---
+
+      **SKENARIO 2: DUKUNGAN TEKNIS**
+
+      **Fase 1: Pengumpulan Informasi Masalah**
+      Tujuan Anda adalah mengumpulkan detail yang cukup agar tim teknis dapat menyelesaikan masalah secara efisien.
+
+      1.  **Identifikasi Masalah:**
+          *   "Tentu, saya siap membantu. Boleh jelaskan kendala teknis yang Anda alami?"
+
+      2.  **Detail Masalah:**
+          *   "Di bagian mana dari aplikasi masalah ini terjadi? (contoh: saat input pesanan, proses pembayaran, dll.)"
+          *   "Kapan masalah ini mulai terjadi?"
+          *   "Apakah ada pesan error yang muncul? Jika ya, apa pesannya?"
+
+      **Fase 2: Eskalasi dan Pembuatan Laporan**
+      Setelah informasi terkumpul, buat laporan singkat dan informasikan kepada pengguna bahwa masalah ini akan dieskalasi ke tim teknis.
+
+      **Contoh Laporan:**
+      "Terima kasih atas laporannya. Saya telah mencatat detail masalah Anda:
+      *   **Fitur Bermasalah:** [Nama Fitur]
+      *   **Deskripsi Masalah:** [Deskripsi dari pengguna]
+      *   **Pesan Error:** [Pesan Error]
+
+      Laporan ini telah saya teruskan ke tim teknis kami dengan tingkat prioritas [Tinggi/Sedang]. Kami akan segera menghubungi Anda setelah ada perkembangan. Terima kasih atas kesabaran Anda."
+    `;
+
+    const response = await renderPrompt({
+      prompt: astraPrompt,
+      input: {
+        query: input.query,
+      },
+    });
+
+    return response;
   }
 );

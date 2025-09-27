@@ -2,6 +2,9 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,8 +14,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
@@ -25,19 +37,41 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
+const loginSchema = z.object({
+  email: z.string().email({ message: "Format email tidak valid." }),
+  password: z.string().min(1, { message: "Password tidak boleh kosong." }),
+});
+
+const forgotPasswordSchema = z.object({
+    email: z.string().email({ message: "Format email tidak valid." }),
+});
 
 export default function LoginPage() {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoginLoading, setIsLoginLoading] = React.useState(false);
   const [isConsultDialogOpen, setIsConsultDialogOpen] = React.useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState(false);
   const [promoSettings, setPromoSettings] = React.useState<LoginPromoSettings>(defaultLoginPromoSettings);
   const [isPromoLoading, setIsPromoLoading] = React.useState(true);
 
   const { toast } = useToast();
   const router = useRouter();
   const { login } = useAuth();
+
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const forgotPasswordForm = useForm<z.infer<typeof forgotPasswordSchema>>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+        email: '',
+    },
+  });
 
   React.useEffect(() => {
     async function fetchPromo() {
@@ -53,39 +87,43 @@ export default function LoginPage() {
     fetchPromo();
   }, []);
   
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
     try {
-      await login(email, password);
+      await login(values.email, values.password);
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Login Gagal', description: error.message });
+        let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            errorMessage = "Email atau password yang Anda masukkan salah.";
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+        }
+        toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
     } finally {
       setIsLoginLoading(false);
     }
   };
 
-  const handleForgotPassword = async () => {
-    const userEmail = prompt("Silakan masukkan alamat email Anda untuk mereset password:");
-    if (userEmail) {
-        try {
-            await sendPasswordResetEmail(auth, userEmail);
-            toast({
-                title: 'Email Terkirim!',
-                description: 'Silakan periksa kotak masuk email Anda untuk instruksi reset password.',
-            });
-        } catch (error: any) {
-            let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-            if (error.code === 'auth/user-not-found') {
-                errorMessage = "Email yang Anda masukkan tidak terdaftar.";
-            }
-            toast({
-                variant: 'destructive',
-                title: 'Gagal Mengirim Email',
-                description: errorMessage,
-            });
+  const handleForgotPassword = async (values: z.infer<typeof forgotPasswordSchema>) => {
+    try {
+        await sendPasswordResetEmail(auth, values.email);
+        toast({
+            title: 'Email Terkirim!',
+            description: 'Silakan periksa kotak masuk email Anda untuk instruksi reset password.',
+        });
+        setIsForgotPasswordOpen(false);
+        forgotPasswordForm.reset();
+    } catch (error: any) {
+        let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = "Email yang Anda masukkan tidak terdaftar.";
         }
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Mengirim Email',
+            description: errorMessage,
+        });
     }
   };
 
@@ -102,36 +140,56 @@ export default function LoginPage() {
               <CardDescription>Masukkan email dan password Anda untuk masuk.</CardDescription>
           </CardHeader>
           <CardContent>
-              <form onSubmit={handleLogin} className="grid gap-4">
-              <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder='admin@kafechika.com' value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline focus:outline-none">
-                        Lupa Password?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                        onClick={() => setShowPassword(!showPassword)}
-                    >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <Label htmlFor="email">Email</Label>
+                                <FormControl>
+                                    <Input id="email" type="email" placeholder='admin@kafechika.com' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password">Password</Label>
+                                    <button type="button" onClick={() => setIsForgotPasswordOpen(true)} className="text-xs text-primary hover:underline focus:outline-none">
+                                        Lupa Password?
+                                    </button>
+                                </div>
+                                <div className="relative">
+                                    <FormControl>
+                                        <Input id="password" type={showPassword ? 'text' : 'password'} {...field} />
+                                    </FormControl>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit" className="w-full" disabled={isLoginLoading}>
+                        {isLoginLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                        Masuk
                     </Button>
-                  </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoginLoading}>
-                  {isLoginLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-                  Masuk
-              </Button>
-              </form>
+                </form>
+              </Form>
           </CardContent>
            <CardFooter className="flex justify-center text-sm">
                 <p>Belum punya akun? <Link href="/register" className="font-bold text-primary hover:underline">Daftar Sekarang</Link></p>
@@ -171,6 +229,40 @@ export default function LoginPage() {
       </div>
     </main>
     <ChikaChatDialog open={isConsultDialogOpen} onOpenChange={setIsConsultDialogOpen} mode="consultant" />
+
+    <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Lupa Password</DialogTitle>
+                <DialogDescription>
+                    Masukkan alamat email Anda yang terdaftar. Kami akan mengirimkan link untuk mereset password Anda.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...forgotPasswordForm}>
+                <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPassword)} className="grid gap-4 py-4">
+                    <FormField
+                        control={forgotPasswordForm.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <Label htmlFor="forgot-email" className="sr-only">Email</Label>
+                                <FormControl>
+                                    <Input id="forgot-email" type="email" placeholder="Email Anda" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="submit" disabled={forgotPasswordForm.formState.isSubmitting}>
+                            {forgotPasswordForm.formState.isSubmitting && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                            Kirim
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }

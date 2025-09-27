@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -29,6 +30,7 @@ import { Building2, Users, DollarSign, ShoppingCart, Crown } from 'lucide-react'
 import type { PlatformStats } from '@/lib/platform-stats';
 import { getPlatformStats } from '@/lib/platform-stats';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDashboard } from '@/contexts/dashboard-context';
 
 
 const chartConfig = {
@@ -38,20 +40,14 @@ const chartConfig = {
   },
 };
 
-type SuperAdminOverviewProps = {
-    allStores: { id: string, name: string }[];
-    allUsers: { id: string }[];
-    isLoading: boolean;
-};
-
-
-export default function SuperAdminOverview({ allStores, allUsers, isLoading: isAuthLoading }: SuperAdminOverviewProps) {
+export default function SuperAdminOverview() {
+    const { stores, users, isLoading: isContextLoading } = useDashboard();
     const [platformData, setPlatformData] = React.useState<PlatformStats | null>(null);
     const [isDataLoading, setIsDataLoading] = React.useState(true);
 
     React.useEffect(() => {
         const fetchPlatformData = async () => {
-            if (isAuthLoading) return;
+            if (isContextLoading) return;
             setIsDataLoading(true);
             try {
                 const stats = await getPlatformStats();
@@ -64,9 +60,9 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
         };
 
         fetchPlatformData();
-    }, [isAuthLoading]);
+    }, [isContextLoading]);
     
-    if (isAuthLoading || isDataLoading) {
+    if (isContextLoading || isDataLoading) {
         return <SuperAdminOverviewSkeleton />
     }
     
@@ -83,7 +79,7 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{allStores.length}</div>
+                        <div className="text-2xl font-bold">{stores.length}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -92,7 +88,7 @@ export default function SuperAdminOverview({ allStores, allUsers, isLoading: isA
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{allUsers.length}</div>
+                        <div className="text-2xl font-bold">{users.length}</div>
                     </CardContent>
                 </Card>
                  <Card>

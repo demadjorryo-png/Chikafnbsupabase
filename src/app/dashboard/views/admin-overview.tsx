@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,30 +21,24 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, Trash2, Send } from 'lucide-react';
-import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO, formatDistanceToNow } from 'date-fns';
+import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
+import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { Store, Transaction, Product, Customer } from '@/lib/types';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type { AppliedStrategy } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
-
 
 const chartConfig = {
   revenue: {
@@ -52,24 +47,9 @@ const chartConfig = {
   },
 };
 
-type AppliedStrategy = {
-  id: string;
-  type: 'weekly' | 'monthly';
-  recommendation: string;
-  appliedDate: string;
-  status: 'active';
-};
-
-type AdminOverviewProps = {
-    transactions: Transaction[];
-    products: Product[];
-    customers: Customer[];
-    onDataChange: () => void;
-    feeSettings: TransactionFeeSettings;
-};
-
-export default function AdminOverview({ transactions, products, customers, onDataChange, feeSettings }: AdminOverviewProps) {
+export default function AdminOverview() {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { transactions, products, feeSettings } = useDashboard();
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -110,15 +90,8 @@ export default function AdminOverview({ transactions, products, customers, onDat
     storeMetrics,
     topProductsThisMonth,
     worstProductsThisMonth,
-    topProductsLastMonth,
-    worstProductsLastMonth,
   } = React.useMemo(() => {
     const now = new Date();
-    const startOfThisMonth = startOfMonth(now);
-    const endOfThisMonth = endOfMonth(now);
-    const lastMonth = subMonths(now, 1);
-    const startOfLastMonth = startOfMonth(lastMonth);
-    const endOfLastMonth = endOfMonth(lastMonth);
     
     const monthlyData: { month: string; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -145,13 +118,12 @@ export default function AdminOverview({ transactions, products, customers, onDat
 
     const grossProfit = totalRevenue - totalCost;
 
-    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
-    const lastMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
+    const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfMonth(now), end: endOfMonth(now) }));
 
-    const calculateProductSales = (txs: Transaction[]) => {
+    const calculateProductSales = (txs: any[]) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
-          t.items.forEach(item => {
+          t.items.forEach((item: { productName: string; quantity: number; }) => {
               if (!sales[item.productName]) {
                   sales[item.productName] = 0;
               }
@@ -162,15 +134,12 @@ export default function AdminOverview({ transactions, products, customers, onDat
     };
 
     const sortedProductsThisMonth = calculateProductSales(thisMonthTransactions);
-    const sortedProductsLastMonth = calculateProductSales(lastMonthTransactions);
 
     return {
       monthlyGrowthData: monthlyData,
       storeMetrics: { totalRevenue, grossProfit },
       topProductsThisMonth: sortedProductsThisMonth.slice(0, 3),
       worstProductsThisMonth: sortedProductsThisMonth.slice(-3).reverse(),
-      topProductsLastMonth: sortedProductsLastMonth.slice(0, 3),
-      worstProductsLastMonth: sortedProductsLastMonth.slice(-3).reverse()
     };
   }, [transactions, products, idLocale]);
 
@@ -179,8 +148,6 @@ export default function AdminOverview({ transactions, products, customers, onDat
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
-      // deductAiUsageFee throws an error if balance is insufficient, which is caught here.
-      // The toast is handled inside the function, so we just need to stop execution.
       return;
     }
     
@@ -325,10 +292,10 @@ export default function AdminOverview({ transactions, products, customers, onDat
                     <div className="space-y-4 pt-2">
                         <Card className="bg-background/50">
                             <CardHeader className='pb-2'>
-                                <AlertTitle className="font-semibold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" />Rekomendasi Mingguan</AlertTitle>
+                                <CardTitle className="font-semibold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" />Rekomendasi Mingguan</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <AlertDescription>{recommendations.weeklyRecommendation}</AlertDescription>
+                                <p>{recommendations.weeklyRecommendation}</p>
                             </CardContent>
                             <CardFooter>
                                 <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('weekly', recommendations.weeklyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan</Button>
@@ -336,10 +303,10 @@ export default function AdminOverview({ transactions, products, customers, onDat
                         </Card>
                         <Card className="bg-background/50">
                             <CardHeader className='pb-2'>
-                                <AlertTitle className="font-semibold text-primary flex items-center gap-2"><ShoppingBag className="h-4 w-4" />Rekomendasi Bulanan</AlertTitle>
+                                <CardTitle className="font-semibold text-primary flex items-center gap-2"><ShoppingBag className="h-4 w-4" />Rekomendasi Bulanan</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <AlertDescription>{recommendations.monthlyRecommendation}</AlertDescription>
+                                <p>{recommendations.monthlyRecommendation}</p>
                             </CardContent>
                             <CardFooter>
                                 <Button variant="outline" size="sm" onClick={() => handleApplyStrategy('monthly', recommendations.monthlyRecommendation)}><Target className="mr-2 h-4 w-4" /> Terapkan</Button>
