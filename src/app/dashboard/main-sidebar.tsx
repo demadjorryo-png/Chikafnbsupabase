@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -15,12 +13,10 @@ import {
 import { Logo } from '@/components/dashboard/logo';
 import {
   LayoutGrid,
-  ShoppingCart,
   BookOpenCheck,
   Contact2,
   LogOut,
   Settings,
-  ClipboardList,
   History,
   Users,
   Trophy,
@@ -35,8 +31,6 @@ import {
 import * as React from 'react';
 import type { User } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
-import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/auth-context';
 
 type MainSidebarProps = {
@@ -44,17 +38,20 @@ type MainSidebarProps = {
 }
 
 export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, activeStore, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : 'pos';
+  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : (currentUser?.role === 'admin' ? 'overview' : 'pos');
   const currentView = searchParams.get('view') || defaultView;
   
-  const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
 
   const navigate = (view: string) => {
-    const newParams = new URLSearchParams();
+    const newParams = new URLSearchParams(searchParams.toString());
+    if (view !== 'pos') {
+      newParams.delete('tableId');
+      newParams.delete('tableName');
+    }
     newParams.set('view', view);
     router.push(`${pathname}?${newParams.toString()}`);
   };
@@ -79,7 +76,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
     {
       view: 'pos',
-      label: 'POS',
+      label: 'Manajemen Meja',
       icon: <Armchair />,
       roles: ['admin', 'cashier'],
     },
@@ -149,26 +146,12 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="items-center">
-        <Logo />
+        <Logo storeName={activeStore?.name} />
         <div className="mt-2 w-full text-center group-data-[collapsible=icon]:hidden">
             <Separator className="mb-2 bg-sidebar-border" />
-              <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
-                {isAdmin ? (
-                    <DialogTrigger asChild>
-                        <div className="cursor-pointer rounded-md p-1 hover:bg-sidebar-accent">
-                            {tokenDisplay}
-                        </div>
-                    </DialogTrigger>
-                ) : (
-                    <div className="p-1">
-                        {tokenDisplay}
-                    </div>
-                )}
-                <TopUpDialog 
-                    currentBalance={pradanaTokenBalance}
-                    setDialogOpen={setIsTopUpOpen} 
-                />
-              </Dialog>
+              <div className="p-1">
+                  {tokenDisplay}
+              </div>
               <p className="text-xs text-sidebar-foreground/70">Pradana Token</p>
         </div>
       </SidebarHeader>
