@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -165,7 +166,6 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
                     </div>
                 )}
                 <TopUpDialog 
-                    currentBalance={pradanaTokenBalance}
                     setDialogOpen={setIsTopUpOpen} 
                 />
               </Dialog>
