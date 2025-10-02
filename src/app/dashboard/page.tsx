@@ -116,7 +116,7 @@ function DashboardContent() {
       case 'products':
         return <Products />;
       case 'customers':
-        return <Customers />;
+        return <Customers customers={customers} onDataChange={refreshData} isLoading={isLoading} />;
       case 'customer-analytics':
         return <CustomerAnalytics />;
       case 'employees':

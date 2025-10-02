@@ -61,7 +61,7 @@ Alur ini krusial untuk memahami bagaimana aplikasi mengidentifikasi pengguna dan
 - **Fungsi**: Melakukan transaksi penjualan.
 - **Alur Checkout (`handleCheckout`)**:
   1. **Validasi Awal**: Memastikan keranjang tidak kosong dan `currentUser` serta `activeStore` valid.
-  2. **Cek & Potong Token (Admin)**: Jika yang melakukan checkout adalah `admin`, sistem akan memeriksa `pradanaTokenBalance`. Jika saldo tidak cukup untuk membayar biaya transaksi (`transactionFee`), checkout dibatalkan. Jika cukup, saldo akan dipotong.
+  2. **Cek & Potong Token**: Sistem akan memeriksa `pradanaTokenBalance` milik toko. Jika saldo tidak cukup untuk membayar biaya transaksi (`transactionFee`), checkout dibatalkan. Jika cukup, saldo akan dipotong.
   3. **Memulai Transaksi Firestore (`runTransaction`)**: Semua operasi database dibungkus dalam satu transaksi atomik untuk memastikan integritas data.
   4. **Iterasi Keranjang**:
      - **Pengurangan Stok**: Mengambil dokumen produk, memvalidasi stok di `activeStore`, dan mengurangi stok menggunakan `transaction.update`. Jika stok tidak cukup, seluruh transaksi dibatalkan.
@@ -105,13 +105,16 @@ Alur ini krusial untuk memahami bagaimana aplikasi mengidentifikasi pengguna dan
   - `minFeeRp`: Biaya minimum per transaksi.
   - `aiUsageFee`: Biaya token untuk setiap penggunaan fitur AI.
 - **Alur Biaya**:
-  1. **Biaya Transaksi**: Hanya berlaku untuk `admin`. Setiap checkout di `pos.tsx` akan memotong saldo token.
-  2. **Biaya AI**: Berlaku untuk `admin`. Setiap kali tombol "Generate with Chika AI" diklik di mana pun, saldo token akan diperiksa dan dipotong. Kasir dapat menggunakan fitur AI gratis.
+  1. **Biaya Transaksi**: Berlaku untuk **semua pengguna** (admin dan kasir). Setiap checkout di `pos.tsx` akan memeriksa dan memotong saldo token toko.
+  2. **Biaya AI**: Berlaku untuk **semua pengguna** (admin dan kasir). Setiap kali tombol "Generate with Chika AI" diklik di mana pun, saldo token toko akan diperiksa dan dipotong.
+- **Alur Akuisisi Token (Top-Up)**:
+  - Sistem pengisian ulang (top-up) saldo Pradana Token saat ini dilakukan secara **manual** melalui transfer rekening bank.
+  - **Proses**: Admin toko melakukan transfer ke rekening yang telah ditentukan. Setelah konfirmasi diterima, Superadmin akan memperbarui saldo `pradanaTokenBalance` secara manual di dokumen toko yang relevan di Firestore.
 - **Keuntungan**: Admin dapat mengubah aturan bisnis ini kapan saja langsung dari Firebase Console tanpa perlu mengubah kode aplikasi.
 
 ## 6. Alur Fungsi AI (Genkit Flows)
 
-Semua *flow* AI berada di `src/ai/flows/` dan diekspor sebagai fungsi asinkron yang dapat dipanggil dari komponen React. Setiap pemanggilan oleh `admin` akan dikenakan biaya `aiUsageFee`.
+Semua *flow* AI berada di `src/ai/flows/` dan diekspor sebagai fungsi asinkron yang dapat dipanggil dari komponen React. Setiap pemanggilan akan dikenakan biaya `aiUsageFee`.
 
 - **`admin-recommendation.ts`**: Menganalisis data penjualan toko yang aktif dan menghasilkan rekomendasi strategis untuk admin. Digunakan di `admin-overview.tsx`.
 - **`birthday-follow-up.ts`**: Membuat pesan ucapan selamat ulang tahun yang dipersonalisasi. Digunakan di `overview.tsx`.
