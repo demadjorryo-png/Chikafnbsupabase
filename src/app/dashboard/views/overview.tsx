@@ -60,14 +60,15 @@ const chartConfig = {
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
     const { pradanaTokenBalance, refreshPradanaTokenBalance, activeStore } = useAuth();
-    const { feeSettings } = useDashboard();
+    const { dashboardData } = useDashboard();
+    const { feeSettings } = dashboardData || {};
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
-        if (!activeStore) return;
+        if (!activeStore || !feeSettings) return;
         try {
             await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
         } catch (error) {
@@ -126,13 +127,13 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                             placeholder="e.g., 15"
                         />
                     </div>
-                     <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+                     <Button onClick={handleGenerate} disabled={isLoading || !feeSettings} className="w-full">
                         {isLoading ? (
                             <Loader className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                              <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
+                        {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
                     </Button>
                     {message && (
                         <div className="space-y-2">
@@ -157,7 +158,8 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
 
 export default function Overview() {
   const { currentUser, activeStore } = useAuth();
-  const { transactions, users, customers, feeSettings } = useDashboard();
+  const { dashboardData } = useDashboard();
+  const { transactions, users, customers } = dashboardData || {};
   const [dateFnsLocale, setDateFnsLocale] = React.useState<Locale | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   
@@ -169,14 +171,14 @@ export default function Overview() {
 
   const { birthdayCustomers } = React.useMemo(() => {
     const currentMonth = new Date().getMonth();
-    const bdayCustomers = customers.filter(c => new Date(c.birthDate).getMonth() === currentMonth && new Date(c.birthDate).getFullYear() > 1970);
+    const bdayCustomers = (customers || []).filter(c => new Date(c.birthDate).getMonth() === currentMonth && new Date(c.birthDate).getFullYear() > 1970);
     
     return { birthdayCustomers: bdayCustomers };
   }, [customers]);
 
 
   const { monthlyRevenue, todaysRevenue } = React.useMemo(() => {
-    if (!currentUser) return { monthlyRevenue: 0, todaysRevenue: 0 };
+    if (!currentUser || !transactions) return { monthlyRevenue: 0, todaysRevenue: 0 };
     
     const now = new Date();
     const startOfThisMonth = startOfMonth(now);
@@ -202,6 +204,7 @@ export default function Overview() {
   }, [currentUser, storeId, transactions]);
   
   const employeeSales = React.useMemo(() => {
+      if (!users || !transactions) return [];
     const sales: Record<string, { user: any; totalOmset: number }> = {};
     const startOfThisMonth = startOfMonth(new Date());
     const endOfThisMonth = endOfMonth(new Date());
@@ -225,6 +228,7 @@ export default function Overview() {
   }, [transactions, users, storeId]);
 
   const weeklySalesData = React.useMemo(() => {
+      if (!transactions) return [];
     const today = new Date();
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });

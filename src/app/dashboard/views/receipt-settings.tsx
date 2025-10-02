@@ -26,14 +26,16 @@ import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { deductAiUsageFee } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useDashboard } from '@/contexts/dashboard-context';
 
 type ReceiptSettingsProps = {
   redemptionOptions: RedemptionOption[];
-  feeSettings: TransactionFeeSettings;
 };
 
-export default function ReceiptSettings({ redemptionOptions, feeSettings }: ReceiptSettingsProps) {
+export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { dashboardData } = useDashboard();
+  const feeSettings = dashboardData?.feeSettings;
   const { toast } = useToast();
 
   const [settings, setSettings] = React.useState(defaultReceiptSettings);
@@ -80,7 +82,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
   };
 
   const handleGeneratePromo = async () => {
-    if (!activeStore) return;
+    if (!activeStore || !feeSettings) return;
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
@@ -198,7 +200,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
             <CardContent>
               <Button
                 onClick={handleGeneratePromo}
-                disabled={isGenerating}
+                disabled={isGenerating || !feeSettings}
                 variant="outline"
               >
                 {isGenerating ? (
@@ -206,7 +208,7 @@ export default function ReceiptSettings({ redemptionOptions, feeSettings }: Rece
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
+                {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
               </Button>
               {generatedPromo && (
                 <div className="mt-4 space-y-4">
@@ -276,5 +278,3 @@ function ReceiptSettingsSkeleton() {
         </Card>
     )
 }
-
-    

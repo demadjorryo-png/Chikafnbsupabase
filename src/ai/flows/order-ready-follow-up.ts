@@ -1,10 +1,16 @@
 
 'use server';
 
+/**
+ * @fileOverview An AI agent for generating order-ready notifications.
+ *
+ * - getOrderReadyFollowUp - A function that generates a message to inform a customer their order is ready.
+ * - OrderReadyFollowUpInput - The input type for the getOrderReadyFollowUp function.
+ * - OrderReadyFollowUpOutput - The return type for the getOrderReadyFollowUp function.
+ */
+
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-// ... (schema definitions remain the same) ...
 
 const OrderReadyFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -37,7 +43,37 @@ const prompt = ai.definePrompt({
       { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
     ],
   },
-  prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.\n\nTugas Anda adalah membuat pesan notifikasi WhatsApp yang terstruktur dan menarik untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil. Pesan harus dalam Bahasa Indonesia dan menggunakan format Markdown WhatsApp (misalnya, *teks tebal*).\n\nStruktur pesan harus rapi dan sopan:\n1.  Mulailah dengan sapaan berdasarkan waktu. Gunakan {{currentTime}} sebagai acuan (Pagi: 05-10, Siang: 11-14, Sore: 15-18, Malam: 19-04).\n2.  Sapa pelanggan dengan ramah, gunakan panggilan "Kak" sebelum namanya. Contoh: *Selamat Pagi, Kak {{customerName}}!*\n3.  Beritahu bahwa pesanan mereka di *[Nama Toko]* sudah siap.\n4.  Di bagian tengah, tambahkan sentuhan kreatif berdasarkan "Gaya Notifikasi" yaitu **{{notificationStyle}}**.\n    - Jika gayanya 'fakta', **BUAT HANYA SATU FAKTA MENARIK** yang berhubungan dengan salah satu item.\n    - Jika gayanya 'pantun', **BUAT HANYA SATU PANTUN UNIK** yang berhubungan dengan salah satu item.\n    Bungkus bagian kreatif ini dalam format kutipan agar menonjol.\n5.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.\n\nDetail Pesanan:\n- Waktu Saat Ini: {{currentTime}}\n- Nama Pelanggan: {{customerName}}\n- Nama Toko: {{storeName}}\n- Item yang Dipesan: {{#each itemsOrdered}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}\n- Gaya Notifikasi: {{notificationStyle}}\n\nContoh output yang baik untuk gaya 'fakta' dan waktu 14:30:\n*Selamat Siang, Kak Budi!*\n\nPesanan Anda di *Toko Chika* sudah siap diambil di kasir.\n\n> _Tahukah Anda? Kopi adalah minuman kedua yang paling banyak dikonsumsi di dunia setelah air!_\n\nSilakan segera diambil ya. Terima kasih!\n\nBuat pesan yang jelas, menyenangkan, dan profesional.`,
+  prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.
+
+Tugas Anda adalah membuat pesan notifikasi WhatsApp yang terstruktur dan menarik untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil. Pesan harus dalam Bahasa Indonesia dan menggunakan format Markdown WhatsApp (misalnya, *teks tebal*).
+
+Struktur pesan harus rapi dan sopan:
+1.  Mulailah dengan sapaan berdasarkan waktu. Gunakan {{currentTime}} sebagai acuan (Pagi: 05-10, Siang: 11-14, Sore: 15-18, Malam: 19-04).
+2.  Sapa pelanggan dengan ramah, gunakan panggilan "Kak" sebelum namanya. Contoh: *Selamat Pagi, Kak {{customerName}}!*
+3.  Beritahu bahwa pesanan mereka di *{{storeName}}* sudah siap.
+4.  Di bagian tengah, Anda HARUS menyertakan satu sentuhan kreatif berdasarkan "Gaya Notifikasi" (**{{notificationStyle}}**). Bagian ini wajib ada.
+    - Jika gayanya 'fakta': Berikan SATU fakta menarik tentang salah satu item pesanan ({{itemsOrdered}}). Jika tidak ada fakta spesifik, berikan fakta umum tentang makanan/minuman.
+    - Jika gayanya 'pantun': Buat SATU pantun unik tentang salah satu item pesanan ({{itemsOrdered}}).
+    Bungkus bagian kreatif ini dalam format kutipan Markdown. Contoh: \`> _Fakta menarik Anda di sini..._\`
+5.  Tutup dengan ajakan untuk mengambil pesanan dan ucapan terima kasih.
+
+Detail Pesanan:
+- Waktu Saat Ini: {{currentTime}}
+- Nama Pelanggan: {{customerName}}
+- Nama Toko: {{storeName}}
+- Item yang Dipesan: {{#each itemsOrdered}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Gaya Notifikasi: {{notificationStyle}}
+
+Contoh output yang baik untuk gaya 'fakta' dan waktu 14:30:
+*Selamat Siang, Kak Budi!*
+
+Pesanan Anda di *Toko Chika* sudah siap diambil di kasir.
+
+> _Tahukah Anda? Kopi adalah minuman kedua yang paling banyak dikonsumsi di dunia setelah air!_
+
+Silakan segera diambil ya. Terima kasih!
+
+Buat pesan yang jelas, menyenangkan, dan profesional.`,
 });
 
 const orderReadyFollowUpFlow = ai.defineFlow(
@@ -79,14 +115,13 @@ export async function getOrderReadyFollowUp(
         console.warn(`Attempt ${attempts} failed for order ready flow. Retrying in ${retryDelay / 1000}s...`, error);
         
         if (attempts >= maxAttempts) {
-          throw error; // Re-throw after final attempt fails
+          throw error;
         }
         
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         delay *= 2;
       }
     }
-    // This part is unreachable due to the throw in the loop, but required by TypeScript
     throw new Error('All attempts failed');
 
   } catch (finalError) {

@@ -65,7 +65,7 @@ type PromotionsProps = {
     redemptionOptions: RedemptionOption[];
     setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
     transactions: Transaction[];
-    feeSettings: TransactionFeeSettings;
+    feeSettings?: TransactionFeeSettings;
 }
 
 export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
@@ -149,7 +149,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore) return;
+    if (!activeStore || !feeSettings) return;
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
@@ -279,13 +279,13 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
                 <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
+                <Button onClick={handleGenerateRecommendations} disabled={isLoading || !feeSettings}>
                     {isLoading ? (
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
+                    Buat Rekomendasi Baru ({feeSettings?.aiUsageFee || '...'} Token)
                 </Button>
                 {recommendations && (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

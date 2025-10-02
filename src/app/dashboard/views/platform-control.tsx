@@ -41,8 +41,9 @@ export default function PlatformControl({ allStores, allUsers, isLoading }: Plat
     const [promoSettings, setPromoSettings] = React.useState<LoginPromoSettings>(defaultLoginPromoSettings);
     const [whatsappSettings, setWhatsappSettings] = React.useState<WhatsappSettings>(defaultWhatsappSettings);
 
-    const totalStores = allStores.length;
-    const totalUsers = allUsers.length;
+    // FIX: Provide default empty array to prevent crash on undefined props
+    const totalStores = (allStores || []).length;
+    const totalUsers = (allUsers || []).length;
 
     React.useEffect(() => {
         if (!isLoading) {

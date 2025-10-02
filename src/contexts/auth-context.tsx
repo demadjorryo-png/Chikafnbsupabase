@@ -44,33 +44,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     if (firebaseUser) {
       try {
+        // Force refresh the token to get the latest custom claims.
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const claims = idTokenResult.claims;
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (!userDocSnap.exists()) {
-           throw new Error("Dokumen pengguna tidak ditemukan di Firestore.");
+           throw new Error(`User document not found in Firestore for UID: ${firebaseUser.uid}`);
         }
         
         const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
         
         if (userData.status === 'inactive') {
-            throw new Error('Akun Anda tidak aktif. Silakan hubungi admin.');
+            throw new Error('Your account is inactive. Please contact your administrator.');
         }
 
         setCurrentUser(userData);
 
-        // SUPERADMIN PATH: This path must be completely separate and must exit early.
+        // SUPERADMIN PATH: Must not have a storeId, exits early.
         if (claims.role === 'superadmin') {
             setActiveStore(null);
             setPradanaTokenBalance(0);
             setIsLoading(false);
-            return; // EXIT EARLY for superadmin
+            return; // EXIT EARLY
         } 
         
-        // OTHER ROLES (admin, cashier) PATH: Must have a storeId.
+        // OTHER ROLES (admin, cashier): Must have a storeId.
         const storeId = claims.storeId as string | undefined;
+
         if (storeId) {
             const storeDocRef = doc(db, 'stores', storeId);
             const storeDocSnap = await getDoc(storeDocRef);
@@ -79,16 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setActiveStore(storeData);
                 setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
             } else {
-                throw new Error(`Toko dengan ID ${storeId} dari claim tidak ditemukan.`);
+                throw new Error(`Store with ID '${storeId}' from user claim not found.`);
             }
         } else {
-            // This will now only trigger for non-superadmin users without a storeId claim.
-            throw new Error('Tidak dapat menemukan toko yang terkait dengan akun Anda (missing storeId claim).');
+            // This error is critical. It means a non-superadmin user is missing the storeId claim.
+            // This is likely due to an old user account created before claims were implemented.
+            const role = claims.role || 'N/A';
+            throw new Error(`storeId claim is missing for user UID: ${firebaseUser.uid} with role: '${role}'.`);
         }
 
       } catch (error: any) {
-        console.error("Kesalahan saat menangani sesi:", error);
-        toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
+        console.error("Error handling user session:", error);
+        toast({ variant: 'destructive', title: 'Session Error', description: error.message });
         await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
@@ -96,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     } else {
+      // No user is signed in.
       setCurrentUser(null);
       setActiveStore(null);
       setIsLoading(false);
@@ -104,28 +109,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   React.useEffect(() => {
+    // onAuthStateChanged returns an unsubscribe function.
     const unsubscribe = onAuthStateChanged(auth, handleUserSession);
+    // The cleanup function will run when the component unmounts.
     return () => unsubscribe();
   }, [handleUserSession]);
 
 
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will handle the rest
+    // onAuthStateChanged will automatically handle the session setup.
      toast({
-        title: 'Login Berhasil!',
-        description: `Selamat datang kembali.`,
+        title: 'Login Successful!',
+        description: `Welcome back.`,
     });
   };
 
   const logout = async () => {
     await signOut(auth);
-    setCurrentUser(null);
-    setActiveStore(null);
-    setPradanaTokenBalance(0);
+    // onAuthStateChanged will handle clearing the session state.
     toast({
-      title: 'Logout Berhasil',
-      description: 'Anda telah berhasil keluar.',
+      title: 'Logout Successful',
+      description: 'You have been signed out.',
     });
   };
 

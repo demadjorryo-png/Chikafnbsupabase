@@ -79,7 +79,7 @@ export default function SuperAdminOverview() {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stores.length}</div>
+                        <div className="text-2xl font-bold">{(stores || []).length}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -88,7 +88,7 @@ export default function SuperAdminOverview() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{users.length}</div>
+                        <div className="text-2xl font-bold">{(users || []).length}</div>
                     </CardContent>
                 </Card>
                  <Card>

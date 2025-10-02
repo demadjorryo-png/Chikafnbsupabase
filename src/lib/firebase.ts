@@ -5,12 +5,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAcpYnh1IAcsdYqdwcAcGcVNPpg8XW8jrs",
-  authDomain: "kasir-pos-chika-77817547-3caa2.firebaseapp.com",
-  projectId: "kasir-pos-chika-77817547-3caa2",
-  storageBucket: "kasir-pos-chika-77817547-3caa2.firebasestorage.app",
-  messagingSenderId: "167545733860",
-  appId: "1:167545733860:web:78c5b81939c443ad9162f1"
+  apiKey: "AIzaSyCZuXPnpa4lqpisO7U-6th_8kH_YCmgQok",
+  authDomain: "kasir-pos-chika-v2-09828-9a2a7.firebaseapp.com",
+  projectId: "kasir-pos-chika-v2-09828-9a2a7",
+  storageBucket: "kasir-pos-chika-v2-09828-9a2a7.firebasestorage.app",
+  messagingSenderId: "1041744002845",
+  appId: "1:1041744002845:web:7517aacfc7d8a8a6132bf4"
 };
 
 // Initialize Firebase

@@ -2,269 +2,180 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader, Sparkles, Trophy, Calendar as CalendarIcon, Save } from 'lucide-react';
-import { generateChallenges } from '@/ai/flows/challenge-generator';
-import type { ChallengeGeneratorOutput } from '@/ai/flows/challenge-generator';
 import { useToast } from '@/hooks/use-toast';
-import { DateRange } from 'react-day-picker';
-import { addDays, format, formatISO } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { Calendar } from '@/components/ui/calendar';
+import { generateChallenges } from '@/ai/flows/challenge-generator';
+import type { Challenge } from '@/lib/types';
+import { Loader, Sparkles, Trophy, Save } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { deductAiUsageFee } from '@/lib/app-settings';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
-import { db } from '@/lib/firebase';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { addDoc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { deductAiUsageFee } from '@/lib/app-settings';
 
-type ChallengesProps = {
-  feeSettings: TransactionFeeSettings;
+type GeneratedChallenges = {
+  period: string;
+  challenges: Omit<Challenge, 'id' | 'storeId' | 'isActive'>[];
 };
 
-export default function Challenges({ feeSettings }: ChallengesProps) {
-  const [budget, setBudget] = React.useState(500000);
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 7),
-  });
+export default function Challenges() {
+  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { dashboardData, refreshData } = useDashboard();
+  const feeSettings = dashboardData?.feeSettings;
+  const { toast } = useToast();
+
+  const [challengeType, setChallengeType] = React.useState('transaksi');
+  const [target, setTarget] = React.useState(100);
+  const [reward, setReward] = React.useState(50000);
+  const [duration, setDuration] = React.useState('mingguan');
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [generatedChallenges, setGeneratedChallenges] =
-    React.useState<ChallengeGeneratorOutput | null>(null);
-  const { toast } = useToast();
-  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-
+  const [generatedChallenges, setGeneratedChallenges] = React.useState<GeneratedChallenges | null>(null);
 
   const handleGenerateChallenges = async () => {
-    if (budget <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Anggaran Tidak Valid',
-        description: 'Silakan masukkan anggaran lebih besar dari nol.',
-      });
-      return;
-    }
-    if (!date?.from || !date?.to) {
-        toast({
-            variant: 'destructive',
-            title: 'Tanggal Tidak Valid',
-            description: 'Silakan pilih tanggal mulai dan selesai.',
-        });
-        return;
-    }
-    if (!activeStore) return;
+    if (!activeStore || !currentUser || !feeSettings) return;
 
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
-      return; // Stop if not enough tokens
+      return; // Stop if fee deduction fails
     }
 
     setIsLoading(true);
     setGeneratedChallenges(null);
     try {
-      const result = await generateChallenges({ 
-          budget,
-          startDate: format(date.from, 'yyyy-MM-dd'),
-          endDate: format(date.to, 'yyyy-MM-dd'),
-       });
+      const result = await generateChallenges({
+        storeName: activeStore.name,
+        staffName: currentUser.name,
+        challengeType,
+        target: String(target),
+        reward: String(reward),
+        duration,
+      });
       setGeneratedChallenges(result);
       refreshPradanaTokenBalance();
-      toast({
-        title: 'Tantangan Dibuat!',
-        description: `Chika AI telah berhasil membuat tantangan baru untuk periode ${result.period}.`,
-      });
     } catch (error) {
       console.error('Error generating challenges:', error);
       toast({
         variant: 'destructive',
         title: 'Gagal Membuat Tantangan',
-        description: 'Tidak dapat membuat tantangan. Silakan coba lagi.',
+        description: 'Terjadi kesalahan saat berkomunikasi dengan AI. Coba lagi.',
       });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleSaveChanges = async () => {
-    if (!generatedChallenges || !date?.from || !date?.to || !activeStore) {
-        toast({
-            variant: 'destructive',
-            title: 'Data Tidak Lengkap',
-            description: 'Tidak ada tantangan yang dihasilkan untuk disimpan.'
-        });
-        return;
-    }
+
+  const handleSaveChallenges = async () => {
+    if (!generatedChallenges || !activeStore) return;
+
     setIsSaving(true);
-    
     try {
-        await addDoc(collection(db, 'stores', activeStore.id, 'challenges'), {
-            startDate: formatISO(date.from),
-            endDate: formatISO(date.to),
-            period: generatedChallenges.period,
-            challenges: generatedChallenges.challenges,
-            isActive: true, // Activate immediately
+      const challengesCollection = collection(db, 'stores', activeStore.id, 'challenges');
+      for (const challenge of generatedChallenges.challenges) {
+        await addDoc(challengesCollection, {
+          ...challenge,
+          storeId: activeStore.id,
+          isActive: true, // Automatically activate new challenges
+          createdAt: new Date().toISOString(),
         });
-        toast({
-            title: 'Tantangan Disimpan!',
-            description: 'Tantangan baru telah disimpan dan diaktifkan.'
-        });
-        setGeneratedChallenges(null); // Clear after saving
-    } catch(error) {
-        console.error("Error saving challenges:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Menyimpan',
-            description: 'Terjadi kesalahan saat menyimpan tantangan ke database.'
-        });
+      }
+      toast({ title: 'Tantangan Berhasil Disimpan!', description: 'Tantangan baru kini aktif untuk karyawan.' });
+      setGeneratedChallenges(null);
+      refreshData(); // Refresh dashboard data to show new challenges
+    } catch (error) {
+      console.error('Error saving challenges:', error);
+      toast({ variant: 'destructive', title: 'Gagal Menyimpan Tantangan' });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
+
   return (
     <div className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline tracking-wider">
-            Buat Tantangan Karyawan
-          </CardTitle>
-          <CardDescription>
-            Tetapkan anggaran hadiah dan rentang tanggal. Chika AI akan membuat tantangan penjualan
-            yang memotivasi berdasarkan total pendapatan (omset) untuk periode tersebut.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-md space-y-4">
-             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="budget">Anggaran Hadiah (Rp)</Label>
-                  <Input
-                    id="budget"
-                    type="number"
-                    value={budget}
-                    onChange={(e) => setBudget(Number(e.target.value))}
-                    placeholder="e.g., 1000000"
-                    step="50000"
-                  />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="date">Periode Tantangan</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.from ? (
-                            date.to ? (
-                                <>
-                                {format(date.from, "LLL dd, y")} -{" "}
-                                {format(date.to, "LLL dd, y")}
-                                </>
-                            ) : (
-                                format(date.from, "LLL dd, y")
-                            )
-                            ) : (
-                            <span>Pilih tanggal</span>
-                            )}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={2}
-                        />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-            </div>
-            <Button
-              onClick={handleGenerateChallenges}
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Buat dengan Chika AI ({feeSettings.aiUsageFee} Token)
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      {generatedChallenges && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline tracking-wider">
-              Draf Tantangan yang Dihasilkan
-            </CardTitle>
-            <CardDescription>
-              Tantangan untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>. Simpan untuk mengaktifkannya.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {generatedChallenges.challenges.map((challenge, index) => (
-              <Card key={index} className="flex flex-col">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-6 w-6 text-primary" />
-                    <span>{challenge.tier}</span>
-                  </CardTitle>
-                  <CardDescription>{challenge.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
+      <div className='grid md:grid-cols-2 gap-6'>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline tracking-wider">Generator Tantangan AI</CardTitle>
+              <CardDescription>Buat tantangan penjualan untuk tim Anda dengan bantuan Chika AI.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Target Omset
-                      </p>
-                      <p className="text-xl font-bold">
-                        Rp {challenge.target.toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Hadiah
-                      </p>
-                      <p className="text-lg font-semibold text-accent">
-                        {challenge.reward}
-                      </p>
-                    </div>
+                    <Label htmlFor="challenge-type">Jenis Tantangan</Label>
+                    <Input id="challenge-type" value={challengeType} onChange={(e) => setChallengeType(e.target.value)} placeholder="e.g., transaksi" />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
-                {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                Simpan & Aktifkan Tantangan
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Durasi</Label>
+                    <Input id="duration" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g., mingguan" />
+                  </div>
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="target">Target</Label>
+                <Input id="target" type="number" value={target} onChange={(e) => setTarget(Number(e.target.value))} placeholder="e.g., 100" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reward">Hadiah (Poin)</Label>
+                <Input id="reward" type="number" value={reward} onChange={(e) => setReward(Number(e.target.value))} placeholder="e.g., 50000" />
+              </div>
+              <div className="pt-2">
+                 <Button 
+                    onClick={handleGenerateChallenges} 
+                    disabled={isLoading || !feeSettings}
+                    className="w-full"
+                 >
+                  {isLoading ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          {generatedChallenges && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline tracking-wider">
+                  Draf Tantangan yang Dihasilkan
+                </CardTitle>
+                <CardDescription>
+                  Tantangan untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>. Simpan untuk mengaktifkannya.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {generatedChallenges.challenges.map((challenge, index) => (
+                  <Card key={index} className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className='text-base flex items-center gap-2'>
+                        <Trophy className='w-4 h-4'/>
+                        {challenge.title}
+                      </CardTitle>
+                      <CardDescription>{challenge.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                        <div className='text-sm space-y-1'>
+                            <p><span className='font-semibold'>Target:</span> {challenge.target.toLocaleString('id-ID')}</p>
+                            <p><span className='font-semibold'>Hadiah:</span> {challenge.rewardPoints.toLocaleString('id-ID')} poin</p>
+                        </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </CardContent>
+                <div className='flex justify-end p-6'>
+                    <Button onClick={handleSaveChallenges} disabled={isSaving}>
+                        {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Simpan & Aktifkan Tantangan
+                    </Button>
+                </div>
+            </Card>
+          )}
+      </div>
     </div>
   );
 }
