@@ -109,7 +109,7 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (values: z.infer<typeof forgotPasswordSchema>) => {
     try {
-        const email = values.email.includes('@') ? values.email : `${values.email}@era5758.co.id`;
+        const email = values.email;
         await sendPasswordResetEmail(auth, email);
         toast({
             title: 'Email Terkirim!',
@@ -120,7 +120,7 @@ export default function LoginPage() {
     } catch (error: any) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = "Email atau User ID yang Anda masukkan tidak terdaftar.";
+            errorMessage = "Email yang Anda masukkan tidak terdaftar.";
         }
         toast({
             variant: 'destructive',
@@ -194,6 +194,9 @@ export default function LoginPage() {
                 </form>
               </Form>
           </CardContent>
+           <CardFooter className="text-center text-sm flex-col gap-2">
+                <p>Belum punya akun? <Link href="/register" className="font-semibold text-primary hover:underline">Daftar Toko Baru</Link></p>
+            </CardFooter>
         </Card>
 
         <Card className="text-center">

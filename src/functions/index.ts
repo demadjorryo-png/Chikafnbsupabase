@@ -17,25 +17,14 @@ export const createEmployee = onCall(async (request) => {
         throw new HttpsError('unauthenticated', 'You must be logged in to perform this action.');
     }
     const callerRole = request.auth.token.role;
-    const callerId = request.auth.uid;
-    const callerStoreId = request.auth.token.storeId;
-
     if (callerRole !== 'admin') {
         throw new HttpsError('permission-denied', 'Only admins can create new employees.');
-    }
-
-    if (!callerStoreId) {
-        throw new HttpsError('invalid-argument', 'The calling admin is not associated with a store.');
     }
 
     const { email, password, name, role, storeId } = request.data;
     
     if (!email || !password || !name || !role || !storeId) {
         throw new HttpsError('invalid-argument', 'Missing required employee fields: email, password, name, role, storeId.');
-    }
-
-    if (storeId !== callerStoreId) {
-        throw new HttpsError('permission-denied', 'Admins can only create employees for their own store.');
     }
 
     if (role !== 'admin' && role !== 'cashier') {
@@ -52,18 +41,19 @@ export const createEmployee = onCall(async (request) => {
         
         await db.collection('users').doc(userRecord.uid).set(userData);
 
+        // If the new user is an admin, add their UID to the store's adminUids array
         if (role === 'admin') {
             const storeRef = db.collection('stores').doc(storeId);
             await storeRef.update({ adminUids: admin.firestore.FieldValue.arrayUnion(userRecord.uid) });
         }
 
-        logger.info(`Employee ${userRecord.uid} (${role}) created for store ${storeId} by admin ${callerId}`);
+        logger.info(`Employee ${userRecord.uid} (${role}) created for store ${storeId} by admin ${request.auth.uid}`);
         return { success: true, uid: userRecord.uid };
     } catch (error) {
         if (userRecord) {
             await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Cleanup failed for user ${userRecord.uid}`, e));
         }
-        logger.error(`Error creating employee by admin ${callerId}:`, error);
+        logger.error(`Error creating employee by admin ${request.auth.uid}:`, error);
         if ((error as any).code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
