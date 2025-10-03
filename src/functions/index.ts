@@ -1,3 +1,4 @@
+
 'use server';
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -15,7 +16,6 @@ export const registerStore = onCall(async (request) => {
   }
 
   let userRecord;
-  let storeRef;
 
   try {
     // 1. Create Firebase Auth user
@@ -26,7 +26,7 @@ export const registerStore = onCall(async (request) => {
     });
 
     // 2. Create the store document with the admin's UID
-    storeRef = await db.collection('stores').add({
+    const storeRef = await db.collection('stores').add({
       name: storeName,
       location: storeLocation,
       pradanaTokenBalance: 0,
@@ -57,12 +57,11 @@ export const registerStore = onCall(async (request) => {
   } catch (error: any) {
     logger.error('Error during store registration:', error);
 
-    // Cleanup failed operations
+    // CRITICAL: Cleanup failed auth user creation if subsequent steps fail.
     if (userRecord) {
-      await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Cleanup of user ${userRecord.uid} failed.`, e));
+      await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord.uid} failed.`, e));
     }
-    // We don't need to cleanup the store doc since it's created after user.
-
+    
     if (error.code === 'auth/email-already-exists') {
       throw new HttpsError('already-exists', 'This email address is already in use by another account.');
     }
@@ -109,8 +108,9 @@ export const createEmployee = onCall(async (request) => {
         logger.info(`Employee ${userRecord.uid} (${role}) created for store ${storeId} by admin ${request.auth.uid}`);
         return { success: true, uid: userRecord.uid };
     } catch (error) {
+        // CRITICAL: Cleanup failed auth user creation if subsequent steps fail.
         if (userRecord) {
-            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Cleanup failed for user ${userRecord.uid}`, e));
+            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord.uid} failed.`, e));
         }
         logger.error(`Error creating employee by admin ${request.auth.uid}:`, error);
         if ((error as any).code === 'auth/email-already-exists') {
