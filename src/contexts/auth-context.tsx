@@ -17,7 +17,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
-  availableStores: Store[];
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -27,10 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeStore, setActiveStore] = React.useState<Store | null>(null);
   const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [availableStores, setAvailableStores] = React.useState<Store[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  
+
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
     try {
@@ -48,11 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
-    try {
-        sessionStorage.removeItem('activeStoreId');
-    } catch (e) {
-        console.warn("Could not clear session storage:", e);
-    }
   }, []);
 
   const handleUserSession = React.useCallback(async (user: import('firebase/auth').User | null) => {
@@ -95,12 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            return;
         }
         
-        try {
-            sessionStorage.setItem('activeStoreId', storeIdToLoad);
-        } catch(e) {
-            console.warn("Session storage is not available.");
-        }
-        
         const storeDocRef = doc(db, 'stores', storeIdToLoad);
         const storeDoc = await getDoc(storeDocRef);
 
@@ -133,22 +120,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleUserSession]);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
-    toast({
-      title: 'Login Berhasil!',
-      description: `Selamat datang kembali.`,
-    });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // Let onAuthStateChanged handle the rest
+    } catch (error: any) {
+        let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            errorMessage = "Email atau password yang Anda masukkan salah.";
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+        }
+        toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
+        throw error;
+    }
   };
 
   const logout = async () => {
     await handleLogout();
+    router.push('/login');
     toast({
       title: 'Logout Berhasil',
       description: 'Anda telah keluar.',
     });
   };
 
-  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance, availableStores: availableStores || [] };
+  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -160,5 +156,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
