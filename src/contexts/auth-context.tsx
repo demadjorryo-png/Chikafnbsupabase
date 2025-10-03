@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -14,7 +14,7 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (userId: string, password: string, storeId?: string) => Promise<void>;
+  login: (userId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
   availableStores: Store[];
@@ -73,10 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     if (user) {
       try {
-        const idTokenResult = await user.getIdTokenResult();
-        const claims = idTokenResult.claims;
-        const role = claims.role || 'cashier';
-
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
@@ -92,36 +88,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        let sessionStoreId: string | null = null;
-        try {
-          sessionStoreId = sessionStorage.getItem('activeStoreId');
-        } catch(e) {
-          console.error("Session storage is not available.");
-          // Don't throw error here, let it be handled below
+        let storeIdToLoad: string | undefined;
+
+        if (userData.role === 'cashier') {
+            storeIdToLoad = userData.storeId;
+        } else if (userData.role === 'admin') {
+            // For admin, find the first store they are an admin of.
+            const storesQuery = query(collection(db, 'stores'), where('adminUids', 'array-contains', user.uid));
+            const storesSnapshot = await getDocs(storesQuery);
+            if (!storesSnapshot.empty) {
+                storeIdToLoad = storesSnapshot.docs[0].id;
+            }
         }
         
-        if (!sessionStoreId) {
-           console.log("No active store in session, redirecting to login.");
+        if (!storeIdToLoad) {
            await handleLogout();
            router.push('/login');
-           return; // Stop execution
+           toast({ variant: 'destructive', title: 'Error Sesi', description: 'Tidak ada toko yang terasosiasi dengan akun Anda.' });
+           return;
         }
-
-        const storeDocRef = doc(db, 'stores', sessionStoreId);
+        
+        try {
+            sessionStorage.setItem('activeStoreId', storeIdToLoad);
+        } catch(e) {
+            console.warn("Session storage is not available.");
+        }
+        
+        const storeDocRef = doc(db, 'stores', storeIdToLoad);
         const storeDoc = await getDoc(storeDocRef);
 
         if (!storeDoc.exists()) {
-          throw new Error(`Toko dengan ID '${sessionStoreId}' tidak ditemukan.`);
+          throw new Error(`Toko dengan ID '${storeIdToLoad}' tidak ditemukan.`);
         }
 
         const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
-
-        if (role === 'cashier' && userData.storeId !== storeData.id) {
-            throw new Error('Anda tidak diizinkan mengakses toko ini.');
-        }
-         if (role === 'admin' && !storeData.adminUids.includes(user.uid)) {
-            throw new Error('Anda bukan admin di toko ini.');
-        }
 
         setActiveStore(storeData);
         setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
@@ -144,18 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [handleUserSession]);
 
-  const login = async (userId: string, password: string, storeId?: string) => {
-    if (!storeId) {
-        throw new Error('Silakan pilih toko Anda terlebih dahulu.');
-    }
-    
+  const login = async (userId: string, password: string) => {
     const email = `${userId}@era5758.co.id`;
     
-    const { user } = await signInWithEmailAndPassword(auth, email, password);
-    await user.getIdTokenResult(true);
+    await signInWithEmailAndPassword(auth, email, password);
+    // The onAuthStateChanged listener will handle the rest of the session setup.
     
-    sessionStorage.setItem('activeStoreId', storeId);
-
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali.`,

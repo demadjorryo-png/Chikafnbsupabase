@@ -36,12 +36,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const loginSchema = z.object({
   userId: z.string().min(1, { message: 'User ID tidak boleh kosong.' }),
   password: z.string().min(1, { message: "Password tidak boleh kosong." }),
-  storeId: z.string().min(1, { message: "Anda harus memilih toko." }),
 });
 
 const forgotPasswordSchema = z.object({
@@ -58,14 +56,13 @@ export default function LoginPage() {
 
   const { toast } = useToast();
   const router = useRouter();
-  const { login, availableStores, isLoading: isAuthLoading } = useAuth();
+  const { login } = useAuth();
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       userId: '',
       password: '',
-      storeId: '',
     },
   });
 
@@ -93,7 +90,7 @@ export default function LoginPage() {
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
     try {
-      await login(values.userId, values.password, values.storeId);
+      await login(values.userId, values.password);
       router.push('/dashboard');
     } catch (error: any) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
@@ -143,33 +140,11 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">SELAMAT DATANG</CardTitle>
-              <CardDescription>Pilih toko, masukkan User ID dan password Anda.</CardDescription>
+              <CardDescription>Masukkan User ID dan password Anda.</CardDescription>
           </CardHeader>
           <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
-                    <FormField
-                        control={form.control}
-                        name="storeId"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Toko</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger disabled={isAuthLoading}>
-                                        <SelectValue placeholder={isAuthLoading ? "Memuat toko..." : "Pilih toko Anda"} />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {(availableStores || []).map(store => (
-                                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                     <FormField
                         control={form.control}
                         name="userId"
