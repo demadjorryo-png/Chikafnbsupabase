@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader, Banknote, Upload, History, Send } from 'lucide-react';
+import { Loader, Banknote, Upload, History, Send, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -146,6 +146,15 @@ Lihat bukti: ${proofUrl}`;
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+        toast({ title: "Nomor Rekening Disalin!" });
+    }, (err) => {
+        toast({ variant: 'destructive', title: "Gagal menyalin" });
+        console.error('Could not copy text: ', err);
+    });
+  };
+
   const getStatusBadge = (status: TopUpRequest['status']) => {
     switch (status) {
       case 'pending': return <Badge variant="secondary" className='bg-yellow-500/20 text-yellow-700 border-yellow-500/50'>Pending</Badge>;
@@ -174,16 +183,23 @@ Lihat bukti: ${proofUrl}`;
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
                <div>
-                  <p className="text-sm text-muted-foreground">Silakan transfer ke rekening berikut:</p>
+                  <p className="text-sm text-muted-foreground mb-2">Silakan transfer ke rekening berikut:</p>
                   {bankSettings ? (
-                    <div className="font-semibold text-lg">
-                      {bankSettings.bankName} {bankSettings.accountNumber}
-                      <br/>a/n {bankSettings.accountHolder}
-                    </div>
+                    <Card className="bg-secondary/50">
+                        <CardContent className="p-4 space-y-2">
+                           <div className="text-lg font-bold">{bankSettings.bankName}</div>
+                           <div className="flex items-center justify-between">
+                             <div className="font-mono text-xl text-primary">{bankSettings.accountNumber}</div>
+                             <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => copyToClipboard(bankSettings.accountNumber)}>
+                               <Copy className="h-4 w-4"/>
+                             </Button>
+                           </div>
+                           <div className="text-sm">a/n {bankSettings.accountHolder}</div>
+                        </CardContent>
+                    </Card>
                   ) : (
                     <div className="space-y-1">
-                      <Skeleton className="h-6 w-3/4" />
-                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-24 w-full" />
                     </div>
                   )}
                </div>
