@@ -112,7 +112,7 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
 export default function Products() {
   const { currentUser, activeStore } = useAuth();
   const { dashboardData, isLoading, refreshData } = useDashboard();
-  const { products } = dashboardData;
+  const products = dashboardData?.products || [];
   
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
@@ -205,7 +205,7 @@ export default function Products() {
   };
 
   const filteredProducts = React.useMemo(() => {
-    return (products || []).filter(product => {
+    return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
@@ -269,34 +269,32 @@ export default function Products() {
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              {isAdmin && (
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                    <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Tambah Produk
-                        </span>
-                    </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="font-headline tracking-wider">
-                        Tambah Produk Baru
-                        </DialogTitle>
-                        <DialogDescription>
-                        Menambahkan produk baru ke inventaris {activeStore?.name}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {activeStore && <AddProductForm 
-                        setDialogOpen={setIsAddDialogOpen} 
-                        userRole={userRole} 
-                        onProductAdded={handleDataUpdate}
-                        activeStore={activeStore}
-                    />}
-                    </DialogContent>
-                </Dialog>
-              )}
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                  <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                      Tambah Produk
+                      </span>
+                  </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                      <DialogTitle className="font-headline tracking-wider">
+                      Tambah Produk Baru
+                      </DialogTitle>
+                      <DialogDescription>
+                      Menambahkan produk baru ke inventaris {activeStore?.name}.
+                      </DialogDescription>
+                  </DialogHeader>
+                  {activeStore && <AddProductForm 
+                      setDialogOpen={setIsAddDialogOpen} 
+                      userRole={userRole} 
+                      onProductAdded={handleDataUpdate}
+                      activeStore={activeStore}
+                  />}
+                  </DialogContent>
+              </Dialog>
               
             </div>
           </div>

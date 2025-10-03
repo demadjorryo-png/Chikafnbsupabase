@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -61,6 +62,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -98,7 +101,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     }
     setIsLoading(true);
 
-    const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
+    const costPrice = !isAdmin ? data.price : data.costPrice;
     
     try {
         // Upload image to Firebase Storage
@@ -242,7 +245,7 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
           )}
         />
         
-        {userRole === 'admin' && (
+        {isAdmin && (
             <FormField
                 control={form.control}
                 name="costPrice"
