@@ -3,9 +3,7 @@
 
 import * as React from 'react';
 import type { User, Store } from '@/lib/types';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -30,104 +28,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
     try {
-        const storeDocRef = doc(db, 'stores', activeStore.id);
-        const storeDoc = await getDoc(storeDocRef);
-        if (storeDoc.exists()) {
-            setPradanaTokenBalance(storeDoc.data().pradanaTokenBalance || 0);
-        }
+      const { data, error } = await supabase
+        .from('stores')
+        .select('pradanaTokenBalance')
+        .eq('id', activeStore.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setPradanaTokenBalance(data.pradanaTokenBalance || 0);
     } catch (error) {
-        console.error("Error refreshing token balance:", error);
+      console.error("Error refreshing token balance:", error);
     }
   }, [activeStore]);
 
-  const handleUserSession = React.useCallback(async (firebaseUser: import('firebase/auth').User | null) => {
+  const handleUserSession = React.useCallback(async (session: import('@supabase/supabase-js').Session | null) => {
     setIsLoading(true);
-    if (firebaseUser) {
+    if (session) {
       try {
-        // Force refresh the token to get the latest custom claims.
-        const idTokenResult = await firebaseUser.getIdTokenResult(true);
-        const claims = idTokenResult.claims;
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
 
-        if (!userDocSnap.exists()) {
-           throw new Error(`User document not found in Firestore for UID: ${firebaseUser.uid}`);
+        if (userError || !userData) {
+          throw new Error(`User document not found in Supabase for UID: ${session.user.id}`);
         }
-        
-        const userData = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-        
+
         if (userData.status === 'inactive') {
-            throw new Error('Your account is inactive. Please contact your administrator.');
+          throw new Error('Your account is inactive. Please contact your administrator.');
         }
 
-        setCurrentUser(userData);
+        setCurrentUser(userData as User);
 
-        // SUPERADMIN PATH: Must not have a storeId, exits early.
-        if (claims.role === 'superadmin') {
-            setActiveStore(null);
-            setPradanaTokenBalance(0);
-            setIsLoading(false);
-            return; // EXIT EARLY
-        } 
-        
-        // OTHER ROLES (admin, cashier): Must have a storeId.
-        const storeId = claims.storeId as string | undefined;
+        if (userData.role === 'superadmin') {
+          setActiveStore(null);
+          setPradanaTokenBalance(0);
+          setIsLoading(false);
+          return; 
+        }
+
+        const storeId = userData.storeId;
 
         if (storeId) {
-            const storeDocRef = doc(db, 'stores', storeId);
-            const storeDocSnap = await getDoc(storeDocRef);
-            if (storeDocSnap.exists()) {
-                const storeData = { id: storeDocSnap.id, ...storeDocSnap.data() } as Store;
-                setActiveStore(storeData);
-                setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-            } else {
-                throw new Error(`Store with ID '${storeId}' from user claim not found.`);
-            }
-        } else {
-            // This error is critical. It means a non-superadmin user is missing the storeId claim.
-            // This is likely due to an old user account created before claims were implemented.
-            const role = claims.role || 'N/A';
-            throw new Error(`storeId claim is missing for user UID: ${firebaseUser.uid} with role: '${role}'.`);
-        }
+          const { data: storeData, error: storeError } = await supabase
+            .from('stores')
+            .select('*')
+            .eq('id', storeId)
+            .single();
 
+          if (storeError || !storeData) {
+            throw new Error(`Store with ID '${storeId}' from user data not found.`);
+          }
+
+          setActiveStore(storeData as Store);
+          setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+        } else {
+          const role = userData.role || 'N/A';
+          throw new Error(`storeId is missing for user UID: ${session.user.id} with role: '${role}'.`);
+        }
       } catch (error: any) {
         console.error("Error handling user session:", error);
         toast({ variant: 'destructive', title: 'Session Error', description: error.message });
-        await signOut(auth);
+        await supabase.auth.signOut();
         setCurrentUser(null);
         setActiveStore(null);
       } finally {
         setIsLoading(false);
       }
     } else {
-      // No user is signed in.
       setCurrentUser(null);
       setActiveStore(null);
       setIsLoading(false);
     }
   }, [toast]);
 
-
   React.useEffect(() => {
-    // onAuthStateChanged returns an unsubscribe function.
-    const unsubscribe = onAuthStateChanged(auth, handleUserSession);
-    // The cleanup function will run when the component unmounts.
-    return () => unsubscribe();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleUserSession(session);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [handleUserSession]);
 
-
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will automatically handle the session setup.
-     toast({
-        title: 'Login Successful!',
-        description: `Welcome back.`,
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw error;
+    }
+    toast({
+      title: 'Login Successful!',
+      description: `Welcome back.`,
     });
   };
 
   const logout = async () => {
-    await signOut(auth);
-    // onAuthStateChanged will handle clearing the session state.
+    await supabase.auth.signOut();
     toast({
       title: 'Logout Successful',
       description: 'You have been signed out.',

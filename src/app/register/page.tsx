@@ -31,9 +31,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { useAuth } from '@/contexts/auth-context';
-
+import { supabase } from '@/lib/supabase';
 
 const FormSchema = z.object({
     name: z.string().min(2, 'Nama minimal 2 karakter.'),
@@ -54,7 +52,6 @@ export default function RegisterPage() {
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { login } = useAuth();
   
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -68,7 +65,6 @@ export default function RegisterPage() {
   });
 
   const handlePhoneScanned = (scannedPhone: string) => {
-    // Basic cleaning for scanned phone number
     const cleanedPhone = scannedPhone.replace(/\D/g, ''); 
     form.setValue('whatsapp', cleanedPhone);
     toast({
@@ -81,34 +77,58 @@ export default function RegisterPage() {
   const handleRegister = async (values: z.infer<typeof FormSchema>) => {
     setIsLoading(true);
     try {
-        const functions = getFunctions();
-        const createUser = httpsCallable(functions, 'createUser');
-        
-        const result: any = await createUser({
-            email: values.email,
-            password: values.password,
-            displayName: values.name,
-            storeName: values.storeName,
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
             whatsapp: values.whatsapp,
-        });
-
-        if (result.data.error) {
-            throw new Error(result.data.error);
+          }
         }
-        
-        // After successful creation via cloud function, log the user in
-        await login(values.email, values.password);
-        
-        toast({
-            title: 'Registrasi Berhasil!',
-            description: `Selamat datang, ${values.name}! Toko Anda \"${values.storeName}\" telah dibuat.`,
-        });
+      });
 
-        router.push('/dashboard');
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Pendaftaran berhasil, tetapi data pengguna tidak ditemukan.');
+      }
+
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .insert({ name: values.storeName })
+        .select('id')
+        .single();
+
+      if (storeError) {
+        throw storeError;
+      }
+
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({ 
+          name: values.name,
+          storeId: storeData.id,
+          role: 'admin' 
+        })
+        .eq('id', authData.user.id);
+
+      if (userUpdateError) {
+        throw userUpdateError;
+      }
+      
+      toast({
+          title: 'Registrasi Berhasil!',
+          description: `Selamat datang, ${values.name}! Toko Anda "${values.storeName}" telah dibuat. Silakan login.`,
+      });
+
+      router.push('/login');
 
     } catch (error: any) {
       let description = 'Terjadi kesalahan saat pendaftaran.';
-      if (error.message.includes('email-already-in-use') || error.message.includes('EMAIL_EXISTS')) {
+      if (error.message.includes('unique constraint') && error.message.includes('users_email_key')) {
         description = 'Email yang Anda masukkan sudah terdaftar. Silakan gunakan email lain.';
       }
       toast({ variant: 'destructive', title: 'Pendaftaran Gagal', description: description });
@@ -127,7 +147,7 @@ export default function RegisterPage() {
         <Card>
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">DAFTAR AKUN BARU</CardTitle>
-              <CardDescription>Buat akun admin dan bisnis F&amp;B pertama Anda.</CardDescription>
+              <CardDescription>Buat akun admin dan bisnis F&B pertama Anda.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -210,7 +230,7 @@ export default function RegisterPage() {
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-                    Daftar &amp; Buat Bisnis
+                    Daftar & Buat Bisnis
                 </Button>
               </form>
             </Form>
