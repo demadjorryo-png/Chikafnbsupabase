@@ -22,37 +22,9 @@ const db = admin.firestore();
 export const createUser = onCall(async (request) => {
     // Scenario 3: New user registration (unauthenticated)
     if (!request.auth) {
-        const { email, password, name, storeName } = request.data;
-        if (!email || !password || !name || !storeName) {
+        const { email, password, name, storeName, whatsapp } = request.data;
+        if (!email || !password || !name || !storeName || !whatsapp) {
             throw new HttpsError('invalid-argument', 'Missing required fields for store registration.');
-        }
-
-        // Check for special superadmin registration case (should ideally be a one-off)
-        if (email.toLowerCase() === 'riopradana@era5758.co.id') {
-             logger.info('Special case: Superadmin registration attempt.');
-            try {
-                const existingUser = await admin.auth().getUserByEmail(email);
-                await admin.auth().setCustomUserClaims(existingUser.uid, { role: 'superadmin' });
-                await db.collection('users').doc(existingUser.uid).set({ 
-                    name: name, 
-                    email: email, 
-                    role: 'superadmin', 
-                    status: 'active'
-                }, { merge: true });
-                logger.info(`Superadmin claim granted to existing user ${existingUser.uid}`);
-                return { success: true, uid: existingUser.uid, message: 'Superadmin account configured.' };
-            } catch (error) {
-                 if ((error as any).code === 'auth/user-not-found') {
-                    const userRecord = await admin.auth().createUser({ email, password, displayName: name });
-                    await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'superadmin' });
-                    await db.collection('users').doc(userRecord.uid).set({ name, email, role: 'superadmin', status: 'active'});
-                    logger.info(`Successfully created new superadmin ${userRecord.uid}`);
-                    return { success: true, uid: userRecord.uid, message: 'Superadmin account created.' };
-                } else {
-                    logger.error('Error during special superadmin registration', error);
-                    throw new HttpsError('internal', 'An error occurred during superadmin setup.');
-                }
-            }
         }
 
         // Standard new store and admin registration
@@ -63,8 +35,24 @@ export const createUser = onCall(async (request) => {
             await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'admin', storeId: storeRef.id });
             
             const batch = db.batch();
-            batch.set(db.collection('users').doc(userRecord.uid), { name, email, role: 'admin', storeId: storeRef.id, status: 'active' });
-            batch.set(storeRef, { name: storeName, ownerUid: userRecord.uid, adminUids: [userRecord.uid], createdAt: admin.firestore.FieldValue.serverTimestamp() });
+            const userData = { 
+                name, 
+                email, 
+                whatsapp, // Save whatsapp number
+                role: 'admin', 
+                storeId: storeRef.id, 
+                status: 'active' 
+            };
+            batch.set(db.collection('users').doc(userRecord.uid), userData);
+            
+            const storeData = { 
+                name: storeName, 
+                ownerUid: userRecord.uid, 
+                adminUids: [userRecord.uid], 
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                pradanaTokenBalance: 100 // Free initial tokens
+            };
+            batch.set(storeRef, storeData);
             
             await batch.commit();
             logger.info(`New store created with ID: ${storeRef.id} by new admin ${userRecord.uid}`);
@@ -95,16 +83,9 @@ export const createUser = onCall(async (request) => {
     if (!email || !password || !name || !role) {
         throw new HttpsError('invalid-argument', 'Missing required employee fields.');
     }
-
-    // Superadmin trying to create a superadmin
-    if (role === 'superadmin') {
-        if (callerRole !== 'superadmin') {
-            throw new HttpsError('permission-denied', 'Only a superadmin can create another superadmin.');
-        }
-        storeId = null; // Superadmins are not tied to a store
-    } 
+    
     // Admin creating an employee for their own store
-    else if (callerRole === 'admin') {
+    if (callerRole === 'admin') {
         storeId = request.auth.token.storeId;
         if (role === 'admin' || role === 'cashier') {
              // Admins can create other admins or cashiers for their store
