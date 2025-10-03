@@ -31,15 +31,16 @@ export const registerStore = functions.https.onCall(async (request) => {
     });
     
     logger.info(`Auth user created: ${userRecord.uid}`);
-
-    // 2. Create the store document first to get its ID
+    
+    // 2. Create the store document with the admin's UID
     const storeRef = db.collection('stores').doc();
     await storeRef.set({
       name: storeName,
       location: storeLocation,
       pradanaTokenBalance: 0,
-      adminUids: [userRecord.uid],
+      adminUids: [userRecord.uid], // Correctly add the new user's UID
       createdAt: new Date().toISOString(),
+      transactionCounter: 0,
     });
     logger.info(`Store document ${storeRef.id} created.`);
 
