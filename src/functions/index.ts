@@ -12,87 +12,39 @@ export { generateProductDescription, getSalesInsight };
 admin.initializeApp();
 const db = admin.firestore();
 
-/**
- * Creates a new user account, potentially with a new store.
- * This function handles 2 scenarios for the caller:
- * 1. Admin: Can create employees (cashiers, other admins) for their own store.
- * 2. Unauthenticated user: Can register a new store, which creates an initial admin user for that store.
- */
-export const createUser = onCall(async (request) => {
-    // Scenario 2: New user registration (unauthenticated)
+export const createEmployee = onCall(async (request) => {
     if (!request.auth) {
-        const { email, password, name, storeName, whatsapp } = request.data;
-        if (!email || !password || !name || !storeName || !whatsapp) {
-            throw new HttpsError('invalid-argument', 'Missing required fields for store registration.');
-        }
-
-        // Standard new store and admin registration
-        let userRecord;
-        try {
-            userRecord = await admin.auth().createUser({ email, password, displayName: name });
-            const storeRef = db.collection('stores').doc();
-            await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'admin', storeId: storeRef.id });
-            
-            const batch = db.batch();
-            const userData = { 
-                name, 
-                email, 
-                whatsapp, // Save whatsapp number
-                role: 'admin', 
-                storeId: storeRef.id, 
-                status: 'active' 
-            };
-            batch.set(db.collection('users').doc(userRecord.uid), userData);
-            
-            const storeData = { 
-                name: storeName, 
-                ownerUid: userRecord.uid, 
-                adminUids: [userRecord.uid], 
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                pradanaTokenBalance: 100 // Free initial tokens
-            };
-            batch.set(storeRef, storeData);
-            
-            await batch.commit();
-            logger.info(`New store created with ID: ${storeRef.id} by new admin ${userRecord.uid}`);
-            return { success: true, uid: userRecord.uid, storeId: storeRef.id };
-        } catch (error) {
-            if (userRecord) {
-                await admin.auth().deleteUser(userRecord.uid);
-            }
-            logger.error('Error creating new store and admin:', error);
-            if ((error as any).code === 'auth/email-already-exists') {
-                throw new HttpsError('already-exists', 'Email is already in use.');
-            }
-            throw new HttpsError('internal', 'An error occurred while creating the account and store.');
-        }
+        throw new HttpsError('unauthenticated', 'You must be logged in to perform this action.');
     }
-
     const callerRole = request.auth.token.role;
     const callerId = request.auth.uid;
+    const callerStoreId = request.auth.token.storeId;
 
-    // Scenario 1: Authenticated user (admin)
     if (callerRole !== 'admin') {
-        throw new HttpsError('permission-denied', 'You do not have permission to create users.');
+        throw new HttpsError('permission-denied', 'Only admins can create new employees.');
     }
 
-    const { email, password, name, role } = request.data;
-    const storeId = request.auth.token.storeId; // Admin can only create for their own store
-
-    if (!email || !password || !name || !role) {
-        throw new HttpsError('invalid-argument', 'Missing required employee fields.');
+    if (!callerStoreId) {
+        throw new HttpsError('invalid-argument', 'The calling admin is not associated with a store.');
     }
+
+    const { email, password, name, role, storeId } = request.data;
     
+    if (!email || !password || !name || !role || !storeId) {
+        throw new HttpsError('invalid-argument', 'Missing required employee fields: email, password, name, role, storeId.');
+    }
+
+    if (storeId !== callerStoreId) {
+        throw new HttpsError('permission-denied', 'Admins can only create employees for their own store.');
+    }
+
     if (role !== 'admin' && role !== 'cashier') {
-         throw new HttpsError('permission-denied', `Admins cannot create users with the role: ${role}`);
+         throw new HttpsError('invalid-argument', `Invalid role specified: ${role}. Can only be 'admin' or 'cashier'.`);
     }
     
-    if (!storeId) {
-        throw new HttpsError('invalid-argument', 'The calling admin does not have a storeId.');
-    }
-    
+    let userRecord;
     try {
-        const userRecord = await admin.auth().createUser({ email, password, displayName: name });
+        userRecord = await admin.auth().createUser({ email, password, displayName: name });
         const claims = { role, storeId };
         await admin.auth().setCustomUserClaims(userRecord.uid, claims);
 
@@ -100,19 +52,86 @@ export const createUser = onCall(async (request) => {
         
         await db.collection('users').doc(userRecord.uid).set(userData);
 
-        // If another admin was created for a store, add them to the store's admin list
         if (role === 'admin') {
             const storeRef = db.collection('stores').doc(storeId);
             await storeRef.update({ adminUids: admin.firestore.FieldValue.arrayUnion(userRecord.uid) });
         }
 
-        logger.info(`User ${userRecord.uid} created by admin ${callerId}`);
+        logger.info(`Employee ${userRecord.uid} (${role}) created for store ${storeId} by admin ${callerId}`);
         return { success: true, uid: userRecord.uid };
     } catch (error) {
-        logger.error(`Error creating user by admin ${callerId}:`, error);
+        if (userRecord) {
+            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Cleanup failed for user ${userRecord.uid}`, e));
+        }
+        logger.error(`Error creating employee by admin ${callerId}:`, error);
         if ((error as any).code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
-        throw new HttpsError('internal', 'An unexpected error occurred.');
+        throw new HttpsError('internal', 'An unexpected error occurred while creating the employee.');
+    }
+});
+
+
+/**
+ * Creates a new user account, which creates an initial admin user for that store.
+ */
+export const createUser = onCall(async (request) => {
+    // This function is for public, unauthenticated registration.
+    if (request.auth) {
+       throw new HttpsError('failed-precondition', 'Authenticated users should use "createEmployee" to add staff.');
+    }
+
+    const { email, password, name, storeName, whatsapp } = request.data;
+    if (!email || !password || !name || !storeName || !whatsapp) {
+        throw new HttpsError('invalid-argument', 'Missing required fields for store registration.');
+    }
+
+    let userRecord;
+    try {
+        // Create the store first to get an ID
+        const storeRef = db.collection('stores').doc();
+        
+        // Create user with custom claims
+        userRecord = await admin.auth().createUser({ email, password, displayName: name });
+        await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'admin', storeId: storeRef.id });
+        
+        const batch = db.batch();
+        
+        // User document
+        const userData = { 
+            name, 
+            email, 
+            whatsapp,
+            role: 'admin', 
+            storeId: storeRef.id, 
+            status: 'active' 
+        };
+        batch.set(db.collection('users').doc(userRecord.uid), userData);
+        
+        // Store document
+        const storeData = { 
+            name: storeName, 
+            ownerUid: userRecord.uid, 
+            adminUids: [userRecord.uid], 
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            pradanaTokenBalance: 100 // Free initial tokens
+        };
+        batch.set(storeRef, storeData);
+        
+        await batch.commit();
+
+        logger.info(`New store created with ID: ${storeRef.id} by new admin ${userRecord.uid}`);
+        return { success: true, uid: userRecord.uid, storeId: storeRef.id };
+
+    } catch (error) {
+        // Cleanup on failure
+        if (userRecord) {
+            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Cleanup failed for user ${userRecord.uid}`, e));
+        }
+        logger.error('Error creating new store and admin:', error);
+        if ((error as any).code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', 'Email is already in use.');
+        }
+        throw new HttpsError('internal', 'An error occurred while creating the account and store.');
     }
 });

@@ -36,8 +36,8 @@ const FormSchema = z.object({
     role: z.enum(['admin', 'cashier'], {
         required_error: "Silakan pilih peran."
     }),
-    password: z.string().min(8, {
-      message: 'Password minimal 8 karakter.',
+    password: z.string().min(6, {
+      message: 'Password minimal 6 karakter.',
     }),
   });
 
