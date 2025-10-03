@@ -24,24 +24,18 @@ import type { RedemptionOption } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
-import { deductAiUsageFee } from '@/lib/app-settings';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { useDashboard } from '@/contexts/dashboard-context';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
-type ReceiptSettingsProps = {
-  redemptionOptions: RedemptionOption[];
-};
-
-export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsProps) {
-  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+export default function ReceiptSettings() {
+  const { activeStore } = useAuth();
   const { dashboardData } = useDashboard();
-  const feeSettings = dashboardData?.feeSettings;
+  const { redemptionOptions, feeSettings } = dashboardData || {};
   const { toast } = useToast();
 
   const [settings, setSettings] = React.useState(defaultReceiptSettings);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [isGenerating, setIsGenerating] = React.useState(false);
   const [generatedPromo, setGeneratedPromo] = React.useState('');
 
   React.useEffect(() => {
@@ -82,33 +76,16 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
   };
 
   const handleGeneratePromo = async () => {
-    if (!activeStore || !feeSettings) return;
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-    } catch (error) {
-      return; // Stop if not enough tokens
+    if (!redemptionOptions) {
+        toast({ variant: 'destructive', title: 'Data promo tidak tersedia.'});
+        throw new Error('Redemption options not available');
     }
-    
-    setIsGenerating(true);
-    setGeneratedPromo('');
-    try {
-      const activePromos = redemptionOptions
-        .filter((o) => o.isActive)
-        .map((o) => o.description);
+    const activePromos = redemptionOptions
+      .filter((o) => o.isActive)
+      .map((o) => o.description);
 
-      const result = await getReceiptPromo({ activePromotions: activePromos });
-      setGeneratedPromo(result.promoText);
-      refreshPradanaTokenBalance();
-    } catch (error) {
-      console.error('Error generating receipt promo:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Membuat Promo',
-        description: 'Chika AI tidak dapat membuat teks promo saat ini.',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+    setGeneratedPromo('');
+    return getReceiptPromo({ activePromotions: activePromos });
   };
 
   const handleApplyPromo = () => {
@@ -198,18 +175,19 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button
-                onClick={handleGeneratePromo}
-                disabled={isGenerating || !feeSettings}
-                variant="outline"
-              >
-                {isGenerating ? (
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
-              </Button>
+               <AIConfirmationDialog
+                  featureName="Teks Promo Struk"
+                  featureDescription="Chika AI akan membuat satu baris teks promo yang menarik untuk dicetak di struk Anda."
+                  feeSettings={feeSettings}
+                  onConfirm={handleGeneratePromo}
+                  onSuccess={(result) => setGeneratedPromo(result.promoText)}
+                >
+                  <Button variant="outline" disabled={!feeSettings}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Buat dengan Chika AI
+                  </Button>
+                </AIConfirmationDialog>
+
               {generatedPromo && (
                 <div className="mt-4 space-y-4">
                   <Alert className="border-accent bg-accent/10">
@@ -221,9 +199,17 @@ export default function ReceiptSettings({ redemptionOptions }: ReceiptSettingsPr
                   </Alert>
                   <div className="flex gap-2">
                     <Button onClick={handleApplyPromo}>Terapkan</Button>
-                    <Button variant="ghost" onClick={handleGeneratePromo} disabled={isGenerating}>
-                      Buat Ulang
-                    </Button>
+                    <AIConfirmationDialog
+                        featureName="Teks Promo Struk"
+                        featureDescription="Chika AI akan membuat satu baris teks promo yang menarik untuk dicetak di struk Anda."
+                        feeSettings={feeSettings}
+                        onConfirm={handleGeneratePromo}
+                        onSuccess={(result) => setGeneratedPromo(result.promoText)}
+                    >
+                        <Button variant="ghost">
+                            Buat Ulang
+                        </Button>
+                    </AIConfirmationDialog>
                   </div>
                 </div>
               )}

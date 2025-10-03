@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -11,9 +10,8 @@ import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommen
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/auth-context';
-import { deductAiUsageFee } from '@/lib/app-settings';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { AIConfirmationDialog } from './ai-confirmation-dialog';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
@@ -27,10 +25,8 @@ export function LoyaltyRecommendation({
   feeSettings
 }: LoyaltyRecommendationProps) {
   const [recommendation, setRecommendation] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const { toast } = useToast();
-  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   
   React.useEffect(() => {
     const fetchRedemptionOptions = async () => {
@@ -49,51 +45,35 @@ export function LoyaltyRecommendation({
 
 
   const handleGetRecommendation = async () => {
-    if (!activeStore) return;
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-    } catch (error) {
-      return; // Stop if not enough tokens
-    }
-
-    setIsLoading(true);
-    setRecommendation('');
     if (redemptionOptions.length === 0) {
         toast({ variant: 'destructive', title: 'Tidak Ada Promo Aktif', description: 'Tidak ada promo penukaran poin yang dapat direkomendasikan saat ini.' });
-        setIsLoading(false);
-        return;
+        throw new Error('No active redemption options');
     }
-    try {
-      const result = await getLoyaltyPointRecommendation({
-        loyaltyPoints: customer.loyaltyPoints,
-        totalPurchaseAmount,
-        availableRedemptionOptions: redemptionOptions,
-      });
-      setRecommendation(result.recommendation);
-      refreshPradanaTokenBalance();
-    } catch (error) {
-      console.error('Error getting loyalty recommendation:', error);
-      setRecommendation('Maaf, terjadi kesalahan saat mengambil rekomendasi.');
-    } finally {
-      setIsLoading(false);
-    }
+    setRecommendation('');
+    return getLoyaltyPointRecommendation({
+      loyaltyPoints: customer.loyaltyPoints,
+      totalPurchaseAmount,
+      availableRedemptionOptions: redemptionOptions,
+    });
   };
 
   return (
     <div className="space-y-2">
-      <Button
-        variant="outline"
-        className="w-full border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
-        onClick={handleGetRecommendation}
-        disabled={isLoading}
+      <AIConfirmationDialog
+        featureName="Rekomendasi Poin"
+        featureDescription="Chika AI akan menganalisis poin pelanggan dan total belanja untuk memberikan saran penukaran poin terbaik."
+        feeSettings={feeSettings}
+        onConfirm={handleGetRecommendation}
+        onSuccess={(result) => setRecommendation(result.recommendation)}
       >
-        {isLoading ? (
-          <Loader className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
+        <Button
+          variant="outline"
+          className="w-full border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+        >
           <Sparkles className="mr-2 h-4 w-4" />
-        )}
-        <span>Rekomendasi Poin AI ({feeSettings.aiUsageFee} Token)</span>
-      </Button>
+          <span>Rekomendasi Poin AI</span>
+        </Button>
+      </AIConfirmationDialog>
 
       {recommendation && (
         <Alert className="border-accent bg-accent/10">

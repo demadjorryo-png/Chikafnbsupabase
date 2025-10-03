@@ -14,15 +14,15 @@ import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { deductAiUsageFee } from '@/lib/app-settings';
 import { DateRange } from 'react-day-picker';
 import { addDays, format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
 export default function Challenges() {
-  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { currentUser, activeStore } = useAuth();
   const { dashboardData, refreshData } = useDashboard();
   const feeSettings = dashboardData?.feeSettings;
   const { toast } = useToast();
@@ -32,12 +32,14 @@ export default function Challenges() {
     from: new Date(),
     to: addDays(new Date(), 30),
   });
-  const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [generatedChallenges, setGeneratedChallenges] = React.useState<ChallengeGeneratorOutput | null>(null);
 
   const handleGenerateChallenges = async () => {
-    if (!activeStore || !currentUser || !feeSettings) return;
+    if (!activeStore || !currentUser || !feeSettings) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Data tidak lengkap untuk membuat tantangan.'});
+        throw new Error('Incomplete data');
+    }
 
     if (budget <= 0) {
       toast({
@@ -45,7 +47,7 @@ export default function Challenges() {
         title: 'Anggaran Tidak Valid',
         description: 'Silakan masukkan anggaran lebih besar dari nol.',
       });
-      return;
+      throw new Error('Invalid budget');
     }
     if (!date?.from || !date?.to) {
         toast({
@@ -53,35 +55,15 @@ export default function Challenges() {
             title: 'Tanggal Tidak Valid',
             description: 'Silakan pilih tanggal mulai dan selesai.',
         });
-        return;
+        throw new Error('Invalid date');
     }
-
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-    } catch (error) {
-      return; // Stop if fee deduction fails
-    }
-
-    setIsLoading(true);
+    
     setGeneratedChallenges(null);
-    try {
-      const result = await generateChallenges({
+    return generateChallenges({
         budget,
         startDate: format(date.from, 'yyyy-MM-dd'),
         endDate: format(date.to, 'yyyy-MM-dd'),
-      });
-      setGeneratedChallenges(result);
-      refreshPradanaTokenBalance();
-    } catch (error) {
-      console.error('Error generating challenges:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Membuat Tantangan',
-        description: 'Terjadi kesalahan saat berkomunikasi dengan AI. Coba lagi.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleSaveChallenges = async () => {
@@ -90,7 +72,7 @@ export default function Challenges() {
     setIsSaving(true);
     try {
       // Create a single challenge period document
-      const challengePeriodRef = await addDoc(collection(db, 'stores', activeStore.id, 'challengePeriods'), {
+      await addDoc(collection(db, 'stores', activeStore.id, 'challengePeriods'), {
         startDate: format(date?.from || new Date(), 'yyyy-MM-dd'),
         endDate: format(date?.to || new Date(), 'yyyy-MM-dd'),
         period: generatedChallenges.period,
@@ -175,18 +157,18 @@ export default function Challenges() {
                 </div>
               </div>
               <div className="pt-2">
-                 <Button 
-                    onClick={handleGenerateChallenges} 
-                    disabled={isLoading || !feeSettings}
-                    className="w-full"
+                 <AIConfirmationDialog
+                    featureName="Tantangan Karyawan"
+                    featureDescription="Anda akan membuat satu set tantangan penjualan berjenjang untuk karyawan berdasarkan anggaran dan periode yang Anda tentukan."
+                    feeSettings={feeSettings}
+                    onConfirm={handleGenerateChallenges}
+                    onSuccess={setGeneratedChallenges}
                  >
-                  {isLoading ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
-                </Button>
+                    <Button className="w-full" disabled={!feeSettings}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Buat dengan Chika AI
+                    </Button>
+                </AIConfirmationDialog>
               </div>
             </CardContent>
           </Card>

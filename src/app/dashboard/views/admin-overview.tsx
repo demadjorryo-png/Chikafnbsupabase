@@ -34,13 +34,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { AppliedStrategy, Product, Transaction } from '@/lib/types';
+import type { AppliedStrategy, Product, Transaction, AdminRecommendationOutput } from '@/lib/types';
+import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { deductAiUsageFee } from '@/lib/app-settings';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
 
 const chartConfig = {
@@ -51,11 +52,10 @@ const chartConfig = {
 };
 
 export default function AdminOverview() {
-  const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const { dashboardData, feeSettings, refreshData } = useDashboard();
+  const { activeStore } = useAuth();
+  const { dashboardData, feeSettings } = useDashboard();
   const { transactions, products } = dashboardData;
-  const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [recommendations, setRecommendations] = React.useState<AdminRecommendationOutput | null>(null);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
   const [exportDate, setExportDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -63,11 +63,6 @@ export default function AdminOverview() {
   });
   
   const { toast } = useToast();
-
-  const [dateFnsLocale, setDateFnsLocale] = React.useState<any | undefined>(undefined);
-   React.useEffect(() => {
-    import('date-fns/locale/id').then(locale => setDateFnsLocale(locale.default));
-  }, []);
 
   React.useEffect(() => {
     if (!activeStore) return;
@@ -148,43 +143,15 @@ export default function AdminOverview() {
   }, [transactions, products, idLocale]);
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore || !feeSettings) return;
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-    } catch (error) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setRecommendations(null);
     const thisMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 1]?.revenue || 0;
     const lastMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 2]?.revenue || 0;
-
-    try {
-        const response = await fetch('/api/recommendations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                totalRevenueLastWeek: thisMonthRevenue / 4,
-                totalRevenueLastMonth: lastMonthRevenue,
-                topSellingProducts: topProductsThisMonth.map(([name]) => name),
-                worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const result = await response.json();
-        setRecommendations(result);
-        refreshPradanaTokenBalance();
-    } catch (error) {
-        console.error("Error generating recommendations:", error);
-        toast({ variant: 'destructive', title: 'Gagal Mendapatkan Rekomendasi', description: 'Terjadi kesalahan saat berkomunikasi dengan AI.' });
-    } finally {
-        setIsLoading(false);
-    }
+    
+    return getAdminRecommendations({
+        totalRevenueLastWeek: thisMonthRevenue / 4,
+        totalRevenueLastMonth: lastMonthRevenue,
+        topSellingProducts: topProductsThisMonth.map(([name]) => name),
+        worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
+    });
   }
 
   const handleApplyStrategy = async (type: 'weekly' | 'monthly', recommendation: string) => {
@@ -396,10 +363,18 @@ export default function AdminOverview() {
                 <CardDescription>Dapatkan saran strategis mingguan dan bulanan untuk mendorong pertumbuhan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <Button onClick={handleGenerateRecommendations} disabled={isLoading || !feeSettings}>
-                    {isLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    {feeSettings ? `Buat Rekomendasi Baru (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
-                </Button>
+                 <AIConfirmationDialog
+                    featureName="Rekomendasi Admin"
+                    featureDescription="Chika AI akan menganalisis data kinerja toko Anda untuk memberikan rekomendasi mingguan dan bulanan."
+                    feeSettings={feeSettings}
+                    onConfirm={handleGenerateRecommendations}
+                    onSuccess={setRecommendations}
+                  >
+                    <Button disabled={!feeSettings}>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                       Buat Rekomendasi Baru
+                    </Button>
+                </AIConfirmationDialog>
 
                 {recommendations && (
                     <div className="space-y-4 pt-2">

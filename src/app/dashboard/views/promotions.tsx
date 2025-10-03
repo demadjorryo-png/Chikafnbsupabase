@@ -58,17 +58,16 @@ import {
 } from '@/components/ui/dialog';
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 import { useAuth } from '@/contexts/auth-context';
-import { deductAiUsageFee } from '@/lib/app-settings';
 import { useDashboard } from '@/contexts/dashboard-context';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
 export default function Promotions() {
-  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { currentUser, activeStore } = useAuth();
   const { dashboardData, refreshData } = useDashboard();
   const { redemptionOptions, transactions, feeSettings } = dashboardData || {};
   
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
@@ -142,14 +141,11 @@ export default function Promotions() {
   };
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore || !feeSettings || !transactions || !redemptionOptions) return;
-    try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-    } catch (error) {
-      return; // Stop if not enough tokens
+    if (!activeStore || !feeSettings || !transactions || !redemptionOptions) {
+        toast({ variant: 'destructive', title: 'Data tidak lengkap' });
+        throw new Error('Incomplete data for generating recommendations');
     }
-
-    setIsLoading(true);
+    
     setRecommendations(null);
 
     const now = new Date();
@@ -174,28 +170,15 @@ export default function Promotions() {
     const topProducts = sortedProductsThisMonth.slice(0, 3).map(([name]) => name);
     const worstProducts = sortedProductsThisMonth.slice(-3).reverse().map(([name]) => name);
 
-    try {
-      const result = await getPromotionRecommendations({
-        currentRedemptionOptions: redemptionOptions.map(o => ({
-            description: o.description,
-            pointsRequired: o.pointsRequired,
-            isActive: o.isActive,
-        })),
-        topSellingProducts: topProducts,
-        worstSellingProducts: worstProducts,
-      });
-      setRecommendations(result);
-      refreshPradanaTokenBalance();
-    } catch (error) {
-      console.error('Error generating promotion recommendations:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Membuat Rekomendasi',
-        description: 'Tidak dapat membuat rekomendasi. Silakan coba lagi.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    return getPromotionRecommendations({
+      currentRedemptionOptions: redemptionOptions.map(o => ({
+          description: o.description,
+          pointsRequired: o.pointsRequired,
+          isActive: o.isActive,
+      })),
+      topSellingProducts: topProducts,
+      worstSellingProducts: worstProducts,
+    });
   };
 
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
@@ -264,14 +247,19 @@ export default function Promotions() {
                 <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
-                    {isLoading ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
-                </Button>
+                <AIConfirmationDialog
+                    featureName="Rekomendasi Promo"
+                    featureDescription="Chika AI akan menganalisis data penjualan dan promo saat ini untuk memberikan ide promo loyalitas baru."
+                    feeSettings={feeSettings}
+                    onConfirm={handleGenerateRecommendations}
+                    onSuccess={setRecommendations}
+                >
+                    <Button disabled={!feeSettings}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Buat Rekomendasi Baru
+                    </Button>
+                </AIConfirmationDialog>
+                
                 {recommendations && (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {recommendations.recommendations.map((rec, index) => (
