@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Transaction, Store, User, Customer, TransactionStatus } from '@/lib/types';
+import type { Transaction, User, Customer, TransactionStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Volume2, Send, CheckCircle, Loader, Calendar as CalendarIcon, Printer } from 'lucide-react';
@@ -37,7 +37,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Receipt } from '@/components/dashboard/receipt';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrderReadyDialog } from '@/components/dashboard/order-ready-dialog';
 import { cn } from '@/lib/utils';
@@ -61,15 +60,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 type TransactionsProps = {
     onPrintRequest: (transaction: Transaction) => void;
 };
 
-function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; stores: Store[], users: User[] }) {
+function TransactionDetailsDialog({ transaction, open, onOpenChange, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; users: User[] }) {
     if (!transaction) return null;
     
-    const store = (stores || []).find(s => s.id === transaction.storeId);
     const staff = (users || []).find(u => u.id === transaction.staffId);
 
     return (
@@ -82,10 +81,6 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, stores, use
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                   <div>
-                        <p className="text-sm text-muted-foreground">Toko</p>
-                        <p className="font-medium">{store?.name || 'Unknown'}</p>
-                   </div>
                    <div>
                         <p className="text-sm text-muted-foreground">Pelanggan</p>
                         <p className="font-medium">{transaction.customerName}</p>
@@ -274,42 +269,60 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
                             <SelectItem value="Selesai">Selesai</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            className={cn(
-                            "w-full sm:w-[300px] justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.from ? (
-                            date.to ? (
-                                <>
-                                {format(date.from, "LLL dd, y")} -{" "}
-                                {format(date.to, "LLL dd, y")}
-                                </>
-                            ) : (
-                                format(date.from, "LLL dd, y")
-                            )
-                            ) : (
-                            <span>Pilih tanggal</span>
-                            )}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={2}
-                        />
-                        </PopoverContent>
-                    </Popover>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex">
+                        <div className="grid gap-1">
+                            <Label htmlFor="date-from" className="sr-only">Tanggal Awal</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date-from"
+                                        variant={"outline"}
+                                        className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !date?.from && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.from ? format(date.from, "LLL dd, y") : <span>Tanggal Awal</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar
+                                        mode="single"
+                                        selected={date?.from}
+                                        onSelect={(d) => setDate(prev => ({...prev, from: d}))}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid gap-1">
+                           <Label htmlFor="date-to" className="sr-only">Tanggal Akhir</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date-to"
+                                        variant={"outline"}
+                                        className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !date?.to && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.to ? format(date.to, "LLL dd, y") : <span>Tanggal Akhir</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar
+                                        mode="single"
+                                        selected={date?.to}
+                                        onSelect={(d) => setDate(prev => ({...prev, to: d}))}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
                 </div>
             </div>
           </CardHeader>
@@ -455,7 +468,6 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
               transaction={selectedTransaction}
               open={!!selectedTransaction}
               onOpenChange={() => setSelectedTransaction(null)}
-              stores={stores || []}
               users={users || []}
           />
       )}
@@ -491,3 +503,5 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
     </>
   );
 }
+
+    
