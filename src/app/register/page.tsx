@@ -23,6 +23,7 @@ import { Logo } from '@/components/dashboard/logo';
 import { Loader, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from '@/lib/firebase';
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -54,7 +55,7 @@ export default function RegisterPage() {
   const handleRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
     try {
-      const functions = getFunctions();
+      const functions = getFunctions(app, 'us-central1'); // Specify region
       const registerStore = httpsCallable(functions, 'registerStore');
       
       const result = await registerStore(values);
