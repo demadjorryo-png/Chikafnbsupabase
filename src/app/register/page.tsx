@@ -21,9 +21,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -54,52 +52,27 @@ export default function RegisterPage() {
 
   const handleRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
-    let userCredential;
     try {
-      // 1. Create Firebase Auth user
-      userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+      const functions = getFunctions();
+      const registerStore = httpsCallable(functions, 'registerStore');
+      
+      const result = await registerStore(values);
 
-      // 2. Create the store document
-      const storeRef = await addDoc(collection(db, 'stores'), {
-        name: values.storeName,
-        location: values.storeLocation,
-        pradanaTokenBalance: 0,
-        adminUids: [user.uid],
-        createdAt: new Date().toISOString(),
-      });
-
-      // 3. Create the user document in 'users' collection, linking to the new store
-      await setDoc(doc(db, 'users', user.uid), {
-        name: values.adminName,
-        email: values.email,
-        whatsapp: values.whatsapp,
-        role: 'admin',
-        status: 'active',
-        storeId: storeRef.id,
-      });
-
-      toast({
-        title: 'Pendaftaran Berhasil!',
-        description: 'Toko dan akun admin Anda telah dibuat. Anda akan diarahkan ke halaman login.',
-      });
-
-      router.push('/login');
+      if ((result.data as any).success) {
+        toast({
+          title: 'Pendaftaran Berhasil!',
+          description: 'Toko dan akun admin Anda telah dibuat. Silakan login.',
+        });
+        router.push('/login');
+      } else {
+        throw new Error((result.data as any).error || 'Terjadi kesalahan yang tidak diketahui.');
+      }
 
     } catch (error: any) {
-      // If user creation succeeded but Firestore failed, we should clean up the auth user
-      if (userCredential) {
-        await userCredential.user.delete();
-      }
-
-      let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email yang Anda masukkan sudah terdaftar.';
-      }
       toast({
         variant: 'destructive',
         title: 'Pendaftaran Gagal',
-        description: errorMessage,
+        description: error.message || 'Terjadi kesalahan. Silakan coba lagi.',
       });
       console.error('Registration error:', error);
     } finally {
