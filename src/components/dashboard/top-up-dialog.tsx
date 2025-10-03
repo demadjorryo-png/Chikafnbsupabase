@@ -225,7 +225,7 @@ Lihat bukti: ${proofUrl}`;
                             size="sm"
                             onClick={() => setAmount(option)}
                         >
-                            {option.toLocaleString('id-ID')}
+                            {option / 1000} Token
                         </Button>
                     ))}
                 </div>
