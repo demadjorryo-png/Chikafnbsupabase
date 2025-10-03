@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -22,8 +21,9 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { doc, setDoc, writeBatch } from 'firebase/firestore';
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -54,29 +54,71 @@ export default function RegisterPage() {
 
   const handleRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
-    try {
-      const functions = getFunctions(app, 'us-central1'); // Specify region
-      const registerStore = httpsCallable(functions, 'registerStore');
-      
-      const result = await registerStore(values);
+    let newUser = null;
 
-      if ((result.data as any).success) {
-        toast({
-          title: 'Pendaftaran Berhasil!',
-          description: 'Toko dan akun admin Anda telah dibuat. Silakan login.',
-        });
-        router.push('/login');
-      } else {
-        throw new Error((result.data as any).error || 'Terjadi kesalahan yang tidak diketahui.');
-      }
+    try {
+      // Step 1: Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      newUser = userCredential.user;
+      const uid = newUser.uid;
+      
+      // Step 2: Create a batch write for Firestore operations
+      const batch = writeBatch(db);
+
+      // Create store document
+      const storeRef = doc(db, 'stores', uid); // Using UID as store ID for simplicity
+      batch.set(storeRef, {
+        name: values.storeName,
+        location: values.storeLocation,
+        pradanaTokenBalance: 0,
+        adminUids: [uid],
+        createdAt: new Date().toISOString(),
+        transactionCounter: 0,
+      });
+
+      // Create user document
+      const userRef = doc(db, 'users', uid);
+      batch.set(userRef, {
+        name: values.adminName,
+        email: values.email,
+        whatsapp: values.whatsapp,
+        role: 'admin',
+        status: 'active',
+        storeId: storeRef.id,
+      });
+
+      // Step 3: Commit the batch
+      await batch.commit();
+
+      toast({
+        title: 'Pendaftaran Berhasil!',
+        description: 'Toko dan akun admin Anda telah dibuat. Silakan login.',
+      });
+      router.push('/login');
 
     } catch (error: any) {
+      // Cleanup: If user was created but Firestore failed, delete the user
+      if (newUser) {
+        await deleteUser(newUser).catch(deleteError => {
+          console.error("Failed to clean up orphaned user:", deleteError);
+        });
+      }
+
+      let errorMessage = 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.';
+      } else if (error.code) {
+        errorMessage = `Error: ${error.code}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error('Registration error:', error);
       toast({
         variant: 'destructive',
         title: 'Pendaftaran Gagal',
-        description: error.message || 'Terjadi kesalahan. Silakan coba lagi.',
+        description: errorMessage,
       });
-      console.error('Registration error:', error);
     } finally {
       setIsLoading(false);
     }
