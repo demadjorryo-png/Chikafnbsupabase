@@ -509,45 +509,59 @@ export default function AdminOverview() {
             <CardDescription>Unduh data transaksi dari toko {activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="grid gap-2 w-full sm:w-auto">
-                <Label>Pilih Periode</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date"
-                        variant={"outline"}
-                        className={cn(
-                        "w-full sm:w-[300px] justify-start text-left font-normal",
-                        !exportDate && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {exportDate?.from ? (
-                        exportDate.to ? (
-                            <>
-                            {format(exportDate.from, "LLL dd, y")} -{" "}
-                            {format(exportDate.to, "LLL dd, y")}
-                            </>
-                        ) : (
-                            format(exportDate.from, "LLL dd, y")
-                        )
-                        ) : (
-                        <span>Pick a date</span>
-                        )}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={exportDate?.from}
-                        selected={exportDate}
-                        onSelect={setExportDate}
-                        numberOfMonths={2}
-                    />
-                    </PopoverContent>
-                </Popover>
+            <div className="grid w-full grid-cols-2 gap-4 sm:w-auto">
+                <div className="grid gap-2">
+                    <Label>Tanggal Awal</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !exportDate?.from && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {exportDate?.from ? format(exportDate.from, "LLL dd, y") : <span>Pilih tanggal</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={exportDate?.from}
+                                onSelect={(date) => setExportDate(prev => ({ ...prev, from: date }))}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                 <div className="grid gap-2">
+                    <Label>Tanggal Akhir</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !exportDate?.to && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {exportDate?.to ? format(exportDate.to, "LLL dd, y") : <span>Pilih tanggal</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={exportDate?.to}
+                                onSelect={(date) => setExportDate(prev => ({ ...prev, to: date }))}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
+
             <div className="flex w-full sm:w-auto self-end gap-2">
                  <Button onClick={() => handleExport('PDF')} className="w-full">
                     <FileText className="mr-2 h-4 w-4" />
@@ -564,5 +578,3 @@ export default function AdminOverview() {
     </div>
   );
 }
-
-    
