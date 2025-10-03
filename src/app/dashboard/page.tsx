@@ -70,7 +70,8 @@ function DashboardContent() {
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
 
   const isAdmin = currentUser?.role === 'admin';
-  const view = searchParams.get('view') || (isAdmin ? 'overview' : 'pos');
+  const defaultView = isAdmin ? 'overview' : 'pos';
+  const view = searchParams.get('view') || defaultView;
   
   if (isLoading || !dashboardData) {
     return <DashboardSkeleton />;
