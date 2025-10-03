@@ -21,21 +21,14 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
-  Printer,
   Plus,
   Gift,
   Coins,
   Armchair,
   Bell,
+  PackageX,
 } from 'lucide-react';
-import {
-  Table as ShadcnTable,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,7 +38,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -54,13 +46,12 @@ import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt } from '@/components/dashboard/receipt';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference, increment, updateDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -117,26 +108,10 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const [isDineIn, setIsDineIn] = React.useState(true); // Default to true for table orders
   const { toast } = useToast();
   
-  const customerOptions = (customers || []).map((c) => ({
+  const customerOptions = customers.map((c) => ({
     value: c.id,
     label: c.name,
   }));
-
-  const availableTableOptions = (tables || [])
-    .filter(t => t.status === 'Tersedia')
-    .map((t) => ({
-        value: t.id,
-        label: t.name
-    }));
-
-  const handleTableSelect = (tableId: string) => {
-    const table = (tables || []).find(t => t.id === tableId);
-    if (table) {
-        setSelectedTableId(table.id);
-        setSelectedTableName(table.name);
-    }
-  }
-
 
   const addToCart = (product: Product) => {
     if (product.stock === 0) {
@@ -184,7 +159,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       return;
     }
 
-    const product = (products || []).find(p => p.id === productId);
+    const product = products.find(p => p.id === productId);
     if(product && quantity > product.stock) {
         toast({
             variant: 'destructive',
@@ -213,7 +188,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   };
   
   const handleBarcodeScanned = (barcode: string) => {
-    const product = (products || []).find(p => p.attributes.barcode === barcode);
+    const product = products.find(p => p.attributes.barcode === barcode);
     if (product) {
       addToCart(product);
       toast({
@@ -247,11 +222,14 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (!feeSettings) return 0;
+    // Only cashiers pay fees, admins don't.
+    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') return 0;
+    
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
-    return Math.min(feeCappedAtMin, feeSettings.maxFeeRp) / feeSettings.tokenValueRp;
-  }, [totalAmount, feeSettings]);
+    const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp);
+    return feeCappedAtMax / feeSettings.tokenValueRp;
+  }, [totalAmount, feeSettings, currentUser]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -267,7 +245,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     setPointsToRedeem(value);
   }
 
-  const filteredProducts = (products || []).filter((product) =>
+  const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
@@ -281,7 +259,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         return;
     }
 
-    if (pradanaTokenBalance < transactionFee) {
+    if (currentUser.role !== 'admin' && pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
             title: 'Saldo Token Tidak Cukup',
@@ -314,11 +292,12 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         );
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
         
-        const storeTokenDoc = await transaction.get(storeRef);
-
-        const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-        if (currentTokenBalance < transactionFee) {
-            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+            const storeTokenDoc = await transaction.get(storeRef);
+            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
+            if (currentTokenBalance < transactionFee) {
+                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+            }
         }
         
         const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
@@ -347,7 +326,9 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
           newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
         }
 
-        transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
+        }
         
         stockUpdates.forEach(update => {
           transaction.update(update.ref, { stock: update.newStock });
@@ -396,7 +377,9 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         onPrintRequest(finalTransactionData);
       }
       
-      refreshPradanaTokenBalance();
+      if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+        refreshPradanaTokenBalance();
+      }
       
       setCart([]);
       setDiscountValue(0);
@@ -444,60 +427,47 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
             </div>
           </CardHeader>
           <ScrollArea className="h-[calc(100vh-220px)]">
-            <CardContent className="p-0">
-               <ShadcnTable>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produk</TableHead>
-                    <TableHead className="text-right">Harga</TableHead>
-                    <TableHead className="text-center w-[120px]">Stok</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array.from({length: 10}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
-                            <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                        </TableRow>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                 {isLoading ? (
+                    Array.from({length: 12}).map((_, i) => (
+                      <Skeleton key={i} className="aspect-square w-full rounded-lg" />
                     ))
                   ) : filteredProducts.map((product) => {
-                    const stockInStore = product.stock;
-                    const isOutOfStock = stockInStore === 0;
+                    const isOutOfStock = product.stock === 0;
                     return (
-                      <TableRow key={product.id} className={cn(isOutOfStock && "text-muted-foreground")}>
-                        <TableCell>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-xs text-muted-foreground">{product.attributes.brand}</div>
-                        </TableCell>
-                        <TableCell className="text-right">Rp {product.price.toLocaleString('id-ID')}</TableCell>
-                        <TableCell className="text-center">
-                           {isOutOfStock ? (
-                            <Badge variant="destructive">Habis</Badge>
-                           ) : (
-                            stockInStore
-                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => addToCart(product)}
-                            disabled={isOutOfStock}
-                            aria-label="Add to cart"
-                            className="h-8 w-8 p-0"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
+                      <Card 
+                        key={product.id}
+                        className={cn(
+                          "overflow-hidden cursor-pointer group relative transition-all",
+                          isOutOfStock ? "pointer-events-none" : "hover:shadow-md hover:-translate-y-1"
+                        )}
+                        onClick={() => addToCart(product)}
+                      >
+                        <Image
+                          src={product.imageUrl}
+                          alt={product.name}
+                          width={200}
+                          height={200}
+                          className="aspect-square w-full object-cover"
+                          unoptimized
+                        />
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="text-center text-white">
+                              <PackageX className="mx-auto h-8 w-8" />
+                              <p className="font-bold">Stok Habis</p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="p-3">
+                          <h3 className="font-semibold truncate text-sm">{product.name}</h3>
+                          <p className="text-xs text-muted-foreground">Rp {product.price.toLocaleString('id-ID')}</p>
+                        </div>
+                      </Card>
+                    )
                   })}
-                </TableBody>
-              </ShadcnTable>
+              </div>
             </CardContent>
           </ScrollArea>
         </Card>
@@ -516,7 +486,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         options={customerOptions}
                         value={selectedCustomer?.id}
                         onValueChange={(value) => {
-                        setSelectedCustomer((customers || []).find((c) => c.id === value));
+                        setSelectedCustomer(customers.find((c) => c.id === value));
                         setPointsToRedeem(0); // Reset points when customer changes
                         }}
                         placeholder="Cari pelanggan..."
@@ -719,7 +689,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
               </div>
             </div>
             
-            {selectedCustomer && cart.length > 0 && feeSettings && (
+            {selectedCustomer && cart.length > 0 && (
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
