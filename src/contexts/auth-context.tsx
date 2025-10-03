@@ -7,6 +7,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
@@ -39,6 +41,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error refreshing token balance:", error);
     }
   }, [activeStore]);
+
+  const handleLogout = React.useCallback(async () => {
+    await signOut(auth);
+    setCurrentUser(null);
+    setActiveStore(null);
+    try {
+        sessionStorage.removeItem('activeStoreId');
+    } catch (e) {
+        console.warn("Could not clear session storage:", e);
+    }
+  }, []);
 
   const handleUserSession = React.useCallback(async (user: import('firebase/auth').User | null) => {
     setIsLoading(true);
@@ -67,10 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setActiveStore(null);
           setPradanaTokenBalance(0);
         } else {
-          // For admin and cashier, get the active store from session storage
-          const sessionStoreId = sessionStorage.getItem('activeStoreId');
+          let sessionStoreId: string | null = null;
+          try {
+            sessionStoreId = sessionStorage.getItem('activeStoreId');
+          } catch(e) {
+            console.error("Session storage is not available.");
+            throw new Error("Penyimpanan sesi browser tidak tersedia. Silakan aktifkan.");
+          }
+          
           if (!sessionStoreId) {
-             throw new Error('Sesi toko tidak ditemukan. Silakan login kembali.');
+             console.log("No active store in session, logging out and redirecting.");
+             await handleLogout();
+             router.push('/login');
+             return; // Stop execution
           }
 
           const storeDocRef = doc(db, 'stores', sessionStoreId);
@@ -82,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
 
-          // Security check: ensure cashier/admin belongs to the store
           if (role === 'cashier' && userData.storeId !== storeData.id) {
               throw new Error('Anda tidak diizinkan mengakses toko ini.');
           }
@@ -96,20 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error: any) {
         console.error("Error handling user session:", error);
         toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
-        await signOut(auth);
-        setCurrentUser(null);
-        setActiveStore(null);
-        sessionStorage.removeItem('activeStoreId');
+        await handleLogout();
       } finally {
         setIsLoading(false);
       }
     } else {
-      setCurrentUser(null);
-      setActiveStore(null);
+      await handleLogout();
       setIsLoading(false);
-      sessionStorage.removeItem('activeStoreId');
     }
-  }, [toast]);
+  }, [toast, router, handleLogout]);
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, handleUserSession);
@@ -118,35 +134,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, storeId?: string) => {
     if (!storeId && !email.toLowerCase().includes('riopradana')) {
-        const userDocQuery = await getDoc(doc(db, 'users', email.split('@')[0]));
-        if (userDocQuery.exists() && userDocQuery.data().role !== 'superadmin') {
+        const userDocRef = doc(db, 'users', email.split('@')[0]);
+        const userDocQuery = await getDoc(userDocRef).catch(() => null);
+
+        if (userDocQuery && userDocQuery.exists() && userDocQuery.data().role !== 'superadmin') {
             throw new Error('Silakan pilih toko terlebih dahulu.');
         }
     }
 
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    const idTokenResult = await user.getIdTokenResult(true); // Force refresh claims
-    const userRole = idTokenResult.claims.role;
+    await user.getIdTokenResult(true); 
 
-    if (userRole === 'superadmin') {
-        sessionStorage.removeItem('activeStoreId');
-    } else if (storeId) {
+    if (storeId) {
         sessionStorage.setItem('activeStoreId', storeId);
-    } else {
-        await signOut(auth);
-        throw new Error('Toko harus dipilih untuk peran admin atau kasir.');
     }
 
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali.`,
     });
-    // The onAuthStateChanged listener will handle the rest
   };
 
   const logout = async () => {
-    await signOut(auth);
-    sessionStorage.removeItem('activeStoreId');
+    await handleLogout();
     toast({
       title: 'Logout Berhasil',
       description: 'Anda telah keluar.',
