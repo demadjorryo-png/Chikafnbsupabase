@@ -3,7 +3,9 @@
 
 import * as React from 'react';
 import type { User, Store } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -11,7 +13,7 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, storeId?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
 }
@@ -28,74 +30,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
     try {
-      const { data, error } = await supabase
-        .from('stores')
-        .select('pradanaTokenBalance')
-        .eq('id', activeStore.id)
-        .single();
-
-      if (error) {
-        throw error;
+      const storeDocRef = doc(db, 'stores', activeStore.id);
+      const storeDoc = await getDoc(storeDocRef);
+      if (storeDoc.exists()) {
+        setPradanaTokenBalance(storeDoc.data()?.pradanaTokenBalance || 0);
       }
-
-      setPradanaTokenBalance(data.pradanaTokenBalance || 0);
     } catch (error) {
       console.error("Error refreshing token balance:", error);
     }
   }, [activeStore]);
 
-  const handleUserSession = React.useCallback(async (session: import('@supabase/supabase-js').Session | null) => {
+  const handleUserSession = React.useCallback(async (user: import('firebase/auth').User | null) => {
     setIsLoading(true);
-    if (session) {
+    if (user) {
       try {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        const idTokenResult = await user.getIdTokenResult();
+        const claims = idTokenResult.claims;
+        const role = claims.role || 'cashier';
 
-        if (userError || !userData) {
-          throw new Error(`User document not found in Supabase for UID: ${session.user.id}`);
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+          throw new Error(`User document not found in Firestore for UID: ${user.uid}`);
         }
+        
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
 
         if (userData.status === 'inactive') {
-          throw new Error('Your account is inactive. Please contact your administrator.');
+          throw new Error('Akun Anda tidak aktif. Silakan hubungi administrator.');
         }
 
-        setCurrentUser(userData as User);
+        setCurrentUser(userData);
 
-        if (userData.role === 'superadmin') {
+        if (role === 'superadmin') {
           setActiveStore(null);
           setPradanaTokenBalance(0);
-          setIsLoading(false);
-          return; 
-        }
-
-        const storeId = userData.storeId;
-
-        if (storeId) {
-          const { data: storeData, error: storeError } = await supabase
-            .from('stores')
-            .select('*')
-            .eq('id', storeId)
-            .single();
-
-          if (storeError || !storeData) {
-            throw new Error(`Store with ID '${storeId}' from user data not found.`);
+        } else {
+          // For admin and cashier, get the active store from session storage
+          const sessionStoreId = sessionStorage.getItem('activeStoreId');
+          if (!sessionStoreId) {
+             throw new Error('Sesi toko tidak ditemukan. Silakan login kembali.');
           }
 
-          setActiveStore(storeData as Store);
+          const storeDocRef = doc(db, 'stores', sessionStoreId);
+          const storeDoc = await getDoc(storeDocRef);
+
+          if (!storeDoc.exists()) {
+            throw new Error(`Toko dengan ID '${sessionStoreId}' tidak ditemukan.`);
+          }
+
+          const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
+
+          // Security check: ensure cashier/admin belongs to the store
+          if (role === 'cashier' && userData.storeId !== storeData.id) {
+              throw new Error('Anda tidak diizinkan mengakses toko ini.');
+          }
+           if (role === 'admin' && !storeData.adminUids.includes(user.uid)) {
+              throw new Error('Anda bukan admin di toko ini.');
+          }
+
+          setActiveStore(storeData);
           setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
-        } else {
-          const role = userData.role || 'N/A';
-          throw new Error(`storeId is missing for user UID: ${session.user.id} with role: '${role}'.`);
         }
       } catch (error: any) {
         console.error("Error handling user session:", error);
-        toast({ variant: 'destructive', title: 'Session Error', description: error.message });
-        await supabase.auth.signOut();
+        toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
+        await signOut(auth);
         setCurrentUser(null);
         setActiveStore(null);
+        sessionStorage.removeItem('activeStoreId');
       } finally {
         setIsLoading(false);
       }
@@ -103,35 +107,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(null);
       setActiveStore(null);
       setIsLoading(false);
+      sessionStorage.removeItem('activeStoreId');
     }
   }, [toast]);
 
   React.useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleUserSession(session);
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    const unsubscribe = onAuthStateChanged(auth, handleUserSession);
+    return () => unsubscribe();
   }, [handleUserSession]);
 
-  const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      throw error;
+  const login = async (email: string, password: string, storeId?: string) => {
+    if (!storeId && !email.toLowerCase().includes('riopradana')) {
+        const userDocQuery = await getDoc(doc(db, 'users', email.split('@')[0]));
+        if (userDocQuery.exists() && userDocQuery.data().role !== 'superadmin') {
+            throw new Error('Silakan pilih toko terlebih dahulu.');
+        }
     }
+
+    const { user } = await signInWithEmailAndPassword(auth, email, password);
+    const idTokenResult = await user.getIdTokenResult(true); // Force refresh claims
+    const userRole = idTokenResult.claims.role;
+
+    if (userRole === 'superadmin') {
+        sessionStorage.removeItem('activeStoreId');
+    } else if (storeId) {
+        sessionStorage.setItem('activeStoreId', storeId);
+    } else {
+        await signOut(auth);
+        throw new Error('Toko harus dipilih untuk peran admin atau kasir.');
+    }
+
     toast({
-      title: 'Login Successful!',
-      description: `Welcome back.`,
+      title: 'Login Berhasil!',
+      description: `Selamat datang kembali.`,
     });
+    // The onAuthStateChanged listener will handle the rest
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
+    sessionStorage.removeItem('activeStoreId');
     toast({
-      title: 'Logout Successful',
-      description: 'You have been signed out.',
+      title: 'Logout Berhasil',
+      description: 'Anda telah keluar.',
     });
   };
 

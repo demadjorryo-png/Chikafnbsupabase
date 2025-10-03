@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
@@ -31,7 +30,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BarcodeScanner } from '@/components/dashboard/barcode-scanner';
-import { supabase } from '@/lib/supabase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const FormSchema = z.object({
     name: z.string().min(2, 'Nama minimal 2 karakter.'),
@@ -77,46 +76,19 @@ export default function RegisterPage() {
   const handleRegister = async (values: z.infer<typeof FormSchema>) => {
     setIsLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const functions = getFunctions();
+      const createUser = httpsCallable(functions, 'createUser');
+      
+      const result: any = await createUser({
         email: values.email,
         password: values.password,
-        options: {
-          data: {
-            name: values.name,
-            whatsapp: values.whatsapp,
-          }
-        }
+        name: values.name,
+        storeName: values.storeName,
+        whatsapp: values.whatsapp, // Pass whatsapp number to the function
       });
 
-      if (authError) {
-        throw authError;
-      }
-
-      if (!authData.user) {
-        throw new Error('Pendaftaran berhasil, tetapi data pengguna tidak ditemukan.');
-      }
-
-      const { data: storeData, error: storeError } = await supabase
-        .from('stores')
-        .insert({ name: values.storeName })
-        .select('id')
-        .single();
-
-      if (storeError) {
-        throw storeError;
-      }
-
-      const { error: userUpdateError } = await supabase
-        .from('users')
-        .update({ 
-          name: values.name,
-          storeId: storeData.id,
-          role: 'admin' 
-        })
-        .eq('id', authData.user.id);
-
-      if (userUpdateError) {
-        throw userUpdateError;
+      if (result.data.error) {
+        throw new Error(result.data.error);
       }
       
       toast({
@@ -127,8 +99,9 @@ export default function RegisterPage() {
       router.push('/login');
 
     } catch (error: any) {
-      let description = 'Terjadi kesalahan saat pendaftaran.';
-      if (error.message.includes('unique constraint') && error.message.includes('users_email_key')) {
+      console.error("Registration error:", error);
+      let description = 'Terjadi kesalahan saat pendaftaran. Silakan coba lagi.';
+      if (error.message.includes('already-exists')) {
         description = 'Email yang Anda masukkan sudah terdaftar. Silakan gunakan email lain.';
       }
       toast({ variant: 'destructive', title: 'Pendaftaran Gagal', description: description });
@@ -256,3 +229,5 @@ export default function RegisterPage() {
     </>
   );
 }
+
+    
