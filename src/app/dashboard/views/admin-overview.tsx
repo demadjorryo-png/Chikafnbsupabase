@@ -21,7 +21,7 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown } from 'lucide-react';
+import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, FileText, FileSpreadsheet } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -232,10 +232,10 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (formatType: 'PDF' | 'Excel') => {
     toast({
         title: "Exporting Data (Simulation)",
-        description: `Preparing to export data for ${activeStore?.name} from ${format(exportDate?.from!, 'PPP')} to ${format(exportDate?.to!, 'PPP')}.`,
+        description: `Mempersiapkan export data ${formatType} untuk ${activeStore?.name} dari ${format(exportDate?.from!, 'PPP')} ke ${format(exportDate?.to!, 'PPP')}.`,
     })
   }
 
@@ -450,10 +450,14 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="w-full sm:w-auto self-end">
-                 <Button onClick={handleExport} className="w-full">
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Export Data
+            <div className="flex w-full sm:w-auto self-end gap-2">
+                 <Button onClick={() => handleExport('PDF')} className="w-full">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export PDF
+                </Button>
+                 <Button onClick={() => handleExport('Excel')} className="w-full" variant="outline">
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Export Excel
                 </Button>
             </div>
         </CardContent>
