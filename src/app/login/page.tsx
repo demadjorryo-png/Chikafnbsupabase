@@ -238,7 +238,7 @@ export default function LoginPage() {
             <DialogHeader>
                 <DialogTitle>Lupa Password</DialogTitle>
                 <DialogDescription>
-                    Masukkan User ID atau email Anda yang terdaftar. Kami akan mengirimkan link untuk mereset password Anda.
+                    Masukkan email Anda yang terdaftar. Kami akan mengirimkan link untuk mereset password Anda.
                 </DialogDescription>
             </DialogHeader>
             <Form {...forgotPasswordForm}>
@@ -248,9 +248,9 @@ export default function LoginPage() {
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <Label htmlFor="forgot-email" className="sr-only">Email atau User ID</Label>
+                                <Label htmlFor="forgot-email" className="sr-only">Email</Label>
                                 <FormControl>
-                                    <Input id="forgot-email" placeholder="Email atau User ID Anda" {...field} />
+                                    <Input id="forgot-email" placeholder="Email Anda" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -269,5 +269,3 @@ export default function LoginPage() {
     </>
   );
 }
-
-    
