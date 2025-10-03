@@ -32,7 +32,7 @@ export type Store = {
   createdAt: string;
 };
 
-export type UserRole = 'admin' | 'cashier';
+export type UserRole = 'admin' | 'cashier' | 'superadmin';
 
 export type User = {
   id: string;
@@ -150,4 +150,19 @@ export type Table = {
   status: TableStatus;
   capacity: number;
   currentOrder?: TableOrder | null;
+};
+
+export type TopUpRequest = {
+  id: string;
+  storeId: string;
+  storeName: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  uniqueCode: number;
+  totalAmount: number;
+  proofUrl: string;
+  status: 'pending' | 'completed' | 'rejected';
+  requestedAt: string; // ISO 8601 string
+  processedAt?: string; // ISO 8601 string
 };
