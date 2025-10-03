@@ -116,8 +116,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
     
     setUpdatingStock(productId);
 
-    const productCollectionName = `products_${currentStoreId}`;
-    const productRef = doc(db, productCollectionName, productId);
+    const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
 
     try {
       await updateDoc(productRef, { stock: newStock });
@@ -152,9 +151,8 @@ export default function Products({ products, onDataChange, isLoading }: Products
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
     
-    const productCollectionName = `products_${currentStoreId}`;
     try {
-        await deleteDoc(doc(db, productCollectionName, selectedProduct.id));
+        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
         toast({
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
@@ -433,5 +431,3 @@ export default function Products({ products, onDataChange, isLoading }: Products
     </div>
   );
 }
-
-    

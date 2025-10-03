@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const loginSchema = z.object({
   userId: z.string().min(1, { message: 'User ID tidak boleh kosong.' }),
   password: z.string().min(1, { message: "Password tidak boleh kosong." }),
-  storeId: z.string().optional(),
+  storeId: z.string().min(1, { message: "Anda harus memilih toko." }),
 });
 
 const forgotPasswordSchema = z.object({
@@ -101,7 +101,7 @@ export default function LoginPage() {
             errorMessage = "User ID atau password yang Anda masukkan salah.";
         } else if (error.code === 'auth/too-many-requests') {
             errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
-        } else if (error.message.includes('Silakan pilih toko')) {
+        } else if (error.message) {
             errorMessage = error.message;
         }
         toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
@@ -161,8 +161,7 @@ export default function LoginPage() {
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="superadmin-no-store">(Login sebagai Superadmin)</SelectItem>
-                                        {availableStores.map(store => (
+                                        {(availableStores || []).map(store => (
                                             <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
                                         ))}
                                     </SelectContent>

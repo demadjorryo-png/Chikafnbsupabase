@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -58,18 +59,17 @@ import {
 import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 import { useAuth } from '@/contexts/auth-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useDashboard } from '@/contexts/dashboard-context';
 
-type PromotionsProps = {
-    redemptionOptions: RedemptionOption[];
-    setRedemptionOptions: React.Dispatch<React.SetStateAction<RedemptionOption[]>>;
-    transactions: Transaction[];
-    feeSettings: TransactionFeeSettings;
-}
-
-export default function Promotions({ redemptionOptions, setRedemptionOptions, transactions, feeSettings }: PromotionsProps) {
+export default function Promotions() {
   const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const { dashboardData, refreshData } = useDashboard();
+  const { redemptionOptions, setRedemptionOptions, transactions, feeSettings } = {
+      ...dashboardData,
+      setRedemptionOptions: (data: any) => { /* Placeholder */ }
+  }
+  
+  const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
@@ -91,7 +91,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
     
     try {
         await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
-        setRedemptionOptions(prev => prev.filter(p => p.id !== promotionToDelete.id));
+        refreshData();
         toast({
         title: 'Promosi Dihapus!',
         description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
@@ -128,11 +128,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
 
     try {
         await updateDoc(optionRef, { isActive: newStatus });
-        setRedemptionOptions((prevOptions) =>
-            prevOptions.map((opt) =>
-                opt.id === id ? { ...opt, isActive: newStatus } : opt
-            )
-        );
+        refreshData();
         toast({
             title: 'Status Diperbarui',
             description: `Status promosi telah berhasil diubah.`,
@@ -148,7 +144,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   };
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore) return;
+    if (!activeStore || !feeSettings) return;
     try {
       await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
@@ -207,7 +203,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
      if (!activeStore) return;
      try {
-        const docRef = await addDoc(collection(db, "redemptionOptions"), {
+        await addDoc(collection(db, "redemptionOptions"), {
             description: rec.description,
             pointsRequired: rec.pointsRequired,
             value: rec.value,
@@ -215,15 +211,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
             storeId: activeStore.id,
         });
 
-        const newPromotion: RedemptionOption = {
-            id: docRef.id,
-            description: rec.description,
-            pointsRequired: rec.pointsRequired,
-            value: rec.value,
-            isActive: false,
-        };
-
-        setRedemptionOptions(prev => [...prev, newPromotion]);
+        refreshData();
         toast({
             title: 'Draf Promo Dibuat!',
             description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
@@ -239,8 +227,8 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
     }
   };
 
-  const handlePromotionAdded = (newPromotion: RedemptionOption) => {
-    setRedemptionOptions(prev => [...prev, newPromotion]);
+  const handlePromotionAdded = () => {
+    refreshData();
   };
 
 
@@ -271,7 +259,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
             </CardContent>
          </Card>
       )}
-      {isAdmin && (
+      {isAdmin && feeSettings && (
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline tracking-wider">Rekomendasi Promo Chika AI</CardTitle>
@@ -363,7 +351,7 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
               </TableRow>
             </TableHeader>
             <TableBody>
-              {redemptionOptions.map((option) => (
+              {(redemptionOptions || []).map((option) => (
                 <TableRow key={option.id}>
                   <TableCell className="font-medium">{option.description}</TableCell>
                   <TableCell className="text-center">

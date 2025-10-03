@@ -1,3 +1,4 @@
+
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -31,7 +32,7 @@ export type Store = {
   createdAt: string;
 };
 
-export type UserRole = 'admin' | 'cashier' | 'superadmin';
+export type UserRole = 'admin' | 'cashier';
 
 export type User = {
   id: string;

@@ -102,7 +102,7 @@ export default function Customers({ customers, onDataChange, isLoading }: Custom
                 Pelanggan
               </CardTitle>
               <CardDescription>
-                Kelola data pelanggan dan lihat status loyalitas mereka.
+                Kelola data pelanggan dan lihat status loyalitas mereka untuk toko {activeStore?.name}.
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

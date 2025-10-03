@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -92,44 +92,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentUser(userData);
 
-        if (role === 'superadmin') {
-          setActiveStore(null);
-          setPradanaTokenBalance(0);
-        } else {
-          let sessionStoreId: string | null = null;
-          try {
-            sessionStoreId = sessionStorage.getItem('activeStoreId');
-          } catch(e) {
-            console.error("Session storage is not available.");
-            throw new Error("Penyimpanan sesi browser tidak tersedia. Silakan aktifkan.");
-          }
-          
-          if (!sessionStoreId) {
-             console.log("No active store in session, redirecting to login.");
-             await handleLogout();
-             router.push('/login');
-             return; // Stop execution
-          }
-
-          const storeDocRef = doc(db, 'stores', sessionStoreId);
-          const storeDoc = await getDoc(storeDocRef);
-
-          if (!storeDoc.exists()) {
-            throw new Error(`Toko dengan ID '${sessionStoreId}' tidak ditemukan.`);
-          }
-
-          const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
-
-          if (role === 'cashier' && userData.storeId !== storeData.id) {
-              throw new Error('Anda tidak diizinkan mengakses toko ini.');
-          }
-           if (role === 'admin' && !storeData.adminUids.includes(user.uid)) {
-              throw new Error('Anda bukan admin di toko ini.');
-          }
-
-          setActiveStore(storeData);
-          setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+        let sessionStoreId: string | null = null;
+        try {
+          sessionStoreId = sessionStorage.getItem('activeStoreId');
+        } catch(e) {
+          console.error("Session storage is not available.");
+          // Don't throw error here, let it be handled below
         }
+        
+        if (!sessionStoreId) {
+           console.log("No active store in session, redirecting to login.");
+           await handleLogout();
+           router.push('/login');
+           return; // Stop execution
+        }
+
+        const storeDocRef = doc(db, 'stores', sessionStoreId);
+        const storeDoc = await getDoc(storeDocRef);
+
+        if (!storeDoc.exists()) {
+          throw new Error(`Toko dengan ID '${sessionStoreId}' tidak ditemukan.`);
+        }
+
+        const storeData = { id: storeDoc.id, ...storeDoc.data() } as Store;
+
+        if (role === 'cashier' && userData.storeId !== storeData.id) {
+            throw new Error('Anda tidak diizinkan mengakses toko ini.');
+        }
+         if (role === 'admin' && !storeData.adminUids.includes(user.uid)) {
+            throw new Error('Anda bukan admin di toko ini.');
+        }
+
+        setActiveStore(storeData);
+        setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
+        
       } catch (error: any) {
         console.error("Error handling user session:", error);
         toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
@@ -149,35 +145,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleUserSession]);
 
   const login = async (userId: string, password: string, storeId?: string) => {
+    if (!storeId) {
+        throw new Error('Silakan pilih toko Anda terlebih dahulu.');
+    }
+    
     const email = `${userId}@era5758.co.id`;
     
-    // Early check for non-superadmin users if no store is selected
-    if (!storeId) {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const userData = querySnapshot.docs[0].data();
-            if (userData.role !== 'superadmin') {
-                throw new Error('Silakan pilih toko Anda terlebih dahulu.');
-            }
-        }
-        // If user not found, Firebase Auth will handle it later.
-    }
-    
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    const idTokenResult = await user.getIdTokenResult(true);
-    const role = idTokenResult.claims.role;
-
-    if(role !== 'superadmin' && !storeId){
-      await signOut(auth);
-      throw new Error('Sesi tidak valid. Kasir atau Admin harus memilih toko.');
-    }
+    await user.getIdTokenResult(true);
     
-    if (storeId) {
-        sessionStorage.setItem('activeStoreId', storeId);
-    }
+    sessionStorage.setItem('activeStoreId', storeId);
 
     toast({
       title: 'Login Berhasil!',
@@ -193,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance, availableStores };
+  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance, availableStores: availableStores || [] };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

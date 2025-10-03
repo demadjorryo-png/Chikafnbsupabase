@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -36,11 +37,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Receipt } from '@/components/dashboard/receipt';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrderReadyDialog } from '@/components/dashboard/order-ready-dialog';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { db } from '@/lib/firebase';
 import { doc, writeBatch, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -61,18 +62,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type TransactionsProps = {
-    transactions: Transaction[];
-    users: User[];
-    customers: Customer[];
-    onDataChange: () => void;
-    isLoading: boolean;
     onPrintRequest: (transaction: Transaction) => void;
 };
 
 function TransactionDetailsDialog({ transaction, open, onOpenChange, users }: { transaction: Transaction; open: boolean; onOpenChange: (open: boolean) => void; users: User[] }) {
     if (!transaction) return null;
     
-    const staff = users.find(u => u.id === transaction.staffId);
+    const staff = (users || []).find(u => u.id === transaction.staffId);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,8 +140,11 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, users }: { 
 
 type StatusFilter = 'Semua' | 'Diproses' | 'Selesai';
 
-export default function Transactions({ transactions, users, customers, onDataChange, isLoading, onPrintRequest }: TransactionsProps) {
+export default function Transactions({ onPrintRequest }: TransactionsProps) {
   const { activeStore } = useAuth();
+  const { dashboardData, isLoading, refreshData: onDataChange } = useDashboard();
+  const { transactions, stores, users, customers } = dashboardData || {};
+  
   const { toast } = useToast();
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [actionInProgress, setActionInProgress] = React.useState<{ transaction: Transaction; type: 'call' | 'whatsapp' } | null>(null);
@@ -162,11 +161,11 @@ export default function Transactions({ transactions, users, customers, onDataCha
   const itemsPerPage = 100;
 
   const filteredTransactions = React.useMemo(() => {
-    let dateFiltered = transactions;
+    let dateFiltered = transactions || [];
     if (date?.from && date?.to) {
         const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
         const toDate = new Date(date.to.setHours(23, 59, 59, 999));
-        dateFiltered = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
+        dateFiltered = dateFiltered.filter(t => isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate }));
     }
 
     if (statusFilter === 'Semua') {
@@ -200,7 +199,7 @@ export default function Transactions({ transactions, users, customers, onDataCha
 
   const getCustomerForTransaction = (transaction: Transaction): Customer | undefined => {
       if (!transaction.customerId || transaction.customerId === 'N/A') return undefined;
-      return customers.find(c => c.id === transaction.customerId);
+      return (customers || []).find(c => c.id === transaction.customerId);
   }
 
   const handleActionClick = (transaction: Transaction, type: 'call' | 'whatsapp') => {
@@ -226,7 +225,7 @@ export default function Transactions({ transactions, users, customers, onDataCha
             const tableRef = doc(db, 'stores', activeStore.id, 'tables', transactionToComplete.tableId);
             const tableDoc = await getDoc(tableRef);
             if (tableDoc.exists()) {
-                batch.update(tableRef, { status: 'Selesai Dibayar' });
+                batch.update(tableRef, { status: 'Menunggu Dibersihkan' });
             }
         }
         
@@ -374,7 +373,7 @@ export default function Transactions({ transactions, users, customers, onDataCha
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={() => handleActionClick(transaction, 'whatsapp')}
-                                        disabled={!getCustomerForTransaction(transaction) || sentWhatsappIds.has(transaction.id)}
+                                        disabled={sentWhatsappIds.has(transaction.id)}
                                     >
                                         <Send className="h-4 w-4"/>
                                         <span className="sr-only">Kirim WhatsApp</span>
@@ -450,7 +449,8 @@ export default function Transactions({ transactions, users, customers, onDataCha
               transaction={selectedTransaction}
               open={!!selectedTransaction}
               onOpenChange={() => setSelectedTransaction(null)}
-              users={users}
+              stores={stores || []}
+              users={users || []}
           />
       )}
       {actionInProgress && activeStore && (

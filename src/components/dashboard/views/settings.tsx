@@ -31,13 +31,14 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
 import type { ReceiptSettings } from '@/lib/types';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 const PasswordFormSchema = z
@@ -45,7 +46,7 @@ const PasswordFormSchema = z
     currentPassword: z.string().min(1, 'Password saat ini harus diisi.'),
     newPassword: z
       .string()
-      .min(8, 'Password baru harus minimal 8 karakter.'),
+      .min(6, 'Password baru harus minimal 6 karakter.'),
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -53,11 +54,9 @@ const PasswordFormSchema = z
     path: ['confirmPassword'],
   });
   
-const availableVoices = [
-    { name: 'Achernar', label: 'Achernar (Pria)' },
-    { name: 'Enceladus', label: 'Enceladus (Wanita)' },
-    { name: 'Vindemiatrix', label: 'Vindemiatrix (Wanita)' },
-    { name: 'Zephyr', label: 'Zephyr (Pria)' },
+const availableGenders = [
+    { value: 'female', label: 'Suara Wanita' },
+    { value: 'male', label: 'Suara Pria' },
 ];
 
 function ProfileCardSkeleton() {
@@ -97,9 +96,9 @@ function ProfileCardSkeleton() {
 export default function Settings() {
   const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
-  const [isVoiceSettingLoading, setIsVoiceSettingLoading] = React.useState(false);
+  const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
-  const [voiceSettings, setVoiceSettings] = React.useState<Pick<ReceiptSettings, 'voice'> | null>(null);
+  const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle'> | null>(null);
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
@@ -109,7 +108,10 @@ export default function Settings() {
   React.useEffect(() => {
     if (activeStore) {
         getReceiptSettings(activeStore.id).then(settings => {
-            setVoiceSettings({ voice: settings.voice });
+            setGeneralSettings({ 
+                voiceGender: settings.voiceGender,
+                notificationStyle: settings.notificationStyle
+            });
         });
     }
   }, [activeStore]);
@@ -167,26 +169,29 @@ export default function Settings() {
     }
   };
   
-  const handleVoiceSettingSave = async () => {
-    if (!activeStore || !voiceSettings) return;
-    setIsVoiceSettingLoading(true);
+  const handleGeneralSettingSave = async () => {
+    if (!activeStore || !generalSettings) return;
+    setIsGeneralSettingLoading(true);
     try {
-        await updateReceiptSettings(activeStore.id, { voice: voiceSettings.voice });
-        toast({ title: 'Pengaturan Suara Disimpan!' });
+        await updateReceiptSettings(activeStore.id, { 
+            voiceGender: generalSettings.voiceGender,
+            notificationStyle: generalSettings.notificationStyle,
+        });
+        toast({ title: 'Pengaturan Umum Disimpan!' });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal Menyimpan' });
     } finally {
-        setIsVoiceSettingLoading(false);
+        setIsGeneralSettingLoading(false);
     }
   };
   
   const handlePlaySample = async () => {
-    if (!voiceSettings?.voice) return;
+    if (!generalSettings?.voiceGender) return;
     setIsSamplePlaying(true);
     try {
         const { audioDataUri } = await convertTextToSpeech({
             text: "Ini adalah contoh suara saya. Terima kasih.",
-            voiceName: voiceSettings.voice,
+            gender: generalSettings.voiceGender,
         });
         const audio = new Audio(audioDataUri);
         audio.play();
@@ -242,25 +247,25 @@ export default function Settings() {
         {currentUser?.role === 'admin' && (
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline tracking-wider">Pengaturan Suara Panggilan</CardTitle>
-                    <CardDescription>Pilih suara yang akan digunakan untuk memanggil pelanggan saat pesanan siap.</CardDescription>
+                    <CardTitle className="font-headline tracking-wider">Pengaturan Umum Notifikasi</CardTitle>
+                    <CardDescription>Pilih suara dan gaya pesan untuk notifikasi pesanan siap.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                     <div className="max-w-md space-y-2">
-                        <Label>Jenis Suara</Label>
-                        {voiceSettings ? (
+                        <Label>Gender Suara Panggilan</Label>
+                        {generalSettings ? (
                             <div className="flex items-center gap-2">
                                  <Select
-                                    value={voiceSettings.voice}
-                                    onValueChange={(value) => setVoiceSettings({ voice: value })}
+                                    value={generalSettings.voiceGender}
+                                    onValueChange={(value: 'male' | 'female') => setGeneralSettings(s => s ? {...s, voiceGender: value} : null)}
                                  >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Pilih suara..." />
+                                        <SelectValue placeholder="Pilih gender..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {availableVoices.map(voice => (
-                                            <SelectItem key={voice.name} value={voice.name}>
-                                                {voice.label}
+                                        {availableGenders.map(gender => (
+                                            <SelectItem key={gender.value} value={gender.value}>
+                                                {gender.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -278,10 +283,29 @@ export default function Settings() {
                         ) : <Skeleton className="h-10 w-full" />}
                        
                     </div>
-                     <Button onClick={handleVoiceSettingSave} disabled={isVoiceSettingLoading}>
-                        {isVoiceSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}
+                     <div className="max-w-md space-y-2">
+                        <Label>Gaya Pesan Notifikasi</Label>
+                        {generalSettings ? (
+                           <RadioGroup
+                                value={generalSettings.notificationStyle}
+                                onValueChange={(value: 'fakta' | 'pantun') => setGeneralSettings(s => s ? {...s, notificationStyle: value} : null)}
+                                className="flex gap-4 pt-2"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="fakta" id="fakta" />
+                                    <Label htmlFor="fakta" className="flex items-center gap-2 font-normal"><Zap/> Fakta Menarik</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="pantun" id="pantun" />
+                                    <Label htmlFor="pantun" className="flex items-center gap-2 font-normal"><MessageSquareQuote /> Pantun Unik</Label>
+                                </div>
+                            </RadioGroup>
+                        ) : <Skeleton className="h-10 w-full" />}
+                    </div>
+                     <Button onClick={handleGeneralSettingSave} disabled={isGeneralSettingLoading}>
+                        {isGeneralSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}
                         <Save className="mr-2 h-4 w-4" />
-                        Simpan Suara
+                        Simpan Pengaturan
                     </Button>
                 </CardContent>
             </Card>
@@ -388,7 +412,3 @@ export default function Settings() {
     </div>
   );
 }
-
-    
-
-    

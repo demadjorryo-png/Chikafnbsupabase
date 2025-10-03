@@ -14,13 +14,12 @@ const db = admin.firestore();
 
 /**
  * Creates a new user account, potentially with a new store.
- * This function handles 3 scenarios for the caller:
- * 1. Superadmin: Can create any type of user, including other superadmins.
- * 2. Admin: Can create employees (cashiers, other admins) for their own store.
- * 3. Unauthenticated user: Can register a new store, which creates an initial admin user for that store.
+ * This function handles 2 scenarios for the caller:
+ * 1. Admin: Can create employees (cashiers, other admins) for their own store.
+ * 2. Unauthenticated user: Can register a new store, which creates an initial admin user for that store.
  */
 export const createUser = onCall(async (request) => {
-    // Scenario 3: New user registration (unauthenticated)
+    // Scenario 2: New user registration (unauthenticated)
     if (!request.auth) {
         const { email, password, name, storeName, whatsapp } = request.data;
         if (!email || !password || !name || !storeName || !whatsapp) {
@@ -72,54 +71,45 @@ export const createUser = onCall(async (request) => {
     const callerRole = request.auth.token.role;
     const callerId = request.auth.uid;
 
-    // Scenarios 1 & 2: Authenticated user (superadmin or admin)
-    if (!['superadmin', 'admin'].includes(callerRole)) {
+    // Scenario 1: Authenticated user (admin)
+    if (callerRole !== 'admin') {
         throw new HttpsError('permission-denied', 'You do not have permission to create users.');
     }
 
     const { email, password, name, role } = request.data;
-    let { storeId } = request.data; // storeId is optional, depends on role
+    const storeId = request.auth.token.storeId; // Admin can only create for their own store
 
     if (!email || !password || !name || !role) {
         throw new HttpsError('invalid-argument', 'Missing required employee fields.');
     }
     
-    // Admin creating an employee for their own store
-    if (callerRole === 'admin') {
-        storeId = request.auth.token.storeId;
-        if (role === 'admin' || role === 'cashier') {
-             // Admins can create other admins or cashiers for their store
-        } else {
-             throw new HttpsError('permission-denied', `Admins cannot create users with the role: ${role}`);
-        }
-    } 
-    // Superadmin creating a user for a specific store
-    else if (callerRole === 'superadmin' && !storeId && role !== 'superadmin') {
-        throw new HttpsError('invalid-argument', 'storeId is required when a superadmin creates a non-superadmin user.');
+    if (role !== 'admin' && role !== 'cashier') {
+         throw new HttpsError('permission-denied', `Admins cannot create users with the role: ${role}`);
+    }
+    
+    if (!storeId) {
+        throw new HttpsError('invalid-argument', 'The calling admin does not have a storeId.');
     }
     
     try {
         const userRecord = await admin.auth().createUser({ email, password, displayName: name });
-        const claims = { role, ...(storeId && { storeId }) };
+        const claims = { role, storeId };
         await admin.auth().setCustomUserClaims(userRecord.uid, claims);
 
-        const userData: any = { name, email, role, status: 'active' };
-        if (storeId) {
-            userData.storeId = storeId;
-        }
+        const userData: any = { name, email, role, status: 'active', storeId };
         
         await db.collection('users').doc(userRecord.uid).set(userData);
 
-        // If an admin was created for a store, add them to the store's admin list
-        if (role === 'admin' && storeId) {
+        // If another admin was created for a store, add them to the store's admin list
+        if (role === 'admin') {
             const storeRef = db.collection('stores').doc(storeId);
             await storeRef.update({ adminUids: admin.firestore.FieldValue.arrayUnion(userRecord.uid) });
         }
 
-        logger.info(`User ${userRecord.uid} created by ${callerId}`);
+        logger.info(`User ${userRecord.uid} created by admin ${callerId}`);
         return { success: true, uid: userRecord.uid };
     } catch (error) {
-        logger.error(`Error creating user by ${callerId}:`, error);
+        logger.error(`Error creating user by admin ${callerId}:`, error);
         if ((error as any).code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }

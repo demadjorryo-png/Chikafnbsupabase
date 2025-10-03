@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Product, ProductCategory, Store } from '@/lib/types';
+import type { Product, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,12 +58,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
-
-type ProductsProps = {
-    products: Product[];
-    onDataChange: () => void;
-    isLoading: boolean;
-};
+import { useDashboard } from '@/contexts/dashboard-context';
 
 function StockInput({ product, onStockChange, isUpdating }: { product: Product; onStockChange: (productId: string, newStock: number) => void; isUpdating: boolean; }) {
   const [currentStock, setCurrentStock] = React.useState(product.stock);
@@ -113,10 +109,13 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
 }
 
 
-export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
+export default function Products() {
   const { currentUser, activeStore } = useAuth();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const { products } = dashboardData;
+  
   const userRole = currentUser?.role || 'cashier';
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isAdmin = userRole === 'admin';
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -141,7 +140,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
     try {
       await updateDoc(productRef, { stock: newStock });
-      onDataChange(); // Refresh data from parent
+      refreshData(); // Refresh data from parent
     } catch (error) {
       console.error("Error updating stock:", error);
       toast({
@@ -174,7 +173,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-        onDataChange();
+        refreshData();
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -190,7 +189,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
 
   const handleDataUpdate = () => {
-    onDataChange();
+    refreshData();
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {
@@ -206,7 +205,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
   };
 
   const filteredProducts = React.useMemo(() => {
-    return products.filter(product => {
+    return (products || []).filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(product.category);
       return matchesSearch && matchesCategory;
@@ -214,7 +213,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
   }, [products, searchTerm, selectedCategories]);
 
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(products.map(p => p.category));
+    const categories = new Set((products || []).map(p => p.category));
     return Array.from(categories).sort();
   }, [products]);
 

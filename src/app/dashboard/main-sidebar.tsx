@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -26,7 +27,6 @@ import {
   UserCircle,
   BarChart4,
   Armchair,
-  ShieldCheck,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
@@ -42,7 +42,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : (currentUser?.role === 'admin' ? 'overview' : 'pos');
+  const defaultView = currentUser?.role === 'admin' ? 'overview' : 'pos';
   const currentView = searchParams.get('view') || defaultView;
   
 
@@ -62,17 +62,11 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   };
 
   const allMenuItems = [
-     {
-      view: 'platform-control',
-      label: 'Kontrol Platform',
-      icon: <ShieldCheck />,
-      roles: ['superadmin'],
-    },
     {
       view: 'overview',
       label: 'Overview',
       icon: <LayoutGrid />,
-      roles: ['admin', 'cashier', 'superadmin'],
+      roles: ['admin', 'cashier'],
     },
     {
       view: 'pos',
@@ -134,7 +128,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     ? allMenuItems.filter(item => item.roles.includes(currentUser.role))
     : [];
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">

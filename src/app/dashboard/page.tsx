@@ -7,7 +7,6 @@ import { Header } from '@/components/dashboard/header';
 import { SidebarInset } from '@/components/ui/sidebar';
 import Overview from '@/app/dashboard/views/overview';
 import AdminOverview from '@/app/dashboard/views/admin-overview';
-import SuperAdminOverview from '@/app/dashboard/views/superadmin-overview';
 import POS from '@/app/dashboard/views/pos';
 import Products from '@/app/dashboard/views/products';
 import Customers from '@/app/dashboard/views/customers';
@@ -19,7 +18,6 @@ import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import Tables from '@/app/dashboard/views/tables';
-import PlatformControl from '@/app/dashboard/views/platform-control';
 import { Suspense } from 'react';
 import type { User, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
@@ -72,8 +70,7 @@ function DashboardContent() {
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
 
   const isAdmin = currentUser?.role === 'admin';
-  const isSuperAdmin = currentUser?.role === 'superadmin';
-  const view = searchParams.get('view') || (isSuperAdmin ? 'platform-control' : (isAdmin ? 'overview' : 'pos'));
+  const view = searchParams.get('view') || (isAdmin ? 'overview' : 'pos');
   
   if (isLoading || !dashboardData) {
     return <DashboardSkeleton />;
@@ -82,18 +79,13 @@ function DashboardContent() {
   const { products, customers, tables, feeSettings, users, transactions } = dashboardData;
 
   const renderView = () => {
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics', 'platform-control'];
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
     if (currentUser?.role === 'cashier' && unauthorizedCashierViews.includes(view)) {
         return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
     }
 
     switch (view) {
-      case 'platform-control':
-        return <PlatformControl />;
       case 'overview':
-        if (isSuperAdmin) {
-            return <SuperAdminOverview />;
-        }
         if (isAdmin) {
           return <AdminOverview />;
         }
@@ -132,7 +124,6 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings />;
       default:
-        if (isSuperAdmin) return <PlatformControl />;
         return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
     }
   };
@@ -156,15 +147,10 @@ function DashboardContent() {
       'challenges': 'Tantangan Karyawan',
       'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
-      'platform-control': 'Kontrol Platform',
     }[view] || 'Manajemen Meja';
     
-    if (isAdmin && !isSuperAdmin && view === 'overview') {
+    if (isAdmin && view === 'overview') {
         return `Admin Overview`;
-    }
-    
-    if (isSuperAdmin && view === 'overview') {
-        return `Overview Platform`;
     }
 
     return baseTitle;
