@@ -111,7 +111,7 @@ export default function RegisterPage() {
         <Card>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleRegister)}>
-              <CardHeader>
+              <CardHeader className="text-center">
                 <CardTitle className="font-headline text-2xl tracking-wider">DAFTAR TOKO BARU</CardTitle>
                 <CardDescription>
                   Lengkapi detail di bawah untuk membuat toko dan akun admin pertama Anda.
