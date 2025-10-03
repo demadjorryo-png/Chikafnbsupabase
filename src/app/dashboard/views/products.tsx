@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,7 +21,7 @@ import type { Product, ProductCategory } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ListFilter, MoreHorizontal, PlusCircle, Search, Plus, Minus, Loader2 } from 'lucide-react';
+import { ListFilter, MoreHorizontal, PlusCircle, Search, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -57,40 +58,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
-
-type ProductsProps = {
-    products: Product[];
-    onDataChange: () => void;
-    isLoading: boolean;
-};
-
-function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier' | 'superadmin'; storeName: string; }) {
-    if (!product) return null;
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">{product.name}</DialogTitle>
-                    <DialogDescription>
-                        SKU: {product.attributes.barcode || 'N/A'}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2 py-4 text-sm">
-                   <div><strong>Brand:</strong> {product.attributes.brand}</div>
-                   <div className="flex items-center gap-1"><strong>Category:</strong> <Badge variant="outline">{product.category}</Badge></div>
-                   {product.attributes.flavorProfile && <div><strong>Flavor:</strong> {product.attributes.flavorProfile}</div>}
-                   {product.attributes.nicotine && <div><strong>Nicotine:</strong> {product.attributes.nicotine}</div>}
-                   {product.attributes.size && <div><strong>Size:</strong> {product.attributes.size}</div>}
-                   {product.attributes.powerOutput && <div><strong>Power:</strong> {product.attributes.powerOutput}</div>}
-                   <div><strong>Stock di {storeName}:</strong> {product.stock}</div>
-                   {userRole === 'admin' && <div><strong>Cost Price:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
-                   <div><strong>Selling Price:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
+import { useDashboard } from '@/contexts/dashboard-context';
 
 function StockInput({ product, onStockChange, isUpdating }: { product: Product; onStockChange: (productId: string, newStock: number) => void; isUpdating: boolean; }) {
   const [currentStock, setCurrentStock] = React.useState(product.stock);
@@ -141,10 +109,13 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
 }
 
 
-export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
+export default function Products() {
   const { currentUser, activeStore } = useAuth();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const products = dashboardData?.products || [];
+  
   const userRole = currentUser?.role || 'cashier';
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isAdmin = userRole === 'admin';
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -169,7 +140,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
     try {
       await updateDoc(productRef, { stock: newStock });
-      onDataChange(); // Refresh data from parent
+      refreshData(); // Refresh data from parent
     } catch (error) {
       console.error("Error updating stock:", error);
       toast({
@@ -183,10 +154,6 @@ export default function Products({ products, onDataChange, isLoading }: Products
   };
 
 
-  const handleViewDetails = (product: Product) => {
-    setSelectedProduct(product);
-  };
-  
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product);
     setIsEditDialogOpen(true);
@@ -206,7 +173,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
             title: 'Produk Dihapus!',
             description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
         });
-        onDataChange();
+        refreshData();
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -222,7 +189,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
 
   const handleDataUpdate = () => {
-    onDataChange();
+    refreshData();
   }
   
   const handleCategoryFilterChange = (category: ProductCategory) => {
@@ -246,7 +213,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
   }, [products, searchTerm, selectedCategories]);
 
   const availableCategories = React.useMemo(() => {
-    const categories = new Set(products.map(p => p.category));
+    const categories = new Set((products || []).map(p => p.category));
     return Array.from(categories).sort();
   }, [products]);
 
@@ -358,17 +325,21 @@ export default function Products({ products, onDataChange, isLoading }: Products
                 ))
               ) : (
                 filteredProducts.map((product) => (
-                  <TableRow key={product.id} className="cursor-pointer" onClick={() => handleViewDetails(product)}>
+                  <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                       <StockInput 
-                        product={product} 
-                        onStockChange={handleStockChange}
-                        isUpdating={updatingStock === product.id}
-                       />
+                       {isAdmin ? (
+                         <StockInput 
+                          product={product} 
+                          onStockChange={handleStockChange}
+                          isUpdating={updatingStock === product.id}
+                         />
+                       ) : (
+                         product.stock
+                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
@@ -397,16 +368,6 @@ export default function Products({ products, onDataChange, isLoading }: Products
           </Table>
         </CardContent>
       </Card>
-
-      {selectedProduct && activeStore && (
-        <ProductDetailsDialog
-          product={selectedProduct}
-          open={!!selectedProduct && !isEditDialogOpen && !isDeleteDialogOpen}
-          onOpenChange={() => setSelectedProduct(null)}
-          userRole={userRole}
-          storeName={activeStore.name}
-        />
-      )}
   
       {selectedProduct && isEditDialogOpen && activeStore && (
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
