@@ -38,7 +38,7 @@ import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
 const loginSchema = z.object({
-  userId: z.string().min(1, { message: 'User ID tidak boleh kosong.' }),
+  email: z.string().email({ message: 'Format email tidak valid.' }),
   password: z.string().min(1, { message: "Password tidak boleh kosong." }),
 });
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      userId: '',
+      email: '',
       password: '',
     },
   });
@@ -90,12 +90,12 @@ export default function LoginPage() {
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
     try {
-      await login(values.userId, values.password);
+      await login(values.email, values.password);
       router.push('/dashboard');
     } catch (error: any) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "User ID atau password yang Anda masukkan salah.";
+            errorMessage = "Email atau password yang Anda masukkan salah.";
         } else if (error.code === 'auth/too-many-requests') {
             errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
         } else if (error.message) {
@@ -140,19 +140,19 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">SELAMAT DATANG</CardTitle>
-              <CardDescription>Masukkan User ID dan password Anda.</CardDescription>
+              <CardDescription>Masukkan email dan password Anda.</CardDescription>
           </CardHeader>
           <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
                     <FormField
                         control={form.control}
-                        name="userId"
+                        name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <Label htmlFor="userId">User ID</Label>
+                                <Label htmlFor="email">Email</Label>
                                 <FormControl>
-                                    <Input id="userId" placeholder='Contoh: riopradana' {...field} />
+                                    <Input id="email" type="email" placeholder='admin@tokosaya.com' {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -269,3 +269,5 @@ export default function LoginPage() {
     </>
   );
 }
+
+    

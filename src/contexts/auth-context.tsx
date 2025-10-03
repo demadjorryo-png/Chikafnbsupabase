@@ -14,7 +14,7 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (userId: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
   availableStores: Store[];
@@ -31,20 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
   
-  React.useEffect(() => {
-    const fetchStores = async () => {
-        try {
-            const storesCollection = collection(db, 'stores');
-            const storesSnapshot = await getDocs(storesCollection);
-            const storesList = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
-            setAvailableStores(storesList);
-        } catch (error) {
-            console.error("Error fetching available stores:", error);
-        }
-    };
-    fetchStores();
-  }, []);
-
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
     try {
@@ -90,14 +76,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         let storeIdToLoad: string | undefined;
 
-        if (userData.role === 'cashier') {
+        if (userData.role === 'cashier' && userData.storeId) {
             storeIdToLoad = userData.storeId;
         } else if (userData.role === 'admin') {
-            // For admin, find the first store they are an admin of.
             const storesQuery = query(collection(db, 'stores'), where('adminUids', 'array-contains', user.uid));
             const storesSnapshot = await getDocs(storesQuery);
             if (!storesSnapshot.empty) {
                 storeIdToLoad = storesSnapshot.docs[0].id;
+            } else {
+                 throw new Error('Admin tidak terasosiasi dengan toko manapun.');
             }
         }
         
@@ -130,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Error handling user session:", error);
         toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
         await handleLogout();
+        router.push('/login');
       } finally {
         setIsLoading(false);
       }
@@ -144,12 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [handleUserSession]);
 
-  const login = async (userId: string, password: string) => {
-    const email = `${userId}@era5758.co.id`;
-    
+  const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
-    // The onAuthStateChanged listener will handle the rest of the session setup.
-    
     toast({
       title: 'Login Berhasil!',
       description: `Selamat datang kembali.`,
@@ -176,3 +160,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    
