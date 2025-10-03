@@ -38,6 +38,10 @@ import type { AppliedStrategy, Product, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { deductAiUsageFee } from '@/lib/app-settings';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import Papa from 'papaparse';
+
 
 const chartConfig = {
   revenue: {
@@ -46,14 +50,10 @@ const chartConfig = {
   },
 };
 
-interface AdminOverviewProps {
-    transactions: Transaction[];
-    products: Product[];
-}
-
-export default function AdminOverview({ transactions, products }: AdminOverviewProps) {
+export default function AdminOverview() {
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { dashboardData, feeSettings, refreshData } = useDashboard();
+  const { transactions, products } = dashboardData;
   const [recommendations, setRecommendations] = React.useState<{ weeklyRecommendation: string; monthlyRecommendation: string } | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
@@ -233,10 +233,108 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
   };
 
   const handleExport = (formatType: 'PDF' | 'Excel') => {
+    if (!exportDate?.from || !exportDate?.to || !transactions.length) {
+      toast({
+        variant: 'destructive',
+        title: 'Tidak Ada Data',
+        description: 'Pilih rentang tanggal yang valid dan pastikan ada transaksi.',
+      });
+      return;
+    }
+
+    const fromDate = new Date(exportDate.from.setHours(0, 0, 0, 0));
+    const toDate = new Date(exportDate.to.setHours(23, 59, 59, 999));
+
+    const filteredTransactions = transactions.filter(t =>
+      isWithinInterval(new Date(t.createdAt), { start: fromDate, end: toDate })
+    );
+
+    if (filteredTransactions.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Tidak Ada Transaksi',
+        description: 'Tidak ada data transaksi pada rentang tanggal yang dipilih.',
+      });
+      return;
+    }
+
+    const dateRangeStr = `${format(fromDate, 'yyyy-MM-dd')} to ${format(toDate, 'yyyy-MM-dd')}`;
+    const filename = `Laporan_Penjualan_${activeStore?.name}_${dateRangeStr}`.replace(/\s+/g, '_');
+
+    if (formatType === 'Excel') {
+      const dataForCsv = filteredTransactions.flatMap(tx => 
+        tx.items.map(item => ({
+          'ID Transaksi': tx.id,
+          'Tanggal': format(new Date(tx.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+          'Nama Pelanggan': tx.customerName,
+          'Metode Pembayaran': tx.paymentMethod,
+          'Nama Produk': item.productName,
+          'Jumlah': item.quantity,
+          'Harga Satuan': item.price,
+          'Total Item': item.quantity * item.price,
+          'Subtotal Transaksi': tx.subtotal,
+          'Diskon Transaksi': tx.discountAmount,
+          'Total Transaksi': tx.totalAmount
+        }))
+      );
+      
+      const csv = Papa.unparse(dataForCsv);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${filename}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+    } else if (formatType === 'PDF') {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text(`Laporan Penjualan - ${activeStore?.name}`, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Periode: ${format(fromDate, 'd MMMM yyyy', { locale: idLocale })} - ${format(toDate, 'd MMMM yyyy', { locale: idLocale })}`, 14, 30);
+        
+        const totalRevenue = filteredTransactions.reduce((sum, tx) => sum + tx.totalAmount, 0);
+        const totalDiscounts = filteredTransactions.reduce((sum, tx) => sum + tx.discountAmount, 0);
+
+        autoTable(doc, {
+            startY: 40,
+            head: [['Ringkasan']],
+            body: [
+                [`Total Transaksi`, filteredTransactions.length],
+                [`Total Pendapatan`, `Rp ${totalRevenue.toLocaleString('id-ID')}`],
+                [`Total Diskon`, `Rp ${totalDiscounts.toLocaleString('id-ID')}`],
+            ],
+            theme: 'grid'
+        });
+
+        const tableData = filteredTransactions.map(tx => [
+            format(new Date(tx.createdAt), 'dd/MM/yy HH:mm'),
+            tx.customerName,
+            tx.items.map(i => `${i.quantity}x ${i.productName}`).join('\n'),
+            `Rp ${tx.totalAmount.toLocaleString('id-ID')}`,
+        ]);
+
+        autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            head: [['Tanggal', 'Pelanggan', 'Item', 'Total']],
+            body: tableData,
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        doc.save(`${filename}.pdf`);
+    }
+
     toast({
-        title: "Exporting Data (Simulation)",
-        description: `Mempersiapkan export data ${formatType} untuk ${activeStore?.name} dari ${format(exportDate?.from!, 'PPP')} ke ${format(exportDate?.to!, 'PPP')}.`,
-    })
+        title: "Export Berhasil!",
+        description: `Data penjualan telah diexport ke format ${formatType}.`,
+    });
   }
 
   return (
@@ -269,7 +367,7 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline tracking-wider">Metrik Kinerja Toko</CardTitle>
-                <CardDescription>Ringkasan performa toko ${activeStore?.name} secara keseluruhan.</CardDescription>
+                <CardDescription>Ringkasan performa toko {activeStore?.name} secara keseluruhan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex items-center gap-4 rounded-md border p-4">
@@ -408,7 +506,7 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
       <Card>
         <CardHeader>
             <CardTitle className="font-headline tracking-wider">Export Data Penjualan</CardTitle>
-            <CardDescription>Unduh data transaksi dari toko ${activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
+            <CardDescription>Unduh data transaksi dari toko {activeStore?.name} untuk analisis lebih lanjut.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
             <div className="grid gap-2 w-full sm:w-auto">
@@ -466,3 +564,5 @@ export default function AdminOverview({ transactions, products }: AdminOverviewP
     </div>
   );
 }
+
+    
