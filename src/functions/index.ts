@@ -107,13 +107,13 @@ export const createEmployee = onCall(async (request) => {
 
         logger.info(`Employee ${userRecord.uid} (${role}) created for store ${storeId} by admin ${request.auth.uid}`);
         return { success: true, uid: userRecord.uid };
-    } catch (error) {
+    } catch (error: any) {
         // CRITICAL: Cleanup failed auth user creation if subsequent steps fail.
         if (userRecord) {
             await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord.uid} failed.`, e));
         }
         logger.error(`Error creating employee by admin ${request.auth.uid}:`, error);
-        if ((error as any).code === 'auth/email-already-exists') {
+        if (error.code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'This email is already registered.');
         }
         throw new HttpsError('internal', 'An unexpected error occurred while creating the employee.');
