@@ -163,6 +163,8 @@ Lihat bukti: ${proofUrl}`;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   }
+  
+  const topUpOptions = [50000, 100000, 200000, 500000];
 
   return (
     <DialogContent className="sm:max-w-4xl">
@@ -214,6 +216,19 @@ Lihat bukti: ${proofUrl}`;
                   step="10000"
                   disabled={isLoading}
                 />
+                <div className="flex flex-wrap gap-2 pt-2">
+                    {topUpOptions.map(option => (
+                        <Button
+                            key={option}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAmount(option)}
+                        >
+                            {option.toLocaleString('id-ID')}
+                        </Button>
+                    ))}
+                </div>
               </div>
               <Card className="bg-primary/10 border-primary/30">
                 <CardHeader className="p-4">
