@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { doc, getDoc, updateDoc, setDoc, increment, query, collection, where, getDocs } from 'firebase/firestore';
@@ -11,6 +9,7 @@ export type TransactionFeeSettings = {
   minFeeRp: number;
   maxFeeRp: number; // Batas maksimal biaya transaksi dalam Rupiah
   aiUsageFee: number;
+  newStoreBonusTokens: number;
 };
 
 // Default settings in case the document doesn't exist in Firestore
@@ -20,6 +19,7 @@ export const defaultFeeSettings: TransactionFeeSettings = {
   minFeeRp: 50,         // Biaya minimum Rp 50
   maxFeeRp: 250,        // Biaya maksimum Rp 250
   aiUsageFee: 1,       // Biaya 1 token per penggunaan AI
+  newStoreBonusTokens: 50, // Bonus 50 token untuk toko baru
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {

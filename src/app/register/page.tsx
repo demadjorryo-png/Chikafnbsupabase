@@ -24,6 +24,8 @@ import Link from 'next/link';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { doc, setDoc, writeBatch } from 'firebase/firestore';
+import { getTransactionFeeSettings } from '@/lib/app-settings';
+
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -57,6 +59,10 @@ export default function RegisterPage() {
     let newUser = null;
 
     try {
+      // Fetch app settings to get bonus tokens
+      const feeSettings = await getTransactionFeeSettings();
+      const bonusTokens = feeSettings.newStoreBonusTokens || 0;
+
       // Step 1: Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       newUser = userCredential.user;
@@ -70,7 +76,7 @@ export default function RegisterPage() {
       batch.set(storeRef, {
         name: values.storeName,
         location: values.storeLocation,
-        pradanaTokenBalance: 0,
+        pradanaTokenBalance: bonusTokens,
         adminUids: [uid],
         createdAt: new Date().toISOString(),
         transactionCounter: 0,
