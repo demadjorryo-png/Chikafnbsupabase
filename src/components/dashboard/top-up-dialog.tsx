@@ -21,9 +21,11 @@ import { collection, addDoc, query, orderBy, onSnapshot, Unsubscribe } from 'fir
 import type { TopUpRequest } from '@/lib/types';
 import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
+import { getBankAccountSettings, type BankAccountSettings } from '@/lib/bank-account-settings';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { format } from 'date-fns';
+import { Skeleton } from '../ui/skeleton';
 
 type TopUpDialogProps = {
   setDialogOpen: (open: boolean) => void;
@@ -37,6 +39,11 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
   const [proofFile, setProofFile] = React.useState<File | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [history, setHistory] = React.useState<TopUpRequest[]>([]);
+  const [bankSettings, setBankSettings] = React.useState<BankAccountSettings | null>(null);
+
+  React.useEffect(() => {
+    getBankAccountSettings().then(setBankSettings);
+  }, []);
 
   React.useEffect(() => {
     if (!activeStore) return;
@@ -168,7 +175,17 @@ Lihat bukti: ${proofUrl}`;
             <form onSubmit={handleSubmit} className="space-y-4">
                <div>
                   <p className="text-sm text-muted-foreground">Silakan transfer ke rekening berikut:</p>
-                  <div className="font-semibold text-lg">BCA 1234567890 a/n PT. Chika Teknologi</div>
+                  {bankSettings ? (
+                    <div className="font-semibold text-lg">
+                      {bankSettings.bankName} {bankSettings.accountNumber}
+                      <br/>a/n {bankSettings.accountHolder}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Skeleton className="h-6 w-3/4" />
+                      <Skeleton className="h-5 w-full" />
+                    </div>
+                  )}
                </div>
               <div className="space-y-2">
                 <Label htmlFor="amount">Jumlah Top Up (Rp)</Label>
