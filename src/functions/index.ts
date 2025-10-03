@@ -10,19 +10,21 @@ const db = admin.firestore();
 
 /**
  * A callable function to register a new store and an admin user account.
- * This function only creates the Auth user and the store document.
- * The corresponding user document in Firestore is created by the `onNewStoreCreate` trigger.
+ * This is a single, robust function that handles all registration steps.
  */
 export const registerStore = functions.https.onCall(async (request) => {
   const { storeName, storeLocation, adminName, email, whatsapp, password } = request.data;
   
   if (!storeName || !storeLocation || !adminName || !email || !whatsapp || !password) {
+      logger.error("Registration failed due to missing fields.", request.data);
       throw new functions.https.HttpsError('invalid-argument', 'Missing required registration fields.');
   }
 
+  let userRecord: admin.auth.UserRecord | null = null;
+
   try {
     // 1. Create Firebase Auth user
-    const userRecord = await admin.auth().createUser({
+    userRecord = await admin.auth().createUser({
       email: email,
       password: password,
       displayName: adminName,
@@ -30,13 +32,7 @@ export const registerStore = functions.https.onCall(async (request) => {
     
     logger.info(`Auth user created: ${userRecord.uid}`);
 
-    // 2. Set custom claims for the new user
-    await admin.auth().setCustomUserClaims(userRecord.uid, {
-        role: 'admin',
-    });
-    logger.info(`Custom claims set for ${userRecord.uid}`);
-
-    // 3. Create the store document and include admin info for the trigger function
+    // 2. Create the store document first to get its ID
     const storeRef = db.collection('stores').doc();
     await storeRef.set({
       name: storeName,
@@ -44,22 +40,39 @@ export const registerStore = functions.https.onCall(async (request) => {
       pradanaTokenBalance: 0,
       adminUids: [userRecord.uid],
       createdAt: new Date().toISOString(),
-      // Temp data for the onNewStoreCreate trigger
-      _tempAdminData: {
-          uid: userRecord.uid,
-          name: adminName,
-          email: email,
-          whatsapp: whatsapp,
-          role: 'admin',
-          storeId: storeRef.id
-      }
     });
+    logger.info(`Store document ${storeRef.id} created.`);
 
-    logger.info(`Store document ${storeRef.id} created successfully.`);
+    // 3. Set custom claims for the new user, including the new storeId
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+        role: 'admin',
+        storeId: storeRef.id,
+    });
+    logger.info(`Custom claims set for ${userRecord.uid}`);
+
+    // 4. Create the user document in Firestore
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    await userDocRef.set({
+        name: adminName,
+        email: email,
+        whatsapp: whatsapp,
+        role: 'admin',
+        status: 'active',
+        storeId: storeRef.id, // Associate user with the store
+    });
+    logger.info(`User document ${userRecord.uid} created for store ${storeRef.id}.`);
+
     return { success: true, userId: userRecord.uid, storeId: storeRef.id };
 
   } catch (error: any) {
     logger.error('Error during store registration:', error);
+
+    // CRITICAL: If any step fails after auth user creation, delete the auth user to prevent orphans.
+    if (userRecord) {
+        await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord?.uid} failed.`, e));
+        logger.info(`Cleaned up orphaned auth user ${userRecord.uid}.`);
+    }
+
     if (error.code === 'auth/email-already-exists') {
       throw new functions.https.HttpsError('already-exists', 'This email address is already in use by another account.');
     }
@@ -69,49 +82,9 @@ export const registerStore = functions.https.onCall(async (request) => {
 
 
 /**
- * A Firestore trigger that creates a user document whenever a new store is created.
- * This ensures the user profile is created transactionally after the store exists.
+ * A callable function to create an employee (admin or cashier) for an existing store.
+ * This is invoked from the dashboard by an existing admin.
  */
-export const onNewStoreCreate = functions.firestore.onDocumentCreated("stores/{storeId}", async (event) => {
-    const storeData = event.data?.data();
-    if (!storeData || !storeData._tempAdminData) {
-        logger.error(`New store ${event.params.storeId} created without _tempAdminData. Cannot create user document.`);
-        return;
-    }
-
-    const { uid, name, email, whatsapp, role, storeId } = storeData._tempAdminData;
-
-    if (!uid || !name || !email || !role || !storeId) {
-        logger.error(`Missing user data in _tempAdminData for store ${event.params.storeId}`);
-        return;
-    }
-
-    const userDocRef = db.collection('users').doc(uid);
-
-    try {
-        await userDocRef.set({
-            name: name,
-            email: email,
-            whatsapp: whatsapp,
-            role: role,
-            status: 'active',
-            storeId: storeId,
-        });
-
-        logger.info(`User document ${uid} created successfully for store ${storeId}.`);
-        
-        // Clean up the temporary data from the store document
-        await event.data?.ref.update({
-            _tempAdminData: admin.firestore.FieldValue.delete()
-        });
-
-    } catch (error) {
-        logger.error(`Failed to create user document for UID ${uid} on store creation ${storeId}:`, error);
-        // In a production scenario, you might want to add retry logic or alert an admin.
-    }
-});
-
-
 export const createEmployee = functions.https.onCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to perform this action.');
@@ -131,7 +104,7 @@ export const createEmployee = functions.https.onCall(async (request) => {
          throw new functions.https.HttpsError('invalid-argument', `Invalid role specified: ${role}. Can only be 'admin' or 'cashier'.`);
     }
     
-    let userRecord;
+    let userRecord: admin.auth.UserRecord | null = null;
     try {
         userRecord = await admin.auth().createUser({ email, password, displayName: name });
         
@@ -151,7 +124,7 @@ export const createEmployee = functions.https.onCall(async (request) => {
     } catch (error: any) {
         // CRITICAL: Cleanup failed auth user creation if subsequent steps fail.
         if (userRecord) {
-            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord.uid} failed.`, e));
+            await admin.auth().deleteUser(userRecord.uid).catch(e => logger.error(`Orphaned user cleanup for ${userRecord?.uid} failed.`, e));
         }
         logger.error(`Error creating employee by admin ${request.auth.uid}:`, error);
         if (error.code === 'auth/email-already-exists') {
