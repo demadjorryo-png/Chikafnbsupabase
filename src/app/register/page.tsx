@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -55,28 +54,29 @@ export default function RegisterPage() {
 
   const handleRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
+    let userCredential;
     try {
       // 1. Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
       // 2. Create the store document
       const storeRef = await addDoc(collection(db, 'stores'), {
         name: values.storeName,
         location: values.storeLocation,
-        pradanaTokenBalance: 0, // Initial balance
-        adminUids: [user.uid], // Add the new admin's UID
+        pradanaTokenBalance: 0,
+        adminUids: [user.uid],
         createdAt: new Date().toISOString(),
       });
 
-      // 3. Create the user document in 'users' collection
+      // 3. Create the user document in 'users' collection, linking to the new store
       await setDoc(doc(db, 'users', user.uid), {
         name: values.adminName,
         email: values.email,
         whatsapp: values.whatsapp,
         role: 'admin',
         status: 'active',
-        storeId: storeRef.id, // Link user to the new store
+        storeId: storeRef.id,
       });
 
       toast({
@@ -87,6 +87,11 @@ export default function RegisterPage() {
       router.push('/login');
 
     } catch (error: any) {
+      // If user creation succeeded but Firestore failed, we should clean up the auth user
+      if (userCredential) {
+        await userCredential.user.delete();
+      }
+
       let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Email yang Anda masukkan sudah terdaftar.';
