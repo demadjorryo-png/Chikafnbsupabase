@@ -104,8 +104,12 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     const costPrice = !isAdmin ? data.price : data.costPrice;
     
     try {
-        // Upload image to Firebase Storage
-        const imageRef = ref(storage, `products/${activeStore.id}/${Date.now()}_${imageFile.name}`);
+        // Create a safe, unique filename
+        const fileExtension = imageFile.name.split('.').pop();
+        const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+
+        // Upload image to Firebase Storage with the safe filename
+        const imageRef = ref(storage, `products/${activeStore.id}/${safeFileName}`);
         await uploadBytes(imageRef, imageFile);
         const imageUrl = await getDownloadURL(imageRef);
 

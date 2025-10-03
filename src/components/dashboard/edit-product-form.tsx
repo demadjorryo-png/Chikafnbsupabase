@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -98,7 +99,9 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
 
         // If a new image file is selected, upload it
         if (imageFile) {
-            const imageRef = ref(storage, `products/${activeStore.id}/${Date.now()}_${imageFile.name}`);
+            const fileExtension = imageFile.name.split('.').pop();
+            const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+            const imageRef = ref(storage, `products/${activeStore.id}/${safeFileName}`);
             await uploadBytes(imageRef, imageFile);
             imageUrl = await getDownloadURL(imageRef);
         }
