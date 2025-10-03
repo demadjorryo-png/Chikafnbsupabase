@@ -37,12 +37,7 @@ const FormSchema = z.object({
     storeName: z.string().min(3, 'Nama toko minimal 3 karakter.'),
     email: z.string().email('Format email tidak valid.'),
     whatsapp: z.string().min(10, 'Nomor WhatsApp minimal 10 digit.'),
-    password: z.string()
-      .min(8, 'Password minimal 8 karakter.')
-      .regex(/[a-z]/, 'Password harus mengandung setidaknya satu huruf kecil.')
-      .regex(/[A-Z]/, 'Password harus mengandung setidaknya satu huruf besar.')
-      .regex(/[0-9]/, 'Password harus mengandung setidaknya satu angka.')
-      .regex(/[^a-zA-Z0-9]/, 'Password harus mengandung setidaknya satu simbol.'),
+    password: z.string().min(6, 'Password minimal 6 karakter.'),
 });
 
 export default function RegisterPage() {
@@ -229,5 +224,3 @@ export default function RegisterPage() {
     </>
   );
 }
-
-    
