@@ -24,11 +24,13 @@ import { useToast } from '@/hooks/use-toast';
 import { productCategories } from '@/lib/types';
 import type { UserRole, Store, Product } from '@/lib/types';
 import * as React from 'react';
-import { Loader, ScanBarcode } from 'lucide-react';
+import { Loader, ScanBarcode, Upload } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 const FormSchema = z.object({
   name: z.string().min(2, { message: 'Nama harus minimal 2 karakter.' }),
@@ -53,6 +55,10 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
+  const [imagePreview, setImagePreview] = React.useState<string | null>(product.imageUrl);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -74,12 +80,29 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
     });
     setIsScannerOpen(false);
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
     const productRef = doc(db, 'stores', activeStore.id, 'products', product.id);
 
     try {
+        let imageUrl = product.imageUrl;
+
+        // If a new image file is selected, upload it
+        if (imageFile) {
+            const imageRef = ref(storage, `products/${activeStore.id}/${Date.now()}_${imageFile.name}`);
+            await uploadBytes(imageRef, imageFile);
+            imageUrl = await getDownloadURL(imageRef);
+        }
+
         await updateDoc(productRef, {
             name: data.name,
             category: data.category,
@@ -87,6 +110,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             costPrice: (userRole === 'admin' || userRole === 'superadmin') ? data.costPrice : product.costPrice,
             'attributes.brand': data.brand,
             'attributes.barcode': data.barcode || '',
+            imageUrl: imageUrl, // Save the new or existing image URL
         });
         
         toast({
@@ -114,6 +138,32 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
     <div className="max-h-[80vh] overflow-y-auto pr-6 pl-2 -mr-6 -ml-2">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormItem>
+            <FormLabel>Foto Produk</FormLabel>
+            <div 
+                className="mt-2 flex justify-center items-center w-full h-48 rounded-md border-2 border-dashed border-input cursor-pointer bg-secondary/50 hover:bg-secondary/70"
+                onClick={() => fileInputRef.current?.click()}
+            >
+                {imagePreview ? (
+                    <Image src={imagePreview} alt="Pratinjau produk" width={192} height={192} className="h-full w-full object-contain rounded-md" unoptimized/>
+                ) : (
+                    <div className="text-center text-muted-foreground">
+                        <Upload className="mx-auto h-10 w-10" />
+                        <p>Klik untuk memilih gambar</p>
+                    </div>
+                )}
+            </div>
+            <FormControl>
+                <Input 
+                    ref={fileInputRef}
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                    accept="image/png, image/jpeg, image/webp"
+                />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
           <FormField
             control={form.control}
             name="name"

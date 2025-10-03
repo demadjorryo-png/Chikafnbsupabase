@@ -24,12 +24,13 @@ import { useToast } from '@/hooks/use-toast';
 import { productCategories } from '@/lib/types';
 import type { UserRole, Store } from '@/lib/types';
 import * as React from 'react';
-import { Loader, ScanBarcode } from 'lucide-react';
+import { Loader, ScanBarcode, Upload } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -56,6 +57,9 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
   const { toast } = useToast();
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
+  const [imagePreview, setImagePreview] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -77,14 +81,31 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     });
     setIsScannerOpen(false);
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
+    if (!imageFile) {
+        toast({ variant: 'destructive', title: 'Gambar Produk Wajib', description: 'Silakan pilih gambar untuk produk.'});
+        return;
+    }
     setIsLoading(true);
 
     const costPrice = userRole === 'cashier' ? data.price : data.costPrice;
-    const placeholderImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
     
     try {
+        // Upload image to Firebase Storage
+        const imageRef = ref(storage, `products/${activeStore.id}/${Date.now()}_${imageFile.name}`);
+        await uploadBytes(imageRef, imageFile);
+        const imageUrl = await getDownloadURL(imageRef);
+
         await addDoc(collection(db, 'stores', activeStore.id, 'products'), {
             name: data.name,
             category: data.category,
@@ -92,8 +113,8 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
             costPrice: costPrice,
             stock: data.stock,
             supplierId: '',
-            imageUrl: placeholderImage.imageUrl,
-            imageHint: placeholderImage.imageHint,
+            imageUrl: imageUrl,
+            imageHint: '', // Hint is not needed for user-uploaded images
             attributes: { 
                 brand: data.brand,
                 barcode: data.barcode || '',
@@ -125,6 +146,32 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
     <div className="max-h-[80vh] overflow-y-auto pr-6 pl-2 -mr-6 -ml-2">
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormItem>
+            <FormLabel>Foto Produk</FormLabel>
+            <div 
+                className="mt-2 flex justify-center items-center w-full h-48 rounded-md border-2 border-dashed border-input cursor-pointer bg-secondary/50 hover:bg-secondary/70"
+                onClick={() => fileInputRef.current?.click()}
+            >
+                {imagePreview ? (
+                    <Image src={imagePreview} alt="Pratinjau produk" width={192} height={192} className="h-full w-full object-contain rounded-md" />
+                ) : (
+                    <div className="text-center text-muted-foreground">
+                        <Upload className="mx-auto h-10 w-10" />
+                        <p>Klik untuk memilih gambar</p>
+                    </div>
+                )}
+            </div>
+            <FormControl>
+                <Input 
+                    ref={fileInputRef}
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                    accept="image/png, image/jpeg, image/webp"
+                />
+            </FormControl>
+            <FormMessage />
+        </FormItem>
         <FormField
           control={form.control}
           name="name"
