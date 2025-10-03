@@ -98,7 +98,7 @@ export function AIConfirmationDialog<T>({
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="flex items-center justify-center gap-2">
               <Sparkles className="text-primary" />
               Konfirmasi Penggunaan Chika AI
             </AlertDialogTitle>
