@@ -138,7 +138,7 @@ function DashboardContent() {
 
     const baseTitle = {
       'overview': 'Dashboard Overview',
-      'pos': 'Manajemen Meja',
+      'pos': 'Kasir POS',
       'products': 'Inventaris Produk',
       'customers': 'Manajemen Pelanggan',
       'customer-analytics': 'Analisis Pelanggan',
@@ -148,7 +148,7 @@ function DashboardContent() {
       'challenges': 'Tantangan Karyawan',
       'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
-    }[view] || 'Manajemen Meja';
+    }[view] || 'Kasir POS';
     
     if (isAdmin && view === 'overview') {
         return `Admin Overview`;
