@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormControl, FormMessage, FormLabel } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
@@ -36,10 +36,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Format email tidak valid." }),
+  userId: z.string().min(1, { message: 'User ID tidak boleh kosong.' }),
   password: z.string().min(1, { message: "Password tidak boleh kosong." }),
+  storeId: z.string().optional(),
 });
 
 const forgotPasswordSchema = z.object({
@@ -56,13 +58,14 @@ export default function LoginPage() {
 
   const { toast } = useToast();
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, availableStores, isLoading: isAuthLoading } = useAuth();
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      userId: '',
       password: '',
+      storeId: '',
     },
   });
 
@@ -90,14 +93,16 @@ export default function LoginPage() {
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
     try {
-      await login(values.email, values.password);
+      await login(values.userId, values.password, values.storeId);
       router.push('/dashboard');
     } catch (error: any) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "Email atau password yang Anda masukkan salah.";
+            errorMessage = "User ID atau password yang Anda masukkan salah.";
         } else if (error.code === 'auth/too-many-requests') {
             errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+        } else if (error.message.includes('Silakan pilih toko')) {
+            errorMessage = error.message;
         }
         toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
     } finally {
@@ -107,7 +112,8 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (values: z.infer<typeof forgotPasswordSchema>) => {
     try {
-        await sendPasswordResetEmail(auth, values.email);
+        const email = values.email.includes('@') ? values.email : `${values.email}@era5758.co.id`;
+        await sendPasswordResetEmail(auth, email);
         toast({
             title: 'Email Terkirim!',
             description: 'Silakan periksa kotak masuk email Anda untuk instruksi reset password.',
@@ -117,7 +123,7 @@ export default function LoginPage() {
     } catch (error: any) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = "Email yang Anda masukkan tidak terdaftar.";
+            errorMessage = "Email atau User ID yang Anda masukkan tidak terdaftar.";
         }
         toast({
             variant: 'destructive',
@@ -137,19 +143,42 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center">
               <CardTitle className="text-2xl font-headline tracking-wider">SELAMAT DATANG</CardTitle>
-              <CardDescription>Masukkan email dan password Anda untuk masuk.</CardDescription>
+              <CardDescription>Pilih toko, masukkan User ID dan password Anda.</CardDescription>
           </CardHeader>
           <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
                     <FormField
                         control={form.control}
-                        name="email"
+                        name="storeId"
                         render={({ field }) => (
                             <FormItem>
-                                <Label htmlFor="email">Email</Label>
+                                <FormLabel>Toko</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger disabled={isAuthLoading}>
+                                        <SelectValue placeholder={isAuthLoading ? "Memuat toko..." : "Pilih toko Anda"} />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="superadmin-no-store">(Login sebagai Superadmin)</SelectItem>
+                                        {availableStores.map(store => (
+                                            <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="userId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <Label htmlFor="userId">User ID</Label>
                                 <FormControl>
-                                    <Input id="email" type="email" placeholder='admin@kafechika.com' {...field} />
+                                    <Input id="userId" placeholder='Contoh: riopradana' {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -184,8 +213,8 @@ export default function LoginPage() {
                             </FormItem>
                         )}
                     />
-                    <Button type="submit" className="w-full" disabled={isLoginLoading}>
-                        {isLoginLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button type="submit" className="w-full gap-2" disabled={isLoginLoading}>
+                        {isLoginLoading ? <Loader className="animate-spin" /> : <LogIn />}
                         Masuk
                     </Button>
                 </form>
@@ -235,7 +264,7 @@ export default function LoginPage() {
             <DialogHeader>
                 <DialogTitle>Lupa Password</DialogTitle>
                 <DialogDescription>
-                    Masukkan alamat email Anda yang terdaftar. Kami akan mengirimkan link untuk mereset password Anda.
+                    Masukkan User ID atau email Anda yang terdaftar. Kami akan mengirimkan link untuk mereset password Anda.
                 </DialogDescription>
             </DialogHeader>
             <Form {...forgotPasswordForm}>
@@ -245,9 +274,9 @@ export default function LoginPage() {
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <Label htmlFor="forgot-email" className="sr-only">Email</Label>
+                                <Label htmlFor="forgot-email" className="sr-only">Email atau User ID</Label>
                                 <FormControl>
-                                    <Input id="forgot-email" type="email" placeholder="Email Anda" {...field} />
+                                    <Input id="forgot-email" placeholder="Email atau User ID Anda" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

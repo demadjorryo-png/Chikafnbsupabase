@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { User, Store } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -14,9 +14,10 @@ interface AuthContextType {
   activeStore: Store | null;
   pradanaTokenBalance: number;
   isLoading: boolean;
-  login: (email: string, password: string, storeId?: string) => Promise<void>;
+  login: (userId: string, password: string, storeId?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPradanaTokenBalance: () => void;
+  availableStores: Store[];
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -26,8 +27,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeStore, setActiveStore] = React.useState<Store | null>(null);
   const [pradanaTokenBalance, setPradanaTokenBalance] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [availableStores, setAvailableStores] = React.useState<Store[]>([]);
   const { toast } = useToast();
   const router = useRouter();
+  
+  React.useEffect(() => {
+    const fetchStores = async () => {
+        try {
+            const storesCollection = collection(db, 'stores');
+            const storesSnapshot = await getDocs(storesCollection);
+            const storesList = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+            setAvailableStores(storesList);
+        } catch (error) {
+            console.error("Error fetching available stores:", error);
+        }
+    };
+    fetchStores();
+  }, []);
 
   const refreshPradanaTokenBalance = React.useCallback(async () => {
     if (!activeStore) return;
@@ -89,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           
           if (!sessionStoreId) {
-             console.log("No active store in session, logging out and redirecting.");
+             console.log("No active store in session, redirecting to login.");
              await handleLogout();
              router.push('/login');
              return; // Stop execution
@@ -132,19 +148,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [handleUserSession]);
 
-  const login = async (email: string, password: string, storeId?: string) => {
-    if (!storeId && !email.toLowerCase().includes('riopradana')) {
-        const userDocRef = doc(db, 'users', email.split('@')[0]);
-        const userDocQuery = await getDoc(userDocRef).catch(() => null);
+  const login = async (userId: string, password: string, storeId?: string) => {
+    const email = `${userId}@era5758.co.id`;
+    
+    // Early check for non-superadmin users if no store is selected
+    if (!storeId) {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
 
-        if (userDocQuery && userDocQuery.exists() && userDocQuery.data().role !== 'superadmin') {
-            throw new Error('Silakan pilih toko terlebih dahulu.');
+        if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data();
+            if (userData.role !== 'superadmin') {
+                throw new Error('Silakan pilih toko Anda terlebih dahulu.');
+            }
         }
+        // If user not found, Firebase Auth will handle it later.
     }
-
+    
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    await user.getIdTokenResult(true); 
+    const idTokenResult = await user.getIdTokenResult(true);
+    const role = idTokenResult.claims.role;
 
+    if(role !== 'superadmin' && !storeId){
+      await signOut(auth);
+      throw new Error('Sesi tidak valid. Kasir atau Admin harus memilih toko.');
+    }
+    
     if (storeId) {
         sessionStorage.setItem('activeStoreId', storeId);
     }
@@ -163,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance };
+  const value = { currentUser, activeStore, pradanaTokenBalance, isLoading, login, logout, refreshPradanaTokenBalance, availableStores };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
