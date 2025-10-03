@@ -194,9 +194,6 @@ export default function LoginPage() {
                 </form>
               </Form>
           </CardContent>
-           <CardFooter className="flex justify-center text-sm">
-                <p>Belum punya akun? <Link href="/register" className="font-bold text-primary hover:underline">Daftar Sekarang</Link></p>
-            </CardFooter>
         </Card>
 
         <Card className="text-center">
