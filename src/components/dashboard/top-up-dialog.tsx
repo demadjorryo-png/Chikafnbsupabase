@@ -34,13 +34,15 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
   const { activeStore, currentUser } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = React.useState(50000);
-  const [uniqueCode] = React.useState(Math.floor(Math.random() * 900) + 100);
+  const [uniqueCode, setUniqueCode] = React.useState(0);
   const [proofFile, setProofFile] = React.useState<File | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [history, setHistory] = React.useState<TopUpRequest[]>([]);
   const [bankSettings, setBankSettings] = React.useState<BankAccountSettings | null>(null);
 
   React.useEffect(() => {
+    // Generate unique code only on the client-side to prevent hydration mismatch
+    setUniqueCode(Math.floor(Math.random() * 900) + 100);
     getBankAccountSettings().then(setBankSettings);
   }, []);
 
