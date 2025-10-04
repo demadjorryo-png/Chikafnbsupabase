@@ -38,8 +38,6 @@ import type { AppliedStrategy, Product, Transaction, AdminRecommendationOutput }
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
 import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
@@ -199,7 +197,7 @@ export default function AdminOverview() {
     }
   };
 
-  const handleExport = (formatType: 'PDF' | 'Excel') => {
+  const handleExport = async (formatType: 'PDF' | 'Excel') => {
     if (!exportDate?.from || !exportDate?.to || !transactions.length) {
       toast({
         variant: 'destructive',
@@ -259,6 +257,8 @@ export default function AdminOverview() {
       }
 
     } else if (formatType === 'PDF') {
+        const { default: jsPDF } = await import('jspdf');
+        const { default: autoTable } = await import('jspdf-autotable');
         const doc = new jsPDF();
         
         doc.setFontSize(18);
@@ -553,3 +553,5 @@ export default function AdminOverview() {
     </div>
   );
 }
+
+    
