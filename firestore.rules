@@ -2,79 +2,78 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper function to check if a user is an admin of a specific store
-    function isAdmin(storeId) {
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-      let storeDoc = get(/databases/$(database)/documents/stores/$(storeId)).data;
-      return request.auth.uid in storeDoc.adminUids && userDoc.role == 'admin';
+    
+    // Helper function to check if the user belongs to a store
+    function isUserOfStore(storeId) {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
     }
     
-    // Helper function to check if a user is a cashier of a specific store
-    function isCashier(storeId) {
-       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-       return userDoc.role == 'cashier' && userDoc.storeId == storeId;
+    // Helper function to check if the user is an admin of a store
+    function isAdminOfStore(storeId) {
+      return isUserOfStore(storeId) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
-    // Helper function to check if user belongs to the store
-    function isStoreMember(storeId) {
-        return isAdmin(storeId) || isCashier(storeId);
-    }
-    
-    // Users can only read their own data. Admins can read data of users in their store.
+
+    // USERS collection
     match /users/{userId} {
-      allow read: if request.auth.uid == userId 
-                  || (isAdmin(get(/databases/$(database)/documents/users/$(userId)).data.storeId));
-      allow update: if request.auth.uid == userId; // Users can update their own data (e.g., password)
-      allow create, delete: if false; // Creation is handled by a Cloud Function for security
+      // A user can read their own data.
+      // An admin can read data of any user belonging to their store.
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || isAdminOfStore(resource.data.storeId));
+                     
+      // A user can update their own data.
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Allow user creation during registration.
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for global settings
-    match /appSettings/{docId} {
-      allow read: if request.auth != null; // Any authenticated user can read
-      allow write: if false; // Only superadmin (via server/console) can write
-    }
-    
-    match /redemptionOptions/{optionId} {
-        allow read: if request.auth != null;
-        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Rules for stores and their subcollections
+    // STORES collection
     match /stores/{storeId} {
-      // Only members of the store can read the main store document
-      allow read: if isStoreMember(storeId);
-      allow write: if isAdmin(storeId); // Only admins can update store details (e.g., token balance, settings)
+      // Allow user creation (store document) during registration process.
+      allow create: if request.auth != null && request.auth.uid == storeId;
 
-      // Products can be read by any store member, written only by admins
-      match /products/{productId} {
-        allow read: if isStoreMember(storeId);
-        allow write: if isAdmin(storeId);
-      }
+      // An authenticated user can read the store document if they belong to that store.
+      allow read: if request.auth != null && isUserOfStore(storeId);
       
-      // Customers can be read/written by any store member
-      match /customers/{customerId} {
-        allow read, write: if isStoreMember(storeId);
-      }
-      
-      // Transactions can be read/written by any store member
-      match /transactions/{transactionId} {
-         allow read, write: if isStoreMember(storeId);
-      }
-      
-      // Tables can be read/written by any store member
-      match /tables/{tableId} {
-         allow read, write: if isStoreMember(storeId);
-      }
+      // Only admins of the store can update the store document (e.g., token balance, settings).
+      allow update: if request.auth != null && isAdminOfStore(storeId);
 
-      // Other sub-collections follow the same pattern
-      match /{subcollection}/{docId} {
-        allow read, write: if isStoreMember(storeId);
+      // Sub-collections within a store
+      match /{collectionId}/{docId} {
+        // Any user belonging to the store can read/write to its sub-collections.
+        // This is a broad rule but ensures app functionality.
+        allow read, write: if request.auth != null && isUserOfStore(storeId);
       }
     }
     
-     match /pendingOrders/{orderId} {
-        allow read, write: if request.auth != null;
-     }
+    // PENDING ORDERS collection (Global)
+    match /pendingOrders/{orderId} {
+        // Any authenticated user from a store can create a pending order.
+        allow create: if request.auth != null && request.resource.data.storeId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId;
+        
+        // Users can only read pending orders for their own store.
+        allow read: if request.auth != null && isUserOfStore(resource.data.storeId);
+
+        // Only admins can delete pending orders for their store.
+        allow delete: if request.auth != null && isAdminOfStore(resource.data.storeId);
+    }
+    
+    // GLOBAL APP SETTINGS
+    match /appSettings/{settingId} {
+        // Any authenticated user can read app settings.
+        allow read: if request.auth != null;
+        // Write access can be restricted to a superadmin role in the future if needed.
+        allow write: if request.auth != null; // Kept open for now for easier management from console/app
+    }
+    
+    // GLOBAL REDEMPTION OPTIONS
+    match /redemptionOptions/{optionId} {
+        // Any authenticated user can read the redemption options.
+        allow read: if request.auth != null;
+        // Only admins can create, update, or delete redemption options.
+        allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
   }
 }
