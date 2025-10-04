@@ -176,6 +176,8 @@ export type TransactionFeeSettings = {
   aiUsageFee: number;
   newStoreBonusTokens: number;
   aiBusinessPlanFee: number;
+  aiSessionFee: number;
+  aiSessionDurationMinutes: number;
 };
 
 export type AppliedStrategy = {

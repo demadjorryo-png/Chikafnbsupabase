@@ -20,13 +20,9 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
-import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
-import { getWhatsappSettings } from '@/lib/whatsapp-settings';
-
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { consultWithChika } from '@/ai/flows/app-consultant';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import type { Transaction } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
 
 type Message = {
@@ -60,6 +56,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     pradanaTokenBalance,
     refreshPradanaTokenBalance,
   } = useAuth();
+  const { dashboardData } = useDashboard();
   const { toast } = useToast();
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState('');
@@ -78,7 +75,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
 
   const initialMessage = isBusinessAnalystMode 
     ? `Halo, ${currentUser?.name}! Saya Chika, analis bisnis pribadi Anda untuk toko ${activeStore?.name}. Apa yang bisa saya bantu analisis hari ini?`
-    : "Halo! Saya Chika, asisten AI untuk Rio Pradana...etc"; // Shortened for brevity
+    : `Halo, saya Chika, asisten AI dari PT Chikatech. Saya bisa membantu Anda merancang aplikasi baru atau melaporkan kendala teknis. Apa yang bisa saya bantu?`;
     
   const exampleQuestions = isBusinessAnalystMode ? businessAnalystExampleQuestions : appConsultantExampleQuestions;
 
@@ -102,7 +99,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
       if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mode]); 
+  }, [open, mode, initialMessage]); 
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -129,29 +126,43 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     }
   };
   
-  const handleAppConsultant = async (userInput: string) => { /* ... no change ... */ };
+  const handleAppConsultant = async (userInput: string) => {
+      try {
+        const result = await consultWithChika({
+            conversationHistory: messages.map((m) => `${m.sender}: ${m.text}`).join('\n'),
+            userInput: userInput,
+        });
+        setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: result.response }]);
+      } catch (error) {
+        console.error("Consultant AI processing error:", error);
+        setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat memproses permintaan Anda. Coba lagi.' }]);
+      } finally {
+        setIsLoading(false);
+      }
+  };
 
   const handleBusinessAnalyst = async (userInput: string) => {
-      if (!feeSettings || !activeStore) {
+      if (!feeSettings || !activeStore || !dashboardData) {
         setIsLoading(false);
+        toast({variant: 'destructive', title: 'Data tidak lengkap', description: 'Gagal memuat pengaturan atau data toko.'});
         return;
       };
 
       if (!isSessionActive) {
         try {
-          const feeToDeduct = feeSettings.aiSessionFee || 5;
+          const feeToDeduct = feeSettings.aiSessionFee;
           await deductAiUsageFee(pradanaTokenBalance, feeToDeduct, activeStore.id, toast, `Memulai sesi Chika AI`);
           refreshPradanaTokenBalance();
           setIsSessionActive(true);
           
-          const duration = feeSettings.aiSessionDurationMinutes || 30;
+          const duration = feeSettings.aiSessionDurationMinutes;
           toast({ title: "Sesi Dimulai", description: `Sesi konsultasi Anda aktif selama ${duration} menit.` });
 
           const durationMs = duration * 60 * 1000;
           sessionTimeoutRef.current = setTimeout(() => {
             setIsSessionActive(false);
             setAwaitingRenewal(true);
-            const renewalFee = feeSettings.aiSessionFee || 5;
+            const renewalFee = feeSettings.aiSessionFee;
             setMessages((prev) => [
               ...prev,
               { id: Date.now(), sender: 'ai', text: `Waktu sesi Anda telah habis. Apakah Anda ingin memulai sesi baru untuk melanjutkan? (Biaya: ${renewalFee} Token)` },
@@ -170,13 +181,37 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
       }
 
       try {
-          // ... (existing data gathering logic) ...
-          const aiInput: ChikaAnalystInput = { question: userInput, activeStoreName: activeStore.name, totalRevenueLastMonth: 0, topSellingProducts: [], worstSellingProducts: [] };
+          const now = new Date();
+          const startOfLastMonth = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+          const endOfLastMonth = endOfMonth(startOfLastMonth);
+          const { transactions, products } = dashboardData;
+
+          const lastMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfLastMonth, end: endOfLastMonth }));
+          const totalRevenueLastMonth = lastMonthTransactions.reduce((sum, tx) => sum + tx.totalAmount, 0);
+
+          const sales: Record<string, number> = {};
+          lastMonthTransactions.forEach(t => {
+            t.items.forEach(item => {
+                if (!sales[item.productName]) sales[item.productName] = 0;
+                sales[item.productName] += item.quantity;
+            });
+          });
+          const sortedProducts = Object.entries(sales).sort(([, a], [, b]) => b - a);
+          const topSellingProducts = sortedProducts.slice(0, 5).map(([name]) => name);
+          const worstSellingProducts = sortedProducts.slice(-5).reverse().map(([name]) => name);
+
+          const aiInput: ChikaAnalystInput = { 
+              question: userInput, 
+              activeStoreName: activeStore.name, 
+              totalRevenueLastMonth, 
+              topSellingProducts, 
+              worstSellingProducts 
+          };
           const result = await askChika(aiInput);
           setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: result.answer }]);
       } catch (aiError) {
           console.error("AI processing error:", aiError);
-          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan. Coba lagi.' }]);
+          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat memproses pertanyaan Anda. Coba lagi.' }]);
       } finally {
           setIsLoading(false);
       }
@@ -209,8 +244,8 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
   const getDescription = () => {
     if (isBusinessAnalystMode) {
       if (!feeSettings) return 'Memuat pengaturan...';
-      const fee = feeSettings.aiSessionFee || 5;
-      const duration = feeSettings.aiSessionDurationMinutes || 30;
+      const fee = feeSettings.aiSessionFee;
+      const duration = feeSettings.aiSessionDurationMinutes;
       if (isSessionActive) return `Sesi aktif. Anda bisa bertanya sepuasnya.`;
       if (awaitingRenewal) return `Sesi berakhir. Pilih untuk melanjutkan atau mengakhiri.`;
       return `Biaya: ${fee} Token untuk memulai sesi konsultasi selama ${duration} menit.`;
@@ -228,7 +263,47 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
           <DialogDescription>{getDescription()}</DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
-          <div className="space-y-4">{/* ... messages mapping ... */}</div>
+          <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex items-end gap-2 ${message.sender === 'user' ? 'justify-end' : ''}`}>
+                    {message.sender === 'ai' && (
+                        <Avatar className='h-8 w-8'>
+                            <AvatarFallback className='bg-primary text-primary-foreground'><Sparkles className='h-5 w-5'/></AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div className={`max-w-md rounded-lg p-3 ${message.sender === 'ai' ? 'bg-secondary' : 'bg-primary text-primary-foreground'}`}>
+                        <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
+                            {message.text}
+                        </ReactMarkdown>
+                    </div>
+                     {message.sender === 'user' && (
+                        <Avatar className='h-8 w-8'>
+                            <AvatarFallback><User className='h-5 w-5'/></AvatarFallback>
+                        </Avatar>
+                    )}
+                </div>
+              ))}
+               {isLoading && (
+                  <div className="flex items-end gap-2">
+                    <Avatar className='h-8 w-8'>
+                        <AvatarFallback className='bg-primary text-primary-foreground'><Sparkles className='h-5 w-5'/></AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-xs rounded-lg p-3 bg-secondary">
+                        <Loader className="animate-spin" />
+                    </div>
+                  </div>
+                )}
+                {!isLoading && messages.length === 1 && (
+                     <div className="pt-4 text-center text-sm">
+                        <p className="text-muted-foreground">Atau coba tanya:</p>
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                        {exampleQuestions.map(q => (
+                            <Button key={q} variant="outline" size="sm" onClick={() => handleSendMessage(q)}>{q}</Button>
+                        ))}
+                        </div>
+                    </div>
+                )}
+          </div>
         </ScrollArea>
         
         {awaitingRenewal && (

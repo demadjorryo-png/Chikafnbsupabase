@@ -52,9 +52,11 @@ export function AIConfirmationDialog<T>({
       toast({ variant: 'destructive', title: 'Error', description: 'Pengaturan biaya atau toko tidak tersedia.' });
       return;
     }
+    
+    const feeToDeduct = feeSettings.aiUsageFee; // Use the standard single-use fee
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
+      await deductAiUsageFee(pradanaTokenBalance, feeToDeduct, activeStore.id, toast, featureName);
     } catch (error) {
       // deductAiUsageFee already shows a toast for insufficient balance
       return;
@@ -77,7 +79,7 @@ export function AIConfirmationDialog<T>({
       });
       // Refund the fee if the AI call fails
       try {
-        await deductAiUsageFee(pradanaTokenBalance, { ...feeSettings, aiUsageFee: -feeSettings.aiUsageFee }, activeStore.id, () => {});
+        await deductAiUsageFee(pradanaTokenBalance, -feeToDeduct, activeStore.id, () => {});
         refreshPradanaTokenBalance();
       } catch (refundError) {
         console.error("Critical: Failed to refund tokens after AI error.", refundError);
