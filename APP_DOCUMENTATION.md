@@ -1,8 +1,8 @@
-# Bekupon Basecamp: POS Cerdas untuk Komunitas Anda
+# Chika POS F&B: Solusi Cerdas untuk Bisnis Kuliner Anda
 
-**Bekupon Basecamp bukan sekadar Point of Sale (POS). Ini adalah pusat komando digital yang dirancang khusus untuk toko dengan basis komunitas yang kuat, seperti *vape store*, *concept store*, atau *hobby shop*. Aplikasi ini menyatukan transaksi secepat kilat dengan manajemen pelanggan yang cerdas dan fitur loyalitas bertenaga AI.**
+**Chika POS F&B** adalah sistem Point of Sale (POS) modern yang dirancang khusus untuk menyederhanakan dan mengoptimalkan operasional bisnis Makanan & Minuman, mulai dari kafe, restoran, hingga *cloud kitchen*.
 
-Dari verifikasi usia yang patuh aturan hingga analisis penjualan yang mendalam, Bekupon Basecamp adalah partner strategis untuk membangun komunitas yang loyal dan bisnis yang berkembang.
+Aplikasi ini mengintegrasikan manajemen pesanan yang efisien, analisis data penjualan yang mendalam, dan fitur loyalitas pelanggan bertenaga AI untuk membantu Anda tidak hanya menjalankan bisnis, tetapi juga membangun komunitas pelanggan yang setia.
 
 ## Tumpukan Teknologi
 - **Frontend**: Next.js (App Router), React, TypeScript
@@ -12,55 +12,49 @@ Dari verifikasi usia yang patuh aturan hingga analisis penjualan yang mendalam, 
 
 ---
 
-## ✨ Fitur Unggulan Bekupon Basecamp
+## ✨ Fitur Unggulan Chika POS F&B
 
-Setiap fitur dirancang untuk memperkuat hubungan dengan pelanggan dan menyederhanakan operasional harian Anda.
+Setiap fitur dirancang untuk meningkatkan efisiensi, memperkuat hubungan dengan pelanggan, dan memberikan data yang Anda butuhkan untuk berkembang.
 
-### 1. Verifikasi Usia Otomatis (Age Verification)
-- **Tujuan**: Memastikan kepatuhan terhadap regulasi (misalnya, 21+ di Indonesia) dan menjalankan bisnis secara bertanggung jawab.
+### 1. Manajemen Meja & Pesanan Visual
+- **Tujuan**: Mempercepat proses pencatatan pesanan dan memberikan gambaran status meja secara real-time.
 - **Fitur**:
-    - **Input Tanggal Lahir**: Wajib diisi saat registrasi anggota baru.
-    - **Pemeriksaan Otomatis**: Sistem secara otomatis menghitung usia pelanggan untuk memastikan mereka memenuhi batas usia minimum.
-- **Manfaat untuk Anda**: **Operasional yang aman dan patuh hukum**, membangun kepercayaan pelanggan, dan melindungi bisnis Anda dari risiko.
+    - **Tata Letak Meja Visual**: Lihat status setiap meja (Tersedia, Terisi, Dipesan) dalam satu layar.
+    - **Pencatatan Pesanan Instan**: Klik meja untuk langsung membuka antarmuka kasir dan mencatat pesanan pelanggan.
+- **Manfaat untuk Anda**: **Mengurangi kesalahan komunikasi** antara staf layanan dan dapur, **mempercepat pergantian meja**, dan meningkatkan kepuasan pelanggan dengan layanan yang cepat.
 
-### 2. Antarmuka Transaksi Cepat (Quick Transaction Interface)
-- **Tujuan**: Mempercepat layanan di konter kasir, mengurangi antrean, dan meningkatkan kepuasan pelanggan.
+### 2. Antarmuka Kasir (POS) Intuitif
+- **Tujuan**: Meminimalkan waktu yang dibutuhkan untuk setiap transaksi, dari pencarian produk hingga pembayaran.
 - **Fitur**:
-    - **Pencarian Universal**: Cari produk dengan cepat berdasarkan nama, kategori, atau merek.
-    - **Barcode Scanning**: Gunakan kamera perangkat sebagai pemindai barcode untuk input produk instan tanpa mengetik.
-- **Manfaat untuk Anda**: **Kurangi waktu tunggu secara drastis**, minimalkan kesalahan input, dan berikan pengalaman berbelanja yang modern dan efisien.
+    - **Pencarian Cepat**: Cari produk berdasarkan nama atau kategori dengan mudah.
+    - **Keranjang Belanja Fleksibel**: Tambah, kurangi, atau hapus item pesanan dengan cepat.
+    - **Beragam Metode Pembayaran**: Terima pembayaran melalui Tunai, Kartu, atau QRIS.
+- **Manfaat untuk Anda**: **Checkout lebih cepat**, mengurangi antrean di kasir, dan memberikan pengalaman pembayaran yang modern bagi pelanggan.
 
-### 3. Keranjang Belanja Fleksibel (Flexible Shopping Cart)
-- **Tujuan**: Memberikan kemudahan bagi kasir untuk mengelola pesanan pelanggan yang dinamis.
+### 3. Program Loyalitas & Rekomendasi AI
+- **Tujuan**: Mendorong pelanggan untuk kembali dan meningkatkan nilai transaksi mereka.
 - **Fitur**:
-    - **Manajemen Kuantitas**: Tambah atau kurangi jumlah item langsung di keranjang.
-    - **Hapus Item**: Hapus item dari keranjang dengan sekali klik.
-- **Manfaat untuk Anda**: **Proses checkout yang lancar**, penyesuaian pesanan yang mudah, dan akurasi transaksi yang lebih tinggi.
+    - **Penghitungan Poin Otomatis**: Pelanggan mendapatkan poin dari setiap transaksi secara otomatis (misal: Rp 10.000 = 1 poin).
+    - **Rekomendasi Penukaran AI**: Saat checkout, Chika AI akan menganalisis poin pelanggan dan menyarankan cara terbaik untuk menukarkan poin tersebut, memberikan "penawaran cerdas" yang personal.
+- **Manfaat untuk Anda**: **Meningkatkan retensi pelanggan**, mendorong penggunaan poin loyalitas, dan membuat pelanggan merasa dihargai dengan penawaran yang relevan.
 
-### 4. Kalkulator Poin Loyalitas AI (AI Loyalty Points Tool)
-- **Tujuan**: Memberikan insentif yang cerdas bagi pelanggan untuk menukarkan poin mereka.
+### 4. Notifikasi Pesanan Siap (Text-to-Speech & WhatsApp)
+- **Tujuan**: Memberi tahu pelanggan bahwa pesanan mereka siap dengan cara yang unik dan efisien.
 - **Fitur**:
-    - **Penghitungan Poin Otomatis**: Sistem menghitung poin yang didapat dari setiap transaksi (misal: Rp 10.000 = 1 poin).
-    - **Rekomendasi Penukaran AI**: Genkit "tool" akan menganalisis jumlah poin pelanggan dan total belanja saat ini untuk **menyarankan cara penukaran poin yang paling ideal dan menguntungkan** bagi pelanggan.
-- **Manfaat untuk Anda**: **Mendorong penggunaan poin loyalitas**, meningkatkan kepuasan pelanggan dengan memberikan "penawaran cerdas", dan memperkuat program loyalitas Anda.
+    - **Panggilan Suara AI (Text-to-Speech)**: Panggil nama pelanggan dan nomor pesanan mereka menggunakan suara AI yang jernih.
+    - **Notifikasi WhatsApp Cerdas**: Kirim pesan notifikasi otomatis ke WhatsApp pelanggan, lengkap dengan pantun atau fakta menarik tentang pesanan mereka.
+- **Manfaat untuk Anda**: **Mengurangi kerumunan di area pengambilan**, menciptakan pengalaman menunggu yang menyenangkan, dan menunjukkan citra brand yang modern dan inovatif.
 
-### 5. Tampilan Tingkat Keanggotaan (Membership Tier Display)
-- **Tujuan**: Memberikan penghargaan dan pengakuan kepada anggota komunitas yang paling loyal.
+### 5. Analisis Kinerja Bisnis & Karyawan
+- **Tujuan**: Memberikan data yang dapat ditindaklanjuti untuk pengambilan keputusan strategis.
 - **Fitur**:
-    - **Tingkatan Keanggotaan**: Menampilkan tingkatan anggota secara jelas (misal: **Squab**, **Flyer**, **Homer**).
-    - **Visualisasi Manfaat**: Menampilkan keuntungan dari setiap tingkatan, seperti diskon eksklusif, akses ke merchandise khusus, atau info produk lebih awal.
-- **Manfaat untuk Anda**: **Menciptakan rasa eksklusivitas**, memotivasi pelanggan untuk meningkatkan nilai transaksi mereka, dan membangun komunitas yang lebih kuat.
+    - **Papan Peringkat Karyawan**: Lihat performa penjualan setiap karyawan untuk memberikan insentif.
+    - **Analisis Produk**: Identifikasi produk terlaris dan kurang laris untuk mengoptimalkan menu dan stok.
+    - **Analisis Pelanggan**: Kenali pelanggan paling loyal dan *top spenders* Anda untuk memberikan penghargaan khusus.
+- **Manfaat untuk Anda**: **Membuat keputusan berbasis data**, memahami tren penjualan, dan merancang strategi promosi yang lebih efektif.
 
-### 6. Manajemen Inventaris Real-time
-- **Tujuan**: Menjaga ketersediaan produk dan menghindari kekecewaan pelanggan.
+### 6. Generator Tantangan Karyawan AI
+- **Tujuan**: Meningkatkan motivasi tim dan mendorong pencapaian target penjualan.
 - **Fitur**:
-    - **Pembaruan Stok Otomatis**: Stok produk berkurang secara otomatis setiap kali penjualan terjadi.
-    - **Peringatan Stok Rendah**: Memberikan notifikasi kepada manajer ketika stok produk mencapai ambang batas minimum.
-- **Manfaat untuk Anda**: **Mencegah kehabisan stok** pada produk populer, mengoptimalkan pemesanan barang, dan menjaga arus kas tetap sehat.
-
-### 7. Dasbor Ringkasan Penjualan
-- **Tujuan**: Memberikan gambaran cepat tentang kinerja bisnis untuk pengambilan keputusan yang lebih baik.
-- **Fitur**:
-    - **Ringkasan Pendapatan**: Tampilkan total pendapatan harian, mingguan, dan bulanan.
-    - **Analisis Kinerja Produk**: Lihat produk mana yang paling laris dan mana yang kurang diminati.
-- **Manfaat untuk Anda**: **Pahami tren penjualan dengan cepat**, identifikasi produk unggulan, dan buat strategi promosi yang lebih efektif berdasarkan data.
+    - **Pembuatan Tantangan Otomatis**: Berdasarkan anggaran hadiah dan periode waktu, Chika AI akan membuat beberapa tingkatan tantangan penjualan (misal: tier Perunggu, Perak, Emas) lengkap dengan target dan hadiahnya.
+- **Manfaat untuk Anda**: **Menciptakan lingkungan kerja yang kompetitif dan menyenangkan**, meningkatkan total penjualan, dan memberikan insentif yang adil dan terukur bagi tim.
