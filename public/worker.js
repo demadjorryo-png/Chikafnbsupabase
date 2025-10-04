@@ -1,68 +1,79 @@
-/*
-Copyright 2021 Google LLC
+// A basic service worker for caching assets
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+const CACHE_NAME = 'chika-pos-cache-v1';
+const urlsToCache = [
+  '/',
+  '/dashboard',
+  '/login',
+  '/manifest.json',
+  '/icon.svg'
+];
 
-      http://www.apache.org/licenses/LICENSE-2.0
+// Install a service worker
+self.addEventListener('install', event => {
+  // Perform install steps
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(function(cache) {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
+  );
+});
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-*/
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
+// Cache and return requests
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(function(response) {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
 
-const { precacheAndRoute } = workbox.precaching;
-const { registerRoute } = workbox.routing;
-const { StaleWhileRevalidate, NetworkFirst } = workbox.strategies;
-const { ExpirationPlugin } = workbox.expiration;
+        // IMPORTANT: Clone the request. A request is a stream and
+        // can only be consumed once. Since we are consuming this
+        // once by cache and once by the browser for fetch, we need
+        // to clone the response.
+        const fetchRequest = event.request.clone();
 
-// Handle requests for offline content.
-// Fallback to the offline page if the user is offline and the page is not cached.
-const offlineFallback = '/offline.html';
+        return fetch(fetchRequest).then(
+          function(response) {
+            // Check if we received a valid response
+            if(!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
 
-// We need to precache the offline page so we can serve it when the user is offline.
-precacheAndRoute([
-  { url: offlineFallback, revision: '1' }
-]);
+            // IMPORTANT: Clone the response. A response is a stream
+            // and because we want the browser to consume the response
+            // as well as the cache consuming the response, we need
+            // to clone it so we have two streams.
+            const responseToCache = response.clone();
 
-// Use a Network First strategy for navigation requests.
-// This means that the service worker will try to get the page from the network first.
-// If it can't, it will fall back to the cache.
-registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'pages',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 50,
-      }),
-    ],
-    networkTimeoutSeconds: 4, // If the network doesn't respond in 4 seconds, fall back to the cache.
-  })
-);
+            caches.open(CACHE_NAME)
+              .then(function(cache) {
+                cache.put(event.request, responseToCache);
+              });
 
+            return response;
+          }
+        );
+      })
+    );
+});
 
-// Use a Stale While Revalidate strategy for assets.
-// This means that the service worker will serve the asset from the cache first,
-// and then update the cache in the background.
-registerRoute(
-  ({ request }) =>
-    request.destination === 'style' ||
-    request.destination === 'script' ||
-    request.destination === 'worker' ||
-    request.destination === 'font' ||
-    request.destination === 'image',
-  new StaleWhileRevalidate({
-    cacheName: 'assets',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 100, // Cache up to 100 assets.
-        maxAgeSeconds: 30 * 24 * 60 * 60, // Cache for 30 days.
-      }),
-    ],
-  })
-);
+// Update a service worker
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
