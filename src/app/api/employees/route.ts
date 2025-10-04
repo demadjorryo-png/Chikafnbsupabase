@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { auth as clientAuth } from '@/lib/firebase'; // Client auth to verify the token
+import admin from 'firebase-admin';
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!getApps().length) {
