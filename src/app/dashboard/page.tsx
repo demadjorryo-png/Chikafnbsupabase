@@ -65,7 +65,7 @@ function CheckoutReceiptDialog({ transaction, users, open, onOpenChange }: { tra
 
 function DashboardContent() {
   const { currentUser, pradanaTokenBalance } = useAuth();
-  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const { dashboardData, isLoading } = useDashboard();
   const searchParams = useSearchParams();
   const [transactionToPrint, setTransactionToPrint] = React.useState<Transaction | null>(null);
 
@@ -77,7 +77,7 @@ function DashboardContent() {
     return <DashboardSkeleton />;
   }
 
-  const { products, customers, tables, feeSettings, users } = dashboardData;
+  const { users } = dashboardData;
 
   const renderView = () => {
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];

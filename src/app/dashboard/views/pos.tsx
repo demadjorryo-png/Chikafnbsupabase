@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Product, Customer, CartItem, Transaction, Table } from '@/lib/types';
+import type { Product, Customer, CartItem, Transaction } from '@/lib/types';
 import {
   Search,
   PlusCircle,
@@ -54,24 +54,20 @@ import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentReference, increment } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
-import type { TransactionFeeSettings } from '@/lib/app-settings';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 
 type POSProps = {
-    products: Product[];
-    customers: Customer[];
-    tables: Table[];
-    onDataChange: () => void;
-    isLoading: boolean;
-    feeSettings: TransactionFeeSettings;
-    pradanaTokenBalance: number;
     onPrintRequest: (transaction: Transaction) => void;
 };
 
 
-export default function POS({ products, customers, tables, onDataChange, isLoading, feeSettings, pradanaTokenBalance, onPrintRequest }: POSProps) {
-  const { currentUser, activeStore, refreshPradanaTokenBalance } = useAuth();
+export default function POS({ onPrintRequest }: POSProps) {
+  const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const { products, customers, tables, feeSettings } = dashboardData;
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -108,13 +104,16 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const [isDineIn, setIsDineIn] = React.useState(true); // Default to true for table orders
   const { toast } = useToast();
   
-  const customerOptions = customers.map((c) => ({
+  const customerOptions = (customers || []).map((c) => ({
     value: c.id,
     label: c.name,
   }));
 
   const addToCart = (product: Product) => {
-    if (product.stock === 0) {
+    if (!activeStore) return;
+    const stockInStore = product.stock;
+
+    if (stockInStore === 0) {
       toast({
         variant: 'destructive',
         title: 'Stok Habis',
@@ -127,11 +126,11 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
         (item) => item.productId === product.id
       );
       if (existingItem) {
-        if (existingItem.quantity >= product.stock) {
+        if (existingItem.quantity >= stockInStore) {
             toast({
                 variant: 'destructive',
                 title: 'Batas Stok Tercapai',
-                description: `Hanya ${product.stock} unit ${product.name} yang tersedia.`,
+                description: `Hanya ${stockInStore} unit ${product.name} yang tersedia.`,
             });
             return prevCart;
         }
@@ -158,17 +157,20 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       removeFromCart(productId);
       return;
     }
+    if (!activeStore) return;
 
     const product = products.find(p => p.id === productId);
-    if(product && quantity > product.stock) {
+    const stockInStore = product?.stock || 0;
+
+    if(product && quantity > stockInStore) {
         toast({
             variant: 'destructive',
             title: 'Batas Stok Tercapai',
-            description: `Hanya ${product.stock} unit ${product.name} yang tersedia.`,
+            description: `Hanya ${stockInStore} unit ${product.name} yang tersedia.`,
         });
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item.productId === productId ? { ...item, quantity: product.stock } : item
+                item.productId === productId ? { ...item, quantity: stockInStore } : item
             )
         );
         return;
@@ -222,8 +224,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    // Only cashiers pay fees, admins don't.
-    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') return 0;
+    if (!feeSettings || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') return 0;
     
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
@@ -245,7 +246,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     setPointsToRedeem(value);
   }
 
-  const filteredProducts = products.filter((product) =>
+  const filteredProducts = (products || []).filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
@@ -385,7 +386,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
       setDiscountValue(0);
       setPointsToRedeem(0);
       setSelectedCustomer(undefined);
-      onDataChange();
+      refreshData();
       
       const params = new URLSearchParams();
       params.set('view', 'pos');
@@ -401,7 +402,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
   }
   
   const handleCustomerAdded = () => {
-    onDataChange();
+    refreshData();
   }
 
 
@@ -434,7 +435,8 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                       <Skeleton key={i} className="aspect-square w-full rounded-lg" />
                     ))
                   ) : filteredProducts.map((product) => {
-                    const isOutOfStock = product.stock === 0;
+                    const stockInStore = product.stock;
+                    const isOutOfStock = stockInStore === 0;
                     return (
                       <Card 
                         key={product.id}
@@ -444,22 +446,24 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         )}
                         onClick={() => addToCart(product)}
                       >
-                        <Image
-                          src={product.imageUrl}
-                          alt={product.name}
-                          width={200}
-                          height={200}
-                          className="aspect-square w-full object-cover"
-                          unoptimized
-                        />
-                        {isOutOfStock && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <div className="text-center text-white">
-                              <PackageX className="mx-auto h-8 w-8" />
-                              <p className="font-bold">Stok Habis</p>
-                            </div>
-                          </div>
-                        )}
+                         <div className="relative">
+                                <Image
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    width={200}
+                                    height={200}
+                                    className="aspect-square w-full object-cover"
+                                    unoptimized
+                                />
+                                {isOutOfStock && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                        <div className="text-center text-white">
+                                        <PackageX className="mx-auto h-8 w-8" />
+                                        <p className="font-bold">Stok Habis</p>
+                                        </div>
+                                    </div>
+                                )}
+                         </div>
                         <div className="p-3">
                           <h3 className="font-semibold truncate text-sm">{product.name}</h3>
                           <p className="text-xs text-muted-foreground">Rp {product.price.toLocaleString('id-ID')}</p>
@@ -486,7 +490,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
                         options={customerOptions}
                         value={selectedCustomer?.id}
                         onValueChange={(value) => {
-                        setSelectedCustomer(customers.find((c) => c.id === value));
+                        setSelectedCustomer((customers || []).find((c) => c.id === value));
                         setPointsToRedeem(0); // Reset points when customer changes
                         }}
                         placeholder="Cari pelanggan..."
@@ -689,7 +693,7 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
               </div>
             </div>
             
-            {selectedCustomer && cart.length > 0 && (
+            {selectedCustomer && cart.length > 0 && feeSettings && (
               <LoyaltyRecommendation customer={selectedCustomer} totalPurchaseAmount={totalAmount} feeSettings={feeSettings} />
             )}
 
