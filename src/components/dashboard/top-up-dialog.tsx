@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -212,8 +211,8 @@ Lihat bukti: ${proofUrl}`;
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
-                  min="10000"
-                  step="10000"
+                  min="50000"
+                  step="50000"
                   disabled={isLoading}
                 />
                 <div className="flex flex-wrap gap-2 pt-2">
