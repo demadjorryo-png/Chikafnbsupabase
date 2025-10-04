@@ -37,10 +37,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
+import { db } from '@/lib/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!customer) return null;
@@ -81,6 +94,8 @@ export default function Customers() {
 
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
+  const { toast } = useToast();
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -88,6 +103,31 @@ export default function Customers() {
   
   const handleCustomerAdded = () => {
     refreshData();
+  }
+
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete || !activeStore?.id) return;
+
+    try {
+        await deleteDoc(doc(db, 'stores', activeStore.id, 'customers', customerToDelete.id));
+        toast({
+            title: 'Pelanggan Dihapus',
+            description: `Pelanggan "${customerToDelete.name}" telah dihapus.`,
+        });
+        refreshData();
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menghapus',
+            description: 'Terjadi kesalahan saat menghapus pelanggan.',
+        });
+    } finally {
+        setCustomerToDelete(null);
+    }
   }
 
   return (
@@ -196,8 +236,8 @@ export default function Customers() {
                             <DropdownMenuItem onClick={() => handleViewDetails(customer)}>
                                 Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Ubah</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem disabled>Ubah</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(customer)}>
                             Hapus
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -217,6 +257,25 @@ export default function Customers() {
             onOpenChange={() => setSelectedCustomer(null)}
         />
       )}
+       <AlertDialog open={!!customerToDelete} onOpenChange={() => setCustomerToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pelanggan
+              <span className="font-bold"> {customerToDelete?.name} </span> secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
+    

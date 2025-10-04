@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -18,6 +19,7 @@ import { CheckCircle, Clock, FileText, Gift, Loader, Map, Sparkles } from 'lucid
 import { differenceInDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
 export default function AIBusinessPlan() {
   const { activeStore, isLoading: isAuthLoading } = useAuth();
@@ -52,6 +54,13 @@ export default function AIBusinessPlan() {
       setIsEligible(daysCheck && txCheck);
     }
   }, [activeStore]);
+
+  const handleGeneratePlan = async () => {
+    // In a real app, this would trigger the AI flow
+    console.log("Generating AI Business Plan...");
+    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 2000));
+  };
+
 
   if (isAuthLoading || !activeStore || !feeSettings) {
     return (
@@ -94,10 +103,21 @@ export default function AIBusinessPlan() {
             <p className="text-muted-foreground">
                 Dapatkan analisis mendalam, proyeksi pertumbuhan, dan rekomendasi yang dipersonalisasi untuk membawa bisnis Anda ke level berikutnya.
             </p>
-             <Button size="lg" className="w-full sm:w-auto">
-                <Sparkles className="mr-2 h-5 w-5" />
-                Beli Rencana AI ({feeSettings.aiBusinessPlanFee} Token)
-            </Button>
+             <AIConfirmationDialog
+                featureName="AI Business Plan"
+                featureDescription="Chika AI akan melakukan analisis mendalam terhadap data historis toko Anda untuk membuat rencana bisnis yang komprehensif."
+                feeSettings={{...feeSettings, aiUsageFee: feeSettings.aiBusinessPlanFee}}
+                onConfirm={handleGeneratePlan}
+                onSuccess={(result) => {
+                    // In a real app, you would navigate to the plan page or display it here
+                    console.log("Business plan generated:", result);
+                }}
+             >
+                <Button size="lg" className="w-full sm:w-auto" disabled={!feeSettings}>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Beli Rencana AI ({feeSettings.aiBusinessPlanFee} Token)
+                </Button>
+            </AIConfirmationDialog>
           </div>
         ) : (
           <div className="space-y-6">
@@ -143,3 +163,5 @@ export default function AIBusinessPlan() {
     </Card>
   );
 }
+
+    

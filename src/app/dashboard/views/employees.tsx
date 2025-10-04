@@ -38,8 +38,9 @@ import {
 } from '@/components/ui/dialog';
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -61,6 +62,7 @@ export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = React.useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
   const { toast } = useToast();
 
@@ -70,10 +72,8 @@ export default function Employees() {
     try {
       const usersRef = collection(db, 'users');
       
-      // Query for cashiers assigned to this store.
       const cashiersQuery = query(usersRef, where("storeId", "==", activeStore.id));
       
-      // Since adminUids are stored on the store doc, we can use that to find admins.
       const adminUids = activeStore.adminUids || [];
 
       const [cashiersSnapshot, adminsSnapshot] = await Promise.all([
@@ -84,7 +84,6 @@ export default function Employees() {
       const firestoreCashiers = cashiersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       const firestoreAdmins = adminsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
-      // Combine and remove duplicates, as an admin might also have a storeId set.
       const allUsersMap = new Map<string, User>();
       firestoreCashiers.forEach(u => allUsersMap.set(u.id, u));
       firestoreAdmins.forEach(u => allUsersMap.set(u.id, u));
@@ -120,6 +119,11 @@ export default function Employees() {
     setIsStatusChangeDialogOpen(true);
   }
 
+  const handleResetPasswordClick = (user: User) => {
+    setSelectedUser(user);
+    setIsResetPasswordDialogOpen(true);
+  }
+
   const handleConfirmStatusChange = async () => {
     if (!selectedUser) return;
     
@@ -145,10 +149,35 @@ export default function Employees() {
         });
     }
 
-
     setIsStatusChangeDialogOpen(false);
     setSelectedUser(null);
   };
+
+  const handleConfirmResetPassword = async () => {
+    if (!selectedUser?.email) {
+      toast({ variant: 'destructive', title: 'Email tidak ditemukan' });
+      return;
+    }
+    
+    try {
+      await sendPasswordResetEmail(auth, selectedUser.email);
+      toast({
+        title: 'Email Reset Password Terkirim',
+        description: `Email telah dikirim ke ${selectedUser.email}.`,
+      });
+    } catch (error) {
+      console.error("Error sending password reset email:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Mengirim Email',
+        description: 'Terjadi kesalahan. Pastikan email karyawan valid.',
+      });
+    } finally {
+      setIsResetPasswordDialogOpen(false);
+      setSelectedUser(null);
+    }
+  };
+
 
   const handleDialogClose = () => {
     setIsEditDialogOpen(false);
@@ -252,7 +281,7 @@ export default function Employees() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEditClick(user)}>Ubah</DropdownMenuItem>
-                          <DropdownMenuItem>Atur Ulang Password</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleResetPasswordClick(user)}>Atur Ulang Password</DropdownMenuItem>
                           <DropdownMenuItem 
                             className={user.status === 'active' ? 'text-destructive' : 'text-green-600 focus:text-green-600'}
                             onClick={() => handleStatusChangeClick(user)}
@@ -320,6 +349,26 @@ export default function Employees() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Atur Ulang Password?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan mengirimkan email pengaturan ulang password ke{' '}
+              <span className="font-bold">{selectedUser?.email}</span>. Karyawan tersebut harus mengikuti instruksi di email untuk membuat password baru.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmResetPassword}>
+              Ya, Kirim Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
+    

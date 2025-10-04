@@ -468,8 +468,7 @@ export default function AdminOverview() {
                         </ChartContainer>
                     </div>
                   </CardContent>
-                   <CardFooter className="flex justify-between">
-                     <Button size="sm" variant="ghost" disabled>Lihat Pertumbuhan</Button>
+                   <CardFooter className="flex justify-end">
                     <Button size="sm" variant="destructive" onClick={() => handleCompleteStrategy(strategy.id)}><CheckCircle className="mr-2 h-4 w-4" /> Tandai Selesai</Button>
                   </CardFooter>
                 </Card>
@@ -553,5 +552,7 @@ export default function AdminOverview() {
     </div>
   );
 }
+
+    
 
     

@@ -370,7 +370,7 @@ export default function Promotions() {
                             )}
                             <span>{option.isActive ? 'Non-Aktifkan' : 'Aktifkan'}</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Ubah</DropdownMenuItem>
+                          <DropdownMenuItem disabled>Ubah</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(option)}>
                             Hapus
                           </DropdownMenuItem>
@@ -408,3 +408,5 @@ export default function Promotions() {
     </>
   );
 }
+
+    
