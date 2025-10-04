@@ -177,3 +177,16 @@ export type TransactionFeeSettings = {
   newStoreBonusTokens: number;
   aiBusinessPlanFee: number;
 };
+
+export type AppliedStrategy = {
+  id: string;
+  type: 'weekly' | 'monthly';
+  recommendation: string;
+  appliedDate: string;
+  status: 'active' | 'completed';
+};
+
+export type AdminRecommendationOutput = {
+  weeklyRecommendation: string;
+  monthlyRecommendation: string;
+};

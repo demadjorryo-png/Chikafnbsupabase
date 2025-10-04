@@ -51,8 +51,8 @@ const chartConfig = {
 
 export default function AdminOverview() {
   const { activeStore } = useAuth();
-  const { dashboardData, feeSettings } = useDashboard();
-  const { transactions, products } = dashboardData;
+  const { dashboardData } = useDashboard();
+  const { transactions, products, feeSettings } = dashboardData;
   const [recommendations, setRecommendations] = React.useState<AdminRecommendationOutput | null>(null);
   const [appliedStrategies, setAppliedStrategies] = React.useState<AppliedStrategy[]>([]);
   const [exportDate, setExportDate] = React.useState<DateRange | undefined>({
@@ -504,7 +504,7 @@ export default function AdminOverview() {
                             <Calendar
                                 mode="single"
                                 selected={exportDate?.from}
-                                onSelect={(date) => setExportDate(prev => ({ ...prev, from: date }))}
+                                onSelect={(date) => setExportDate(prev => ({ from: date, to: prev?.to }))}
                                 initialFocus
                             />
                         </PopoverContent>
@@ -529,7 +529,7 @@ export default function AdminOverview() {
                             <Calendar
                                 mode="single"
                                 selected={exportDate?.to}
-                                onSelect={(date) => setExportDate(prev => ({ ...prev, to: date }))}
+                                onSelect={(date) => setExportDate(prev => ({ from: prev?.from, to: date }))}
                                 initialFocus
                             />
                         </PopoverContent>

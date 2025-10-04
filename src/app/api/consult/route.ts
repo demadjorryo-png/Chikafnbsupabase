@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { consultWithChika } from '@/ai/flows/app-consultant';
-import { Message } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const flowResult = await consultWithChika({
-      conversationHistory: conversationHistory.map((m: Message) => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n'),
+      conversationHistory: conversationHistory.map((m) => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n'),
       userInput: userInput,
     });
 

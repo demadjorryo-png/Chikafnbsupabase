@@ -1,71 +1,66 @@
-# Chika POS F&B: Lebih dari Sekadar Kasir, Ini Partner Pertumbuhan Bisnis Anda
+# Bekupon Basecamp: POS Cerdas untuk Komunitas Anda
 
-**Ubah cara Anda mengelola kafe, restoran, atau bisnis F&B Anda. Chika POS F&B bukan hanya aplikasi Point of Sale (POS) biasa; ini adalah platform cerdas yang dirancang untuk menyederhanakan operasional, meningkatkan loyalitas pelanggan, dan memberikan Anda wawasan bisnis bertenaga AI untuk mengambil keputusan yang lebih cerdas.**
+**Bekupon Basecamp bukan sekadar Point of Sale (POS). Ini adalah pusat komando digital yang dirancang khusus untuk toko dengan basis komunitas yang kuat, seperti *vape store*, *concept store*, atau *hobby shop*. Aplikasi ini menyatukan transaksi secepat kilat dengan manajemen pelanggan yang cerdas dan fitur loyalitas bertenaga AI.**
 
-Dari transaksi secepat kilat hingga analisis mendalam, Chika adalah satu-satunya sistem yang Anda butuhkan untuk berkembang di industri F&B yang kompetitif.
+Dari verifikasi usia yang patuh aturan hingga analisis penjualan yang mendalam, Bekupon Basecamp adalah partner strategis untuk membangun komunitas yang loyal dan bisnis yang berkembang.
 
 ## Tumpukan Teknologi
 - **Frontend**: Next.js (App Router), React, TypeScript
-- **UI**: shadcn/ui, Tailwind CSS, Lucide React (ikon), Recharts (grafik)
+- **UI**: shadcn/ui, Tailwind CSS, Lucide React (ikon)
 - **Backend & Database**: Firebase (Firestore & Auth)
 - **AI & GenAI**: Google AI (Gemini) via Genkit
 
 ---
 
-## ✨ Fitur Unggulan Chika POS F&B
+## ✨ Fitur Unggulan Bekupon Basecamp
 
-Setiap fitur dirancang dengan satu tujuan: **membuat bisnis Anda lebih efisien, lebih menguntungkan, dan lebih dicintai pelanggan.**
+Setiap fitur dirancang untuk memperkuat hubungan dengan pelanggan dan menyederhanakan operasional harian Anda.
 
-### 1. Kasir Cerdas & Manajemen Meja (Smart POS & Table Management)
-- **Tujuan**: Mempercepat proses pemesanan dan pembayaran, serta memberikan gambaran visual real-time dari seluruh area layanan Anda.
+### 1. Verifikasi Usia Otomatis (Age Verification)
+- **Tujuan**: Memastikan kepatuhan terhadap regulasi (misalnya, 21+ di Indonesia) dan menjalankan bisnis secara bertanggung jawab.
 - **Fitur**:
-    - **Antarmuka Visual**: Pilih produk berdasarkan gambar, bukan hanya teks. Meminimalkan kesalahan dan mempercepat training kasir baru.
-    - **Pencarian Cepat**: Cari produk berdasarkan nama, kategori, atau **scan barcode** untuk transaksi super cepat.
-    - **Manajemen Meja Interaktif**: Lihat meja mana yang tersedia, terisi, atau menunggu dibersihkan dalam satu layar. Pindahkan pesanan atau gabungkan meja dengan mudah.
-- **Manfaat untuk Anda**: **Kurangi waktu tunggu pelanggan**, tingkatkan perputaran meja (table turnover), dan minimalkan kesalahan input oleh karyawan. Hasilnya? Pelanggan lebih bahagia dan pendapatan meningkat.
+    - **Input Tanggal Lahir**: Wajib diisi saat registrasi anggota baru.
+    - **Pemeriksaan Otomatis**: Sistem secara otomatis menghitung usia pelanggan untuk memastikan mereka memenuhi batas usia minimum.
+- **Manfaat untuk Anda**: **Operasional yang aman dan patuh hukum**, membangun kepercayaan pelanggan, dan melindungi bisnis Anda dari risiko.
 
-### 2. Panggilan Pesanan Otomatis (Text-to-Speech Order Calling)
-- **Tujuan**: Mengeliminasi kebutuhan untuk berteriak atau menggunakan sistem nomor manual yang kuno saat pesanan siap.
+### 2. Antarmuka Transaksi Cepat (Quick Transaction Interface)
+- **Tujuan**: Mempercepat layanan di konter kasir, mengurangi antrean, dan meningkatkan kepuasan pelanggan.
 - **Fitur**:
-    - **Suara Profesional**: Saat pesanan ditandai "Selesai", sistem akan secara otomatis mengumumkan nama pelanggan atau nomor pesanan dengan suara yang jelas dan profesional (pilihan suara pria/wanita).
-    - **Notifikasi Kreatif**: Bukan hanya panggilan biasa, Chika AI dapat membuat **pantun unik atau fakta menarik** terkait pesanan pelanggan, menciptakan pengalaman yang tak terlupakan.
-- **Manfaat untuk Anda**: **Tingkatkan efisiensi alur kerja dapur**, ciptakan suasana yang lebih profesional dan modern, serta berikan sentuhan personal yang membuat pelanggan tersenyum dan kembali lagi.
+    - **Pencarian Universal**: Cari produk dengan cepat berdasarkan nama, kategori, atau merek.
+    - **Barcode Scanning**: Gunakan kamera perangkat sebagai pemindai barcode untuk input produk instan tanpa mengetik.
+- **Manfaat untuk Anda**: **Kurangi waktu tunggu secara drastis**, minimalkan kesalahan input, dan berikan pengalaman berbelanja yang modern dan efisien.
 
-### 3. Analisis & Rekomendasi Bisnis Berbasis AI
-- **Tujuan**: Memberikan Anda wawasan seorang analis bisnis profesional tanpa harus merekrutnya.
+### 3. Keranjang Belanja Fleksibel (Flexible Shopping Cart)
+- **Tujuan**: Memberikan kemudahan bagi kasir untuk mengelola pesanan pelanggan yang dinamis.
 - **Fitur**:
-    - **Admin Overview AI**: Dapatkan ringkasan mingguan dan bulanan yang berisi rekomendasi strategis (misal: "Buat promo bundling produk X dan Y," atau "Fokus kurangi stok produk Z").
-    - **AI Business Plan**: Untuk toko yang sudah berjalan, dapatkan peta jalan pertumbuhan jangka panjang yang dibuat khusus oleh AI berdasarkan data historis Anda.
-    - **Chat dengan Chika AI**: Punya pertanyaan bisnis? ("Bagaimana cara menaikkan omset?") Tanyakan langsung pada Chika AI dan dapatkan jawaban berbasis data kapan saja.
-- **Manfaat untuk Anda**: **Ambil keputusan berdasarkan data, bukan tebakan**. Temukan peluang tersembunyi, optimalkan strategi harga dan promosi, dan percepat pertumbuhan bisnis Anda.
+    - **Manajemen Kuantitas**: Tambah atau kurangi jumlah item langsung di keranjang.
+    - **Hapus Item**: Hapus item dari keranjang dengan sekali klik.
+- **Manfaat untuk Anda**: **Proses checkout yang lancar**, penyesuaian pesanan yang mudah, dan akurasi transaksi yang lebih tinggi.
 
-### 4. Manajemen Pelanggan (CRM) & Pemasaran Cerdas
-- **Tujuan**: Mengubah pembeli sesekali menjadi pelanggan setia.
+### 4. Kalkulator Poin Loyalitas AI (AI Loyalty Points Tool)
+- **Tujuan**: Memberikan insentif yang cerdas bagi pelanggan untuk menukarkan poin mereka.
 - **Fitur**:
-    - **Database Pelanggan Terpusat**: Lacak riwayat transaksi, preferensi, dan poin loyalitas setiap pelanggan.
-    - **Generator Pesan Ulang Tahun AI**: Kirim ucapan selamat ulang tahun yang personal via WhatsApp, lengkap dengan zodiak dan penawaran diskon khusus yang dibuat otomatis oleh AI.
-    - **Follow-up Pesanan Tertunda**: Ketika produk yang diinginkan pelanggan kembali tersedia, Chika AI akan membuat pesan notifikasi yang menarik untuk dikirimkan.
-- **Manfaat untuk Anda**: **Tingkatkan retensi pelanggan secara drastis**. Buat pelanggan merasa dihargai dan bangun hubungan jangka panjang yang menghasilkan penjualan berulang.
+    - **Penghitungan Poin Otomatis**: Sistem menghitung poin yang didapat dari setiap transaksi (misal: Rp 10.000 = 1 poin).
+    - **Rekomendasi Penukaran AI**: Genkit "tool" akan menganalisis jumlah poin pelanggan dan total belanja saat ini untuk **menyarankan cara penukaran poin yang paling ideal dan menguntungkan** bagi pelanggan.
+- **Manfaat untuk Anda**: **Mendorong penggunaan poin loyalitas**, meningkatkan kepuasan pelanggan dengan memberikan "penawaran cerdas", dan memperkuat program loyalitas Anda.
 
-### 5. Sistem Loyalitas & Promosi Fleksibel
-- **Tujuan**: Memberikan insentif bagi pelanggan untuk terus kembali dan berbelanja lebih banyak.
+### 5. Tampilan Tingkat Keanggotaan (Membership Tier Display)
+- **Tujuan**: Memberikan penghargaan dan pengakuan kepada anggota komunitas yang paling loyal.
 - **Fitur**:
-    - **Pengaturan Poin Dinamis**: Anda tentukan sendiri berapa nilai belanja untuk mendapatkan 1 poin.
-    - **Rekomendasi Promo AI**: Bingung mau buat promo apa? Chika AI akan menganalisis data Anda dan memberikan ide-ide promo penukaran poin yang paling relevan dan menguntungkan.
-- **Manfaat untuk Anda**: **Dorong peningkatan frekuensi dan nilai transaksi**. Gunakan data untuk membuat promosi yang benar-benar diinginkan pelanggan.
+    - **Tingkatan Keanggotaan**: Menampilkan tingkatan anggota secara jelas (misal: **Squab**, **Flyer**, **Homer**).
+    - **Visualisasi Manfaat**: Menampilkan keuntungan dari setiap tingkatan, seperti diskon eksklusif, akses ke merchandise khusus, atau info produk lebih awal.
+- **Manfaat untuk Anda**: **Menciptakan rasa eksklusivitas**, memotivasi pelanggan untuk meningkatkan nilai transaksi mereka, dan membangun komunitas yang lebih kuat.
 
-### 6. Manajemen Karyawan & Tantangan Penjualan
-- **Tujuan**: Memotivasi tim Anda untuk mencapai target dan meningkatkan kinerja.
+### 6. Manajemen Inventaris Real-time
+- **Tujuan**: Menjaga ketersediaan produk dan menghindari kekecewaan pelanggan.
 - **Fitur**:
-    - **Manajemen Akun**: Kelola akses untuk peran Admin dan Kasir dengan mudah.
-    - **Generator Tantangan AI**: Tetapkan anggaran hadiah, dan biarkan Chika AI merancang tantangan penjualan berjenjang yang seru dan memotivasi untuk tim Anda.
-    - **Papan Peringkat Kinerja**: Tampilkan siapa karyawan dengan penjualan tertinggi secara transparan untuk mendorong persaingan sehat.
-- **Manfaat untuk Anda**: **Ciptakan lingkungan kerja yang kompetitif dan bersemangat**. Berikan insentif berbasis kinerja yang adil dan dorong seluruh tim untuk berkontribusi pada kesuksesan toko.
+    - **Pembaruan Stok Otomatis**: Stok produk berkurang secara otomatis setiap kali penjualan terjadi.
+    - **Peringatan Stok Rendah**: Memberikan notifikasi kepada manajer ketika stok produk mencapai ambang batas minimum.
+- **Manfaat untuk Anda**: **Mencegah kehabisan stok** pada produk populer, mengoptimalkan pemesanan barang, dan menjaga arus kas tetap sehat.
 
----
-
-## Alur Kerja Cerdas di Balik Layar
-
-- **Sesi Login Berbasis Toko**: Keamanan dan data Anda adalah prioritas. Pengguna (kasir/admin) harus memilih toko tempat mereka bekerja saat login, memastikan mereka hanya bisa mengakses data yang relevan. Ini adalah inti dari arsitektur multi-tenant kami yang aman.
-- **Sistem Pradana Token**: Model bisnis "bayar-per-pemakaian" yang adil. Anda hanya membayar biaya kecil dalam bentuk token untuk setiap transaksi atau penggunaan fitur AI. Tidak ada biaya langganan bulanan yang mahal. Top up saldo token Anda dengan mudah melalui transfer bank.
-- **Struk yang Dapat Disesuaikan**: Atur header, footer, dan bahkan teks promo yang dicetak di struk untuk setiap toko. Anda bahkan bisa meminta Chika AI untuk membuatkan teks promo yang menarik!
+### 7. Dasbor Ringkasan Penjualan
+- **Tujuan**: Memberikan gambaran cepat tentang kinerja bisnis untuk pengambilan keputusan yang lebih baik.
+- **Fitur**:
+    - **Ringkasan Pendapatan**: Tampilkan total pendapatan harian, mingguan, dan bulanan.
+    - **Analisis Kinerja Produk**: Lihat produk mana yang paling laris dan mana yang kurang diminati.
+- **Manfaat untuk Anda**: **Pahami tren penjualan dengan cepat**, identifikasi produk unggulan, dan buat strategi promosi yang lebih efektif berdasarkan data.
