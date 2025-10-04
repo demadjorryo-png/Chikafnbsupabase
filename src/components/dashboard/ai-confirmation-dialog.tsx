@@ -25,6 +25,7 @@ type AIConfirmationDialogProps<T> = {
   featureName: string;
   featureDescription: string;
   feeSettings: TransactionFeeSettings | null;
+  feeToDeduct?: number; // Optional specific fee for the feature
   onConfirm: () => Promise<T>;
   onSuccess: (result: T) => void;
   onError?: (error: any) => void;
@@ -36,6 +37,7 @@ export function AIConfirmationDialog<T>({
   featureName,
   featureDescription,
   feeSettings,
+  feeToDeduct,
   onConfirm,
   onSuccess,
   onError,
@@ -47,16 +49,16 @@ export function AIConfirmationDialog<T>({
   const { activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { toast } = useToast();
 
+  const actualFee = feeToDeduct ?? feeSettings?.aiUsageFee ?? 0;
+
   const handleConfirm = async () => {
     if (!activeStore || !feeSettings) {
       toast({ variant: 'destructive', title: 'Error', description: 'Pengaturan biaya atau toko tidak tersedia.' });
       return;
     }
-    
-    const feeToDeduct = feeSettings.aiUsageFee; // Use the standard single-use fee
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeToDeduct, activeStore.id, toast, featureName);
+      await deductAiUsageFee(pradanaTokenBalance, actualFee, activeStore.id, toast, featureName);
     } catch (error) {
       // deductAiUsageFee already shows a toast for insufficient balance
       return;
@@ -79,7 +81,7 @@ export function AIConfirmationDialog<T>({
       });
       // Refund the fee if the AI call fails
       try {
-        await deductAiUsageFee(pradanaTokenBalance, -feeToDeduct, activeStore.id, () => {});
+        await deductAiUsageFee(pradanaTokenBalance, -actualFee, activeStore.id, () => {});
         refreshPradanaTokenBalance();
       } catch (refundError) {
         console.error("Critical: Failed to refund tokens after AI error.", refundError);
@@ -113,7 +115,7 @@ export function AIConfirmationDialog<T>({
               <span className="text-sm font-medium text-muted-foreground">Biaya Penggunaan</span>
               <span className="flex items-center gap-2 font-bold text-primary">
                 <Coins className="h-4 w-4" />
-                {feeSettings?.aiUsageFee || 0} Pradana Token
+                {actualFee} Pradana Token
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between">

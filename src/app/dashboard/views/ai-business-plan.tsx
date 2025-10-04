@@ -78,6 +78,8 @@ export default function AIBusinessPlan() {
     );
   }
 
+  const businessPlanFee = Number(feeSettings.aiBusinessPlanFee) || 0;
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader className="text-center">
@@ -106,16 +108,17 @@ export default function AIBusinessPlan() {
              <AIConfirmationDialog
                 featureName="AI Business Plan"
                 featureDescription="Chika AI akan melakukan analisis mendalam terhadap data historis toko Anda untuk membuat rencana bisnis yang komprehensif."
-                feeSettings={{...feeSettings, aiUsageFee: feeSettings.aiBusinessPlanFee}}
+                feeSettings={feeSettings}
+                feeToDeduct={businessPlanFee}
                 onConfirm={handleGeneratePlan}
                 onSuccess={(result) => {
                     // In a real app, you would navigate to the plan page or display it here
                     console.log("Business plan generated:", result);
                 }}
              >
-                <Button size="lg" className="w-full sm:w-auto" disabled={!feeSettings}>
+                <Button size="lg" className="w-full sm:w-auto" disabled={!feeSettings || businessPlanFee <= 0}>
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Beli Rencana AI ({feeSettings.aiBusinessPlanFee} Token)
+                    Beli Rencana AI ({businessPlanFee} Token)
                 </Button>
             </AIConfirmationDialog>
           </div>
@@ -163,5 +166,3 @@ export default function AIBusinessPlan() {
     </Card>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -175,7 +176,7 @@ export type TransactionFeeSettings = {
   maxFeeRp: number;
   aiUsageFee: number;
   newStoreBonusTokens: number;
-  aiBusinessPlanFee: number;
+  aiBusinessPlanFee: number | string; // Can be string or number
   aiSessionFee: number;
   aiSessionDurationMinutes: number;
 };
