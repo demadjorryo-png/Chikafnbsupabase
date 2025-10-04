@@ -79,7 +79,8 @@ export default function RegisterPage() {
         pradanaTokenBalance: bonusTokens,
         adminUids: [uid],
         createdAt: new Date().toISOString(),
-        transactionCounter: 0,
+        transactionCounter: 0, // Initialize transaction counter
+        firstTransactionDate: null, // Initialize first transaction date
       });
 
       // Create user document

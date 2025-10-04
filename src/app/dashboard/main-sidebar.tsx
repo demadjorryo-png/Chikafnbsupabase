@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -33,6 +32,7 @@ import {
   Store,
   Wallet,
   TrendingUp,
+  Map,
 } from 'lucide-react';
 import * as React from 'react';
 import type { User } from '@/lib/types';
@@ -107,6 +107,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
             { view: 'customer-analytics', label: 'Analisis Pelanggan', icon: <BarChart4 />, roles: ['admin'] },
             { view: 'promotions', label: 'Promosi', icon: <Gift />, roles: ['admin', 'cashier'] },
             { view: 'challenges', label: 'Tantangan', icon: <Trophy />, roles: ['admin'] },
+            { view: 'ai-business-plan', label: 'AI Business Plan', icon: <Map />, roles: ['admin'] },
         ]
     },
      {

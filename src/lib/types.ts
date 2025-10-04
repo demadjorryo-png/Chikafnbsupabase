@@ -1,4 +1,3 @@
-
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -30,6 +29,8 @@ export type Store = {
   pradanaTokenBalance: number;
   adminUids: string[];
   createdAt: string;
+  firstTransactionDate?: string | null; // Can be null if no transactions yet
+  transactionCounter?: number;
 };
 
 export type UserRole = 'admin' | 'cashier' | 'superadmin';

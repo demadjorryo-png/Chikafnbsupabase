@@ -16,6 +16,7 @@ import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
 import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
+import AIBusinessPlan from '@/app/dashboard/views/ai-business-plan';
 import Tables from '@/app/dashboard/views/tables';
 import { Suspense } from 'react';
 import type { User, Transaction } from '@/lib/types';
@@ -79,7 +80,7 @@ function DashboardContent() {
   const { users } = dashboardData;
 
   const renderView = () => {
-    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
+    const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics', 'ai-business-plan'];
     if (currentUser?.role === 'cashier' && unauthorizedCashierViews.includes(view)) {
         return <Tables onPrintRequest={setTransactionToPrint} />;
     }
@@ -116,6 +117,8 @@ function DashboardContent() {
         return <Promotions />;
       case 'receipt-settings':
         return <ReceiptSettings />;
+      case 'ai-business-plan':
+        return <AIBusinessPlan />;
       default:
         return <Tables onPrintRequest={setTransactionToPrint} />;
     }
@@ -140,6 +143,7 @@ function DashboardContent() {
       'challenges': 'Tantangan Karyawan',
       'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
+      'ai-business-plan': 'AI Business Plan',
     }[view] || 'Kasir POS';
     
     if (isAdmin && view === 'overview') {

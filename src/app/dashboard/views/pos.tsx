@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -51,7 +50,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentReference, increment } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentReference, increment, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -278,7 +277,32 @@ export default function POS({ onPrintRequest }: POSProps) {
       await runTransaction(db, async (transaction) => {
         
         const storeRef = doc(db, 'stores', storeId);
+        const storeDoc = await transaction.get(storeRef);
+        if (!storeDoc.exists()) {
+            throw new Error("Store document not found.");
+        }
+        const storeData = storeDoc.data();
 
+        // 1. Handle transaction count and first transaction date
+        const isFirstTransaction = storeData.transactionCounter === 0;
+        const updatesForStore: { [key: string]: any } = {
+            transactionCounter: increment(1)
+        };
+        if (isFirstTransaction) {
+            updatesForStore.firstTransactionDate = serverTimestamp();
+        }
+        
+        // 2. Token balance check and deduction for non-admins
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+            const currentTokenBalance = storeData.pradanaTokenBalance || 0;
+            if (currentTokenBalance < transactionFee) {
+                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
+            }
+            updatesForStore.pradanaTokenBalance = increment(-transactionFee);
+        }
+        transaction.update(storeRef, updatesForStore);
+
+        // 3. Stock updates
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
           .map(item => ({
@@ -286,59 +310,29 @@ export default function POS({ onPrintRequest }: POSProps) {
             item: item,
           }));
         
-        const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
-  
         const productDocs = await Promise.all(
           productReads.map(p => transaction.get(p.ref))
         );
-        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
-        
-        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
-            const storeTokenDoc = await transaction.get(storeRef);
-            const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-            if (currentTokenBalance < transactionFee) {
-                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-            }
-        }
-        
-        const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
         
         for (let i = 0; i < productDocs.length; i++) {
           const productDoc = productDocs[i];
           const { item } = productReads[i];
           
-          if (!productDoc.exists()) {
-            throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
-          }
+          if (!productDoc.exists()) throw new Error(`Produk ${item.productName} tidak ditemukan.`);
+          
           const currentStock = productDoc.data().stock || 0;
-          const newStock = currentStock - item.quantity;
-          if (newStock < 0) {
-            throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-          }
-          stockUpdates.push({ ref: productDoc.ref, newStock });
+          if (currentStock < item.quantity) throw new Error(`Stok tidak cukup untuk ${item.productName}.`);
+          
+          transaction.update(productDoc.ref, { stock: increment(-item.quantity) });
         }
 
-        let newCustomerPoints: number | null = null;
-        if (selectedCustomer && customerDoc) {
-          if (!customerDoc.exists()) {
-            throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
-          }
-          const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
-          newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
-        }
-
-        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
-            transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
+        // 4. Customer points update
+        if (selectedCustomer) {
+          const customerRef = doc(db, 'stores', storeId, 'customers', selectedCustomer.id);
+          transaction.update(customerRef, { loyaltyPoints: increment(pointsEarned - pointsToRedeem) });
         }
         
-        stockUpdates.forEach(update => {
-          transaction.update(update.ref, { stock: update.newStock });
-        });
-
-        if (customerRef && newCustomerPoints !== null) {
-          transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
-        }
-        
+        // 5. Create transaction record
         const newTransactionRef = doc(collection(db, 'stores', storeId, 'transactions'));
         const transactionData: Transaction = {
             id: newTransactionRef.id,
@@ -359,6 +353,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         };
         transaction.set(newTransactionRef, transactionData);
         
+        // 6. Update table status
         const tableRef = doc(db, 'stores', storeId, 'tables', selectedTableId);
         transaction.update(tableRef, {
             status: 'Terisi',
