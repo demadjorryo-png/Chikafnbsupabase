@@ -1,13 +1,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import admin from 'firebase-admin';
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!getApps().length) {
-  initializeApp();
+  // When running on App Hosting, the service account credentials are automatically available.
+  // When running locally, you need to set up the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+  initializeApp({
+      credential: admin.credential.applicationDefault(),
+  });
 }
 const adminAuth = getAuth();
 const db = getFirestore();
@@ -80,7 +84,14 @@ export async function POST(req: NextRequest) {
     } else if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
         errorMessage = 'Your session has expired. Please log in again.';
         statusCode = 401; // Unauthorized
+    } else if (error.code === 'auth/invalid-argument') {
+        errorMessage = `Invalid argument provided: ${error.message}`;
+        statusCode = 400;
+    } else if (error.message.includes('credential')) {
+        errorMessage = "Server configuration error. Could not initialize authentication service.";
+        statusCode = 500;
     }
+
 
     return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
