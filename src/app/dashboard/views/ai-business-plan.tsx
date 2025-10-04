@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import {
   Card,
   CardContent,
@@ -20,6 +21,8 @@ import { Label } from '@/components/ui/label';
 
 export default function AIBusinessPlan() {
   const { activeStore, isLoading: isAuthLoading } = useAuth();
+  const { dashboardData } = useDashboard();
+  const { feeSettings } = dashboardData;
 
   const [isEligible, setIsEligible] = React.useState(false);
   const [daysProgress, setDaysProgress] = React.useState(0);
@@ -50,7 +53,7 @@ export default function AIBusinessPlan() {
     }
   }, [activeStore]);
 
-  if (isAuthLoading || !activeStore) {
+  if (isAuthLoading || !activeStore || !feeSettings) {
     return (
         <Card className="w-full max-w-2xl mx-auto">
             <CardHeader>
@@ -93,7 +96,7 @@ export default function AIBusinessPlan() {
             </p>
              <Button size="lg" className="w-full sm:w-auto">
                 <Sparkles className="mr-2 h-5 w-5" />
-                Beli Rencana AI (25 Token)
+                Beli Rencana AI ({feeSettings.aiBusinessPlanFee} Token)
             </Button>
           </div>
         ) : (

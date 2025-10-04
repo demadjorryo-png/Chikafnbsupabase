@@ -167,3 +167,13 @@ export type TopUpRequest = {
   requestedAt: string; // ISO 8601 string
   processedAt?: string; // ISO 8601 string
 };
+
+export type TransactionFeeSettings = {
+  tokenValueRp: number;
+  feePercentage: number;
+  minFeeRp: number;
+  maxFeeRp: number;
+  aiUsageFee: number;
+  newStoreBonusTokens: number;
+  aiBusinessPlanFee: number;
+};
