@@ -30,7 +30,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader, Sparkles, LogIn, Megaphone, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { ChikaChatDialog } from '@/components/dashboard/chika-chat-dialog';
+import { AppConsultantChatDialog } from '@/components/dashboard/app-consultant-chat-dialog';
 import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -231,7 +231,7 @@ export default function LoginPage() {
 
       </div>
     </main>
-    <ChikaChatDialog open={isConsultDialogOpen} onOpenChange={setIsConsultDialogOpen} mode="consultant" />
+    <AppConsultantChatDialog open={isConsultDialogOpen} onOpenChange={setIsConsultDialogOpen} />
 
     <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
         <DialogContent>

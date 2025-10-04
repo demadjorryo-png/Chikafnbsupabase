@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { ChikaChatDialog } from './chika-chat-dialog';
+import { BusinessAnalystChatDialog } from './business-analyst-chat-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 export function ChikaChatButton() {
@@ -35,7 +35,7 @@ export function ChikaChatButton() {
           </TooltipContent>
         </Tooltip>
       </div>
-      <ChikaChatDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} mode="analyst" />
+      <BusinessAnalystChatDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
     </>
   );
 }
