@@ -16,6 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, Clock, FileText, Gift, Loader, Map, Sparkles } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
 
 export default function AIBusinessPlan() {
   const { activeStore, isLoading: isAuthLoading } = useAuth();
