@@ -3,6 +3,7 @@
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import appConfig from '../app.config.json';
 
 export type LoginPromoSettings = {
     title: string;
@@ -26,15 +27,16 @@ export const defaultLoginPromoSettings: LoginPromoSettings = {
  * @returns The login promo settings, or default settings if not found.
  */
 export async function getLoginPromoSettings(): Promise<LoginPromoSettings> {
+    const appId = appConfig.appId || 'default';
+    const settingsDocRef = doc(db, 'appSettings', appId, 'configs', 'loginPromo');
     try {
-        const settingsDocRef = doc(db, 'appSettings', 'loginPromo');
         const docSnap = await getDoc(settingsDocRef);
 
         if (docSnap.exists()) {
             // Merge with defaults to ensure all properties are present
             return { ...defaultLoginPromoSettings, ...docSnap.data() };
         } else {
-            console.warn("Login promo settings not found, creating document with default values.");
+            console.warn(`Login promo settings for appId '${appId}' not found, creating document with default values.`);
             // If the document doesn't exist, create it with default values
             await setDoc(settingsDocRef, defaultLoginPromoSettings);
             return defaultLoginPromoSettings;
