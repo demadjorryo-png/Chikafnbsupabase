@@ -2,28 +2,24 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Aturan untuk folder 'products', yang diorganisir per storeId.
-    // Contoh path: /products/STORE_ID_123/image.jpg
-    match /products/{storeId}/{allPaths=**} {
-      
-      // Izin Baca: Semua pengguna yang sudah login bisa melihat gambar produk.
+    // Semua file di bucket
+    match /{allPaths=**} {
+      // Izinkan semua operasi baca (read) jika pengguna sudah login.
       allow read: if request.auth != null;
-      
-      // Izin Tulis (upload, update, delete):
-      // Hanya pengguna yang 'storeId'-nya di database cocok dengan {storeId} di path
-      // yang boleh menulis ke folder ini.
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
     }
 
-    // Aturan untuk folder 'top-up-proofs', yang diorganisir per storeId.
-    // Contoh path: /top-up-proofs/STORE_ID_123/proof.jpg
+    // Hanya izinkan operasi tulis (write) di dalam folder produk dari toko yang sesuai.
+    match /products/{storeId}/{allPaths=**} {
+      allow write: if request.auth != null 
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'cashier'];
+    }
+    
+    // Aturan untuk bukti transfer
     match /top-up-proofs/{storeId}/{allPaths=**} {
-
-      // Izin Baca & Tulis:
-      // Hanya pengguna yang 'storeId'-nya cocok yang bisa mengunggah bukti transfer.
-      // Admin (melalui server/cloud function) dapat membaca ini untuk verifikasi.
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId;
+       allow write: if request.auth != null 
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == storeId
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'cashier'];
     }
   }
 }
