@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -39,12 +40,7 @@ import {
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
-
-type CustomersProps = {
-    customers: Customer[];
-    onDataChange: () => void;
-    isLoading: boolean;
-};
+import { useDashboard } from '@/contexts/dashboard-context';
 
 function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }) {
     if (!customer) return null;
@@ -78,17 +74,20 @@ function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Cus
     );
 }
 
-export default function Customers({ customers, onDataChange, isLoading }: CustomersProps) {
+export default function Customers() {
+  const { activeStore } = useAuth();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const customers = dashboardData?.customers || [];
+
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const { activeStore } = useAuth();
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
   };
   
   const handleCustomerAdded = () => {
-    onDataChange();
+    refreshData();
   }
 
   return (
