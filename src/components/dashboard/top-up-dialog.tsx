@@ -109,8 +109,9 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
       });
       
       // 3. Send WhatsApp notifications
-      const { adminGroup } = await getWhatsappSettings();
-      const adminMessage = `*PENGAJUAN TOP UP BARU*
+      try {
+        const { adminGroup } = await getWhatsappSettings();
+        const adminMessage = `*PENGAJUAN TOP UP BARU*
 Toko: *${activeStore.name}*
 Admin: *${currentUser.name}*
 Jumlah: *Rp ${totalAmount.toLocaleString('id-ID')}*
@@ -119,17 +120,21 @@ Status: *Pending*
 Mohon untuk segera diverifikasi melalui panel Superadmin.
 Lihat bukti: ${proofUrl}`;
 
-      const userMessage = `Halo *${currentUser.name}*, pengajuan top up Pradana Token Anda untuk toko *${activeStore.name}* sebesar *Rp ${totalAmount.toLocaleString('id-ID')}* telah berhasil kami terima dan sedang dalam proses verifikasi.`;
+        const userMessage = `Halo *${currentUser.name}*, pengajuan top up Pradana Token Anda untuk toko *${activeStore.name}* sebesar *Rp ${totalAmount.toLocaleString('id-ID')}* telah berhasil kami terima dan sedang dalam proses verifikasi.`;
 
-      // Send to platform admin group
-      if(adminGroup) {
-         await sendWhatsAppNotification({ isGroup: true, target: adminGroup, message: adminMessage });
-      }
-      
-      // Send to store admin
-      if(currentUser.whatsapp) {
-        const formattedPhone = currentUser.whatsapp.startsWith('0') ? `62${currentUser.whatsapp.substring(1)}` : currentUser.whatsapp;
-        await sendWhatsAppNotification({ target: formattedPhone, message: userMessage });
+        // Send to platform admin group
+        if(adminGroup) {
+           await sendWhatsAppNotification({ isGroup: true, target: adminGroup, message: adminMessage });
+        }
+        
+        // Send to store admin
+        if(currentUser.whatsapp) {
+          const formattedPhone = currentUser.whatsapp.startsWith('0') ? `62${currentUser.whatsapp.substring(1)}` : currentUser.whatsapp;
+          await sendWhatsAppNotification({ target: formattedPhone, message: userMessage });
+        }
+      } catch (notificationError) {
+          console.error('Failed to send WhatsApp notification:', notificationError);
+          // Non-blocking, so we just log the error but don't show a toast to the user
       }
 
       setDialogOpen(false);
