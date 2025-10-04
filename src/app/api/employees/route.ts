@@ -1,20 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import admin from 'firebase-admin';
+import { adminAuth, adminDb, admin } from '@/lib/firebase-admin';
 
-// Initialize Firebase Admin SDK if not already initialized
-if (!getApps().length) {
-  // When running on App Hosting, the service account credentials are automatically available.
-  // When running locally, you need to set up the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-  initializeApp({
-      credential: admin.credential.applicationDefault(),
-  });
-}
-const adminAuth = getAuth();
-const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Verify Caller Permissions from Firestore
-    const callerDoc = await db.collection('users').doc(callerUid).get();
+    const callerDoc = await adminDb.collection('users').doc(callerUid).get();
     if (!callerDoc.exists || callerDoc.data()?.role !== 'admin') {
       return NextResponse.json({ error: 'Permission denied: Caller is not an admin' }, { status: 403 });
     }
@@ -51,9 +38,9 @@ export async function POST(req: NextRequest) {
     await adminAuth.setCustomUserClaims(newUserId, { role });
     
     // 6. Create User Document and update store in a Firestore batch
-    const batch = db.batch();
+    const batch = adminDb.batch();
 
-    const userDocRef = db.collection('users').doc(newUserId);
+    const userDocRef = adminDb.collection('users').doc(newUserId);
     batch.set(userDocRef, {
       name,
       email,
@@ -63,7 +50,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (role === 'admin') {
-      const storeRef = db.collection('stores').doc(storeId);
+      const storeRef = adminDb.collection('stores').doc(storeId);
       batch.update(storeRef, {
         adminUids: admin.firestore.FieldValue.arrayUnion(newUserId),
       });
@@ -87,7 +74,7 @@ export async function POST(req: NextRequest) {
     } else if (error.code === 'auth/invalid-argument') {
         errorMessage = `Invalid argument provided: ${error.message}`;
         statusCode = 400;
-    } else if (error.message.includes('credential')) {
+    } else if (error.code === 'auth/invalid-credential' || error.message.includes('credential')) {
         errorMessage = "Server configuration error. Could not initialize authentication service.";
         statusCode = 500;
     }
