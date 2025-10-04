@@ -3,7 +3,6 @@
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import appConfig from '../app.config.json';
 
 export type BankAccountSettings = {
     bankName: string;
@@ -23,15 +22,14 @@ export const defaultBankAccountSettings: BankAccountSettings = {
  * @returns The bank account settings, or default settings if not found.
  */
 export async function getBankAccountSettings(): Promise<BankAccountSettings> {
-    const appId = appConfig.appId || 'default';
-    const settingsDocRef = doc(db, 'appSettings', appId, 'configs', 'bankAccount');
+    const settingsDocRef = doc(db, 'appSettings', 'bankAccount');
     try {
         const docSnap = await getDoc(settingsDocRef);
 
         if (docSnap.exists()) {
             return { ...defaultBankAccountSettings, ...docSnap.data() };
         } else {
-            console.warn(`Bank account settings for appId '${appId}' not found, creating document with default values.`);
+            console.warn(`Bank account settings not found, creating document with default values.`);
             await setDoc(settingsDocRef, defaultBankAccountSettings);
             return defaultBankAccountSettings;
         }

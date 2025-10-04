@@ -1,11 +1,9 @@
 
 'use client';
 
-import { doc, getDoc, updateDoc, setDoc, increment, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 import { db } from './firebase';
 import type { TransactionFeeSettings } from './types';
-import appConfig from '../app.config.json';
-
 
 // Default settings in case the document doesn't exist in Firestore
 export const defaultFeeSettings: TransactionFeeSettings = {
@@ -21,8 +19,7 @@ export const defaultFeeSettings: TransactionFeeSettings = {
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {
-  const appId = appConfig.appId || 'default';
-  const settingsDocRef = doc(db, 'appSettings', appId, 'configs', 'transactionFees');
+  const settingsDocRef = doc(db, 'appSettings', 'transactionFees');
   try {
     const docSnap = await getDoc(settingsDocRef);
 
@@ -30,7 +27,7 @@ export async function getTransactionFeeSettings(): Promise<TransactionFeeSetting
       // Merge with defaults to ensure all properties are present
       return { ...defaultFeeSettings, ...docSnap.data() };
     } else {
-      console.warn(`Transaction fee settings for appId '${appId}' not found, creating document with default values.`);
+      console.warn(`Transaction fee settings not found, creating document with default values.`);
       // If the document doesn't exist, create it with default values
       await setDoc(settingsDocRef, defaultFeeSettings);
       return defaultFeeSettings;

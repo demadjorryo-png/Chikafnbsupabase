@@ -8,11 +8,11 @@ import { getStorage } from 'firebase/storage';
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: "kasir-pos-chika-toko-354-1abce.firebaseapp.com",
-  projectId: "kasir-pos-chika-toko-354-1abce",
-  storageBucket: "kasir-pos-chika-toko-354-1abce.appspot.com",
-  messagingSenderId: "582069956448",
-  appId: "1:582069956448:web:ed2154023a6f7226837805"
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 
