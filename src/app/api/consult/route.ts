@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    // This flow uses a different model and is handled internally.
     const flowResult = await consultWithChika({
       conversationHistory: conversationHistory.map((m) => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n'),
       userInput: userInput,
