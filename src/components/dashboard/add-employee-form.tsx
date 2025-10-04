@@ -84,11 +84,19 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
             body: JSON.stringify({ ...data, storeId: activeStore.id }),
         });
 
-        const result = await response.json();
-
         if (!response.ok) {
-            throw new Error(result.error || 'Gagal menambahkan karyawan.');
+          const errorText = await response.text();
+          console.error("Server error response:", errorText);
+          try {
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.error || 'Gagal menambahkan karyawan.');
+          } catch (e) {
+            // If parsing as JSON fails, use the raw text as the error message.
+            // This is useful for catching HTML error pages or other non-JSON responses.
+            throw new Error(errorText || 'Gagal menambahkan karyawan: Terjadi kesalahan tidak terduga.');
+          }
         }
+
 
         toast({
             title: 'Karyawan Berhasil Ditambahkan!',

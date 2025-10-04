@@ -1,18 +1,27 @@
 import admin from 'firebase-admin';
-import { getApps, initializeApp, credential } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+
+// Define the service account object structure.
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // Un-escape newlines
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+};
 
 // Ensure Firebase Admin SDK is initialized only once.
-if (!getApps().length) {
-  // When running on App Hosting, the service account credentials are automatically available.
-  // For local development, set the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-  initializeApp({
-    credential: credential.applicationDefault(),
-  });
+if (!admin.apps.length) {
+  // Check if all necessary service account details are available.
+  if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } else {
+    console.error(
+      'Firebase Admin SDK Error: Missing configuration. Ensure FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL are set in .env.local'
+    );
+  }
 }
 
-const adminAuth = getAuth();
-const adminDb = getFirestore();
+const adminAuth = admin.auth();
+const adminDb = admin.firestore();
 
 export { adminAuth, adminDb, admin };

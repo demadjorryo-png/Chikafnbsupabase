@@ -2,8 +2,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb, admin } from '@/lib/firebase-admin';
 
-
 export async function POST(req: NextRequest) {
+  // ==================== LANGKAH DIAGNOSTIK ====================
+  // Kode ini akan mencetak variabel lingkungan yang dibaca oleh server.
+  // Ini akan membantu kita memastikan file .env.local dimuat dengan benar.
+  console.log("=============================================");
+  console.log("DIAGNOSTIK KREDENSIAL FIREBASE ADMIN:");
+  console.log("- FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
+  console.log("- FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
+  console.log("- FIREBASE_PRIVATE_KEY (Exists):", !!process.env.FIREBASE_PRIVATE_KEY);
+  console.log("=============================================");
+  // ============================================================
+
   try {
     // 1. Verify the authorization token from the client
     const authorization = req.headers.get('Authorization');
@@ -20,8 +30,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 3. Verify Caller Permissions from Firestore
+    // 3. Verify Caller Permissions
     const callerDoc = await adminDb.collection('users').doc(callerUid).get();
+    
     if (!callerDoc.exists || callerDoc.data()?.role !== 'admin') {
       return NextResponse.json({ error: 'Permission denied: Caller is not an admin' }, { status: 403 });
     }
@@ -78,7 +89,6 @@ export async function POST(req: NextRequest) {
         errorMessage = "Server configuration error. Could not initialize authentication service.";
         statusCode = 500;
     }
-
 
     return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
