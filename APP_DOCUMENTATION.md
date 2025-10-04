@@ -1,125 +1,71 @@
-# Dokumentasi Alur dan Fungsi Aplikasi Kasir POS Chika
+# Chika POS F&B: Lebih dari Sekadar Kasir, Ini Partner Pertumbuhan Bisnis Anda
 
-Dokumen ini memberikan gambaran menyeluruh tentang arsitektur, alur data, dan fungsionalitas utama dari aplikasi POS & CRM "Kasir POS Chika".
+**Ubah cara Anda mengelola kafe, restoran, atau bisnis F&B Anda. Chika POS F&B bukan hanya aplikasi Point of Sale (POS) biasa; ini adalah platform cerdas yang dirancang untuk menyederhanakan operasional, meningkatkan loyalitas pelanggan, dan memberikan Anda wawasan bisnis bertenaga AI untuk mengambil keputusan yang lebih cerdas.**
 
-## 1. Ikhtisar dan Tumpukan Teknologi
+Dari transaksi secepat kilat hingga analisis mendalam, Chika adalah satu-satunya sistem yang Anda butuhkan untuk berkembang di industri F&B yang kompetitif.
 
-- **Tujuan**: Aplikasi web internal untuk "Kasir POS Chika" guna mengelola penjualan (Point of Sale), inventaris, pelanggan, karyawan, dan mendapatkan rekomendasi bisnis berbasis AI.
-- **Tumpukan Teknologi**:
-  - **Frontend**: Next.js (App Router), React, TypeScript
-  - **UI**: shadcn/ui, Tailwind CSS, Lucide React (ikon), Recharts (grafik)
-  - **Backend & Database**: Firebase (Firestore untuk database, Firebase Auth untuk autentikasi)
-  - **AI**: Genkit (Google AI)
+## Tumpukan Teknologi
+- **Frontend**: Next.js (App Router), React, TypeScript
+- **UI**: shadcn/ui, Tailwind CSS, Lucide React (ikon), Recharts (grafik)
+- **Backend & Database**: Firebase (Firestore & Auth)
+- **AI & GenAI**: Google AI (Gemini) via Genkit
 
-## 2. Alur Autentikasi dan Sesi
+---
 
-Alur ini krusial untuk memahami bagaimana aplikasi mengidentifikasi pengguna dan toko yang aktif.
+## ✨ Fitur Unggulan Chika POS F&B
 
-### a. Halaman Login (`/login`)
-- **Fungsi**: Titik masuk utama untuk semua pengguna (Admin dan Kasir).
-- **Proses**:
-  1. Pengguna **wajib** memilih **Toko** dari dropdown.
-  2. Pengguna memasukkan **User ID** dan **Password**.
-  3. Saat tombol "Masuk" diklik, fungsi `login` dari `AuthContext` dieksekusi.
-  4. **Login**: Menggunakan `signInWithEmailAndPassword` dari Firebase Auth. User ID diubah menjadi format email (`<userId>@era5758.co.id`).
-  5. **Penanganan Status**: Setelah login berhasil, aplikasi memeriksa status pengguna di Firestore. Jika statusnya `'inactive'`, login dibatalkan dan notifikasi muncul.
-  6. **Penyimpanan Sesi**: Jika berhasil, ID toko yang dipilih (`storeId`) disimpan di `sessionStorage` browser.
-  7. **Redirect ke Dashboard**: Pengguna diarahkan ke `/dashboard`.
+Setiap fitur dirancang dengan satu tujuan: **membuat bisnis Anda lebih efisien, lebih menguntungkan, dan lebih dicintai pelanggan.**
 
-### b. Pengelolaan Sesi (`AuthContext`)
-- Aplikasi mengelola sesi menggunakan kombinasi Firebase Auth dan `sessionStorage`.
-- **`AuthContext`**: Ini adalah "otak" dari sesi. Saat aplikasi dimuat, ia melakukan:
-  1. **Cek Firebase Auth**: Memeriksa apakah ada pengguna yang sudah terautentikasi di Firebase.
-  2. **Cek `sessionStorage`**: Jika ada pengguna, ia akan memeriksa `sessionStorage` untuk mengambil `storeId` yang terakhir kali dipilih.
-  3. **Validasi Sesi**:
-     - Jika pengguna terautentikasi **dan** `storeId` ditemukan, sesi dianggap valid. Data pengguna (`currentUser`) dan data toko (`activeStore`) dimuat, dan pengguna dapat mengakses dashboard.
-     - Jika pengguna terautentikasi tetapi `storeId` **tidak ditemukan** (misalnya, `sessionStorage` dihapus), sesi dianggap tidak konsisten. Pengguna akan secara otomatis di-logout dan diarahkan kembali ke halaman login untuk memilih toko lagi.
-  4. **Single Source of Truth**: Konteks dari `AuthContext` (`currentUser` dan `activeStore`) menjadi `single source of truth` yang menentukan data apa yang harus ditampilkan di seluruh aplikasi.
-
-## 3. Struktur Dashboard
-
-### a. `src/app/dashboard/page.tsx` (Komponen Inti)
-- **Fungsi**: Komponen ini adalah "otak" dari seluruh dashboard.
-- **Alur Kerja**:
-  1. **Membaca Parameter URL**: Mengambil parameter `view` dari URL untuk menentukan tampilan mana yang harus dirender (misalnya, `overview`, `pos`, `products`).
-  2. **Menggunakan Konteks**: Mengambil `currentUser` dan `activeStore` dari `AuthContext`.
-  3. **Pengambilan Data (`fetchAllData`)**: Melakukan pemanggilan ke Firestore untuk mengambil semua data yang relevan dengan `activeStore` yang aktif, termasuk: `products`, `transactions`, `pendingOrders`, dll. Data global seperti `customers`, `users`, dan `stores` juga diambil.
-  4. **Pengambilan Pengaturan**: Mengambil pengaturan dinamis seperti `feeSettings` (biaya token) dan `pradanaTokenBalance` dari Firestore.
-  5. **Routing Tampilan (View)**: Berdasarkan nilai `view`, komponen ini akan merender "view" yang sesuai. Ia juga secara cerdas memilih antara `AdminOverview` dan `Overview` berdasarkan peran pengguna.
-  6. **Meneruskan Data**: Meneruskan data yang relevan (misalnya, `products`, `customers`, `feeSettings`) sebagai *props* ke komponen "view" yang aktif.
-  7. **Manajemen Loading & Error**: Menampilkan `DashboardSkeleton` saat data sedang dimuat dan `toast` error jika pengambilan data gagal.
-
-### b. `src/app/dashboard/main-sidebar.tsx`
-- **Fungsi**: Menyediakan navigasi utama.
-- **Logika**:
-  - Menerima `currentUser` untuk menentukan menu mana yang boleh ditampilkan berdasarkan peran (`admin` atau `kasir`).
-  - Mengarahkan pengguna ke "view" yang berbeda dengan mengubah parameter `view` di URL.
-
-## 4. Rincian Fungsi per "View"
-
-### a. Point of Sale (`pos.tsx`)
-- **Fungsi**: Melakukan transaksi penjualan.
-- **Alur Checkout (`handleCheckout`)**:
-  1. **Validasi Awal**: Memastikan keranjang tidak kosong dan `currentUser` serta `activeStore` valid.
-  2. **Cek & Potong Token**: Sistem akan memeriksa `pradanaTokenBalance` milik toko. Jika saldo tidak cukup untuk membayar biaya transaksi (`transactionFee`), checkout dibatalkan. Jika cukup, saldo akan dipotong.
-  3. **Memulai Transaksi Firestore (`runTransaction`)**: Semua operasi database dibungkus dalam satu transaksi atomik untuk memastikan integritas data.
-  4. **Iterasi Keranjang**:
-     - **Pengurangan Stok**: Mengambil dokumen produk, memvalidasi stok di `activeStore`, dan mengurangi stok menggunakan `transaction.update`. Jika stok tidak cukup, seluruh transaksi dibatalkan.
-  5. **Update Poin Pelanggan**: Jika ada `selectedCustomer`, poin loyalitasnya diperbarui (poin didapat - poin ditukar).
-  6. **Membuat Catatan Transaksi**: Membuat dokumen baru di koleksi `transactions`.
-  7. **Menampilkan Struk**: Jika berhasil, dialog struk (`CheckoutReceiptDialog`) akan muncul.
-
-### b. Overview (`overview.tsx` & `admin-overview.tsx`)
-- **Fungsi**: Menampilkan ringkasan data dan metrik kinerja untuk `activeStore`.
-- **`overview.tsx` (Kasir)**: Menampilkan data relevan seperti penjualan harian/bulanan pribadi dan papan peringkat karyawan di toko tersebut.
-- **`admin-overview.tsx` (Admin)**: Menampilkan data yang lebih mendalam untuk toko yang dipilih, termasuk total pendapatan, laba kotor, dan yang terpenting, memanggil *flow* AI `getAdminRecommendations` untuk memberikan saran bisnis.
-
-### c. Products (`products.tsx`)
-- **Fungsi**: Mengelola inventaris produk di toko yang dipilih.
+### 1. Kasir Cerdas & Manajemen Meja (Smart POS & Table Management)
+- **Tujuan**: Mempercepat proses pemesanan dan pembayaran, serta memberikan gambaran visual real-time dari seluruh area layanan Anda.
 - **Fitur**:
-  - Menampilkan daftar semua produk dengan stok di `activeStore`.
-  - Filter berdasarkan kategori dan pencarian berdasarkan nama.
-  - **Admin**: Dapat menambah, mengedit, menghapus, dan menyesuaikan stok produk secara langsung dari tabel.
-  - **Kasir**: Hanya dapat melihat produk dan stoknya.
+    - **Antarmuka Visual**: Pilih produk berdasarkan gambar, bukan hanya teks. Meminimalkan kesalahan dan mempercepat training kasir baru.
+    - **Pencarian Cepat**: Cari produk berdasarkan nama, kategori, atau **scan barcode** untuk transaksi super cepat.
+    - **Manajemen Meja Interaktif**: Lihat meja mana yang tersedia, terisi, atau menunggu dibersihkan dalam satu layar. Pindahkan pesanan atau gabungkan meja dengan mudah.
+- **Manfaat untuk Anda**: **Kurangi waktu tunggu pelanggan**, tingkatkan perputaran meja (table turnover), dan minimalkan kesalahan input oleh karyawan. Hasilnya? Pelanggan lebih bahagia dan pendapatan meningkat.
 
-### d. Promotions (`promotions.tsx`)
-- **Fungsi**: Mengelola promosi penukaran poin.
-- **Fitur Admin**:
-  - **Pengaturan Poin**: Mengatur berapa Rupiah belanja yang diperlukan untuk mendapatkan 1 poin.
-  - **Rekomendasi AI**: Memanggil AI untuk memberikan ide promosi baru berdasarkan data penjualan.
-  - **CRUD Promo**: Menambah, mengedit, menonaktifkan, dan menghapus opsi penukaran poin.
-- **Fitur Kasir**: Hanya dapat melihat promo yang sedang aktif.
-
-### e. Receipt Settings (`receipt-settings.tsx`)
-- **Fungsi**: Khusus admin untuk mengatur tampilan struk **per-toko**.
+### 2. Panggilan Pesanan Otomatis (Text-to-Speech Order Calling)
+- **Tujuan**: Mengeliminasi kebutuhan untuk berteriak atau menggunakan sistem nomor manual yang kuno saat pesanan siap.
 - **Fitur**:
-  - Mengubah header, footer, dan teks promo yang akan dicetak di struk.
-  - **Generator Promo AI**: Memanggil AI untuk membuat teks promo yang menarik untuk struk.
-  - Pengaturan disimpan di dokumen Firestore milik `activeStore`, memastikan setiap toko bisa memiliki template struk yang berbeda.
+    - **Suara Profesional**: Saat pesanan ditandai "Selesai", sistem akan secara otomatis mengumumkan nama pelanggan atau nomor pesanan dengan suara yang jelas dan profesional (pilihan suara pria/wanita).
+    - **Notifikasi Kreatif**: Bukan hanya panggilan biasa, Chika AI dapat membuat **pantun unik atau fakta menarik** terkait pesanan pelanggan, menciptakan pengalaman yang tak terlupakan.
+- **Manfaat untuk Anda**: **Tingkatkan efisiensi alur kerja dapur**, ciptakan suasana yang lebih profesional dan modern, serta berikan sentuhan personal yang membuat pelanggan tersenyum dan kembali lagi.
 
-## 5. Pradana Token & Pengaturan Dinamis
+### 3. Analisis & Rekomendasi Bisnis Berbasis AI
+- **Tujuan**: Memberikan Anda wawasan seorang analis bisnis profesional tanpa harus merekrutnya.
+- **Fitur**:
+    - **Admin Overview AI**: Dapatkan ringkasan mingguan dan bulanan yang berisi rekomendasi strategis (misal: "Buat promo bundling produk X dan Y," atau "Fokus kurangi stok produk Z").
+    - **AI Business Plan**: Untuk toko yang sudah berjalan, dapatkan peta jalan pertumbuhan jangka panjang yang dibuat khusus oleh AI berdasarkan data historis Anda.
+    - **Chat dengan Chika AI**: Punya pertanyaan bisnis? ("Bagaimana cara menaikkan omset?") Tanyakan langsung pada Chika AI dan dapatkan jawaban berbasis data kapan saja.
+- **Manfaat untuk Anda**: **Ambil keputusan berdasarkan data, bukan tebakan**. Temukan peluang tersembunyi, optimalkan strategi harga dan promosi, dan percepat pertumbuhan bisnis Anda.
 
-- **Dokumen Pengaturan**: Konfigurasi biaya disimpan di Firestore dalam dokumen `appSettings/transactionFees`. Ini mencakup:
-  - `tokenValueRp`: Nilai 1 token dalam Rupiah.
-  - `feePercentage`: Persentase biaya per transaksi penjualan.
-  - `minFeeRp`: Biaya minimum per transaksi.
-  - `aiUsageFee`: Biaya token untuk setiap penggunaan fitur AI.
-- **Alur Biaya**:
-  1. **Biaya Transaksi**: Berlaku untuk **semua pengguna** (admin dan kasir). Setiap checkout di `pos.tsx` akan memeriksa dan memotong saldo token toko.
-  2. **Biaya AI**: Berlaku untuk **semua pengguna** (admin dan kasir). Setiap kali tombol "Generate with Chika AI" diklik di mana pun, saldo token toko akan diperiksa dan dipotong.
-- **Alur Akuisisi Token (Top-Up)**:
-  - Sistem pengisian ulang (top-up) saldo Pradana Token saat ini dilakukan secara **manual** melalui transfer rekening bank.
-  - **Proses**: Admin toko melakukan transfer ke rekening yang telah ditentukan. Setelah konfirmasi diterima, Superadmin akan memperbarui saldo `pradanaTokenBalance` secara manual di dokumen toko yang relevan di Firestore.
-- **Keuntungan**: Admin dapat mengubah aturan bisnis ini kapan saja langsung dari Firebase Console tanpa perlu mengubah kode aplikasi.
+### 4. Manajemen Pelanggan (CRM) & Pemasaran Cerdas
+- **Tujuan**: Mengubah pembeli sesekali menjadi pelanggan setia.
+- **Fitur**:
+    - **Database Pelanggan Terpusat**: Lacak riwayat transaksi, preferensi, dan poin loyalitas setiap pelanggan.
+    - **Generator Pesan Ulang Tahun AI**: Kirim ucapan selamat ulang tahun yang personal via WhatsApp, lengkap dengan zodiak dan penawaran diskon khusus yang dibuat otomatis oleh AI.
+    - **Follow-up Pesanan Tertunda**: Ketika produk yang diinginkan pelanggan kembali tersedia, Chika AI akan membuat pesan notifikasi yang menarik untuk dikirimkan.
+- **Manfaat untuk Anda**: **Tingkatkan retensi pelanggan secara drastis**. Buat pelanggan merasa dihargai dan bangun hubungan jangka panjang yang menghasilkan penjualan berulang.
 
-## 6. Alur Fungsi AI (Genkit Flows)
+### 5. Sistem Loyalitas & Promosi Fleksibel
+- **Tujuan**: Memberikan insentif bagi pelanggan untuk terus kembali dan berbelanja lebih banyak.
+- **Fitur**:
+    - **Pengaturan Poin Dinamis**: Anda tentukan sendiri berapa nilai belanja untuk mendapatkan 1 poin.
+    - **Rekomendasi Promo AI**: Bingung mau buat promo apa? Chika AI akan menganalisis data Anda dan memberikan ide-ide promo penukaran poin yang paling relevan dan menguntungkan.
+- **Manfaat untuk Anda**: **Dorong peningkatan frekuensi dan nilai transaksi**. Gunakan data untuk membuat promosi yang benar-benar diinginkan pelanggan.
 
-Semua *flow* AI berada di `src/ai/flows/` dan diekspor sebagai fungsi asinkron yang dapat dipanggil dari komponen React. Setiap pemanggilan akan dikenakan biaya `aiUsageFee`.
+### 6. Manajemen Karyawan & Tantangan Penjualan
+- **Tujuan**: Memotivasi tim Anda untuk mencapai target dan meningkatkan kinerja.
+- **Fitur**:
+    - **Manajemen Akun**: Kelola akses untuk peran Admin dan Kasir dengan mudah.
+    - **Generator Tantangan AI**: Tetapkan anggaran hadiah, dan biarkan Chika AI merancang tantangan penjualan berjenjang yang seru dan memotivasi untuk tim Anda.
+    - **Papan Peringkat Kinerja**: Tampilkan siapa karyawan dengan penjualan tertinggi secara transparan untuk mendorong persaingan sehat.
+- **Manfaat untuk Anda**: **Ciptakan lingkungan kerja yang kompetitif dan bersemangat**. Berikan insentif berbasis kinerja yang adil dan dorong seluruh tim untuk berkontribusi pada kesuksesan toko.
 
-- **`admin-recommendation.ts`**: Menganalisis data penjualan toko yang aktif dan menghasilkan rekomendasi strategis untuk admin. Digunakan di `admin-overview.tsx`.
-- **`birthday-follow-up.ts`**: Membuat pesan ucapan selamat ulang tahun yang dipersonalisasi. Digunakan di `overview.tsx`.
-- **`challenge-generator.ts`**: Membuat tantangan penjualan berjenjang untuk karyawan. Digunakan di `challenges.tsx`.
-- **`loyalty-point-recommendation.ts`**: Memberikan saran penukaran poin terbaik kepada kasir saat transaksi. Digunakan di `pos.tsx`.
-- **`pending-order-follow-up.ts`**: Membuat pesan notifikasi saat produk yang dipesan kembali tersedia. Digunakan di dialog "Follow Up".
-- **`promotion-recommendation.ts`**: Menganalisis data promo dan penjualan untuk menyarankan promo baru. Digunakan di `promotions.tsx`.
-- **`receipt-promo-generator.ts`**: Membuat satu baris teks promo untuk struk. Digunakan di `receipt-settings.tsx`.
+---
+
+## Alur Kerja Cerdas di Balik Layar
+
+- **Sesi Login Berbasis Toko**: Keamanan dan data Anda adalah prioritas. Pengguna (kasir/admin) harus memilih toko tempat mereka bekerja saat login, memastikan mereka hanya bisa mengakses data yang relevan. Ini adalah inti dari arsitektur multi-tenant kami yang aman.
+- **Sistem Pradana Token**: Model bisnis "bayar-per-pemakaian" yang adil. Anda hanya membayar biaya kecil dalam bentuk token untuk setiap transaksi atau penggunaan fitur AI. Tidak ada biaya langganan bulanan yang mahal. Top up saldo token Anda dengan mudah melalui transfer bank.
+- **Struk yang Dapat Disesuaikan**: Atur header, footer, dan bahkan teks promo yang dicetak di struk untuk setiap toko. Anda bahkan bisa meminta Chika AI untuk membuatkan teks promo yang menarik!
