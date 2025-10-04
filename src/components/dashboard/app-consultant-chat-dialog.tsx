@@ -88,7 +88,7 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
     const [input, setInput] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-    const initialMessage = "Halo, saya Chika, asisten AI dari PT Chikatech. Saya bisa membantu Anda merancang aplikasi baru atau melaporkan kendala teknis. Apa yang bisa saya bantu?";
+    const initialMessage = "Halo, saya Chika, asisten AI dari PT ERA MAJU MAPAN BERSAMA PRADANA. Saya bisa membantu Anda merancang aplikasi baru atau melaporkan kendala teknis. Apa yang bisa saya bantu?";
     
     React.useEffect(() => {
         if (open) {
