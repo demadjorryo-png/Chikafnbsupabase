@@ -49,7 +49,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { deductAiUsageFee } from '@/lib/app-settings';
+import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
 
 const chartConfig = {
   revenue: {
@@ -59,22 +59,18 @@ const chartConfig = {
 };
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
-    const { pradanaTokenBalance, refreshPradanaTokenBalance, activeStore } = useAuth();
-    const { dashboardData } = useDashboard();
-    const { feeSettings } = dashboardData || {};
+    const { feeSettings } = useDashboard();
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const handleGenerate = async () => {
-        if (!activeStore || !feeSettings) return;
-        try {
-            await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
-        } catch (error) {
-            return;
+        if (!feeSettings) {
+            toast({variant: 'destructive', title: 'Pengaturan biaya tidak ditemukan'});
+            throw new Error('Fee settings not found');
         }
-        
+
         setIsLoading(true);
         setMessage('');
         try {
@@ -84,10 +80,11 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                 birthDate: customer.birthDate,
             });
             setMessage(result.followUpMessage);
-            refreshPradanaTokenBalance();
+            return result; // Return for AIConfirmationDialog
         } catch (error) {
             console.error("Error generating birthday message:", error);
             setMessage("Gagal membuat pesan. Coba lagi.");
+            throw error; // Re-throw for AIConfirmationDialog
         } finally {
             setIsLoading(false);
         }
@@ -127,14 +124,19 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                             placeholder="e.g., 15"
                         />
                     </div>
-                     <Button onClick={handleGenerate} disabled={isLoading || !feeSettings} className="w-full">
-                        {isLoading ? (
-                            <Loader className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                             <Sparkles className="mr-2 h-4 w-4" />
-                        )}
-                        {feeSettings ? `Buat dengan Chika AI (${feeSettings.aiUsageFee} Token)` : 'Memuat...'}
-                    </Button>
+                     <AIConfirmationDialog
+                        featureName="Pesan Ulang Tahun"
+                        featureDescription="Chika AI akan membuat pesan ulang tahun yang unik untuk pelanggan ini."
+                        feeSettings={feeSettings}
+                        onConfirm={handleGenerate}
+                        onSuccess={() => { /* Success is handled by the main state */}}
+                     >
+                        <Button className="w-full" disabled={!feeSettings}>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Buat dengan Chika AI
+                        </Button>
+                     </AIConfirmationDialog>
+
                     {message && (
                         <div className="space-y-2">
                              <Alert className="border-accent bg-accent/10">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -223,7 +224,7 @@ export default function POS({ onPrintRequest }: POSProps) {
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (!feeSettings || currentUser?.role === 'admin') return 0;
+    if (!feeSettings) return 0;
     
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
@@ -259,7 +260,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         return;
     }
 
-    if (currentUser.role !== 'admin' && pradanaTokenBalance < transactionFee) {
+    if (pradanaTokenBalance < transactionFee) {
         toast({
             variant: 'destructive',
             title: 'Saldo Token Tidak Cukup',
@@ -292,14 +293,12 @@ export default function POS({ onPrintRequest }: POSProps) {
             updatesForStore.firstTransactionDate = serverTimestamp();
         }
         
-        // 2. Token balance check and deduction for non-admins
-        if (currentUser.role !== 'admin') {
-            const currentTokenBalance = storeData.pradanaTokenBalance || 0;
-            if (currentTokenBalance < transactionFee) {
-                throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-            }
-            updatesForStore.pradanaTokenBalance = increment(-transactionFee);
+        // 2. Token balance check and deduction for ALL users
+        const currentTokenBalance = storeData.pradanaTokenBalance || 0;
+        if (currentTokenBalance < transactionFee) {
+            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
         }
+        updatesForStore.pradanaTokenBalance = increment(-transactionFee);
         transaction.update(storeRef, updatesForStore);
 
         // 3. Stock updates
@@ -373,9 +372,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         onPrintRequest(finalTransactionData);
       }
       
-      if (currentUser.role !== 'admin') {
-        refreshPradanaTokenBalance();
-      }
+      refreshPradanaTokenBalance();
       
       setCart([]);
       setDiscountValue(0);
