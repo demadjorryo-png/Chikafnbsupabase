@@ -9,7 +9,7 @@ export type WhatsappSettings = {
 // Default settings if the document doesn't exist in Firestore.
 // These are the last known hardcoded values.
 export const defaultWhatsappSettings: WhatsappSettings = {
-    deviceId: '0fe2d894646b1e3111e0e40c809b5501',
+    deviceId: 'fa254b2588ad7626d647da23be4d6a08',
     adminGroup: 'SPV ERA MMBP',
 };
 
