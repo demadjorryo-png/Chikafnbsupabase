@@ -1,83 +1,77 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper function to get user's role and storeId from their user document.
+
+    // Helper function to get user's role and storeId from their own user document.
+    // This is more secure and efficient than passing it from the client.
     function getUserData(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
-    
-    // Checks if the requesting user is a member of a specific store.
-    function isStoreMember(storeId) {
-      let userData = getUserData(request.auth.uid);
-      // Admin users have their storeId on the user document.
-      // Cashiers also have their storeId on their user document.
-      return userData.storeId == storeId;
+
+    // Default deny all access.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Checks if the user has the role of 'admin' for a specific store.
-    function isStoreAdmin(storeId) {
-      let userData = getUserData(request.auth.uid);
-      return userData.role == 'admin' && userData.storeId == storeId;
-    }
-    
-    // Checks if the user is a superadmin.
-    function isSuperAdmin() {
-      return getUserData(request.auth.uid).role == 'superadmin';
-    }
-
-    // --- User Profile Rules ---
-    // Users can read their own profile. Admins can read profiles of users in their store.
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow read: if request.auth.uid == userId 
-                  || isStoreAdmin(get(/databases/$(database)/documents/users/$(userId)).data.storeId)
-                  || isSuperAdmin();
-      allow update: if request.auth.uid == userId // e.g for changing own details
-                    || isStoreAdmin(resource.data.storeId) // Admin can update users in their store
-                    || isSuperAdmin(); 
-      // User creation is handled by backend functions.
-      allow create, delete: if isSuperAdmin();
-    }
-    
-    // --- Stores and Sub-collections Rules (Multi-Tenancy Core) ---
-    match /stores/{storeId} {
-      // Allow authenticated users associated with the store to read the main store document.
-      allow read: if request.auth != null && isStoreMember(storeId) || isSuperAdmin();
-      // Only admins/superadmins can update store details (like token balance or settings).
-      allow write: if isStoreAdmin(storeId) || isSuperAdmin();
+      // Users can read their own data.
+      allow get: if request.auth.uid == userId;
 
-      // Secure all sub-collections within a store
-      match /{subcollection}/{docId} {
-        // Allow read/write/delete if the user is a member of that store.
-        allow read, write, delete: if request.auth != null && isStoreMember(storeId) || isSuperAdmin();
-      }
+      // An admin can read data of any user belonging to their store.
+      // A superadmin can read any user.
+      allow list: if getUserData(request.auth.uid).role == 'superadmin' || 
+                     (getUserData(request.auth.uid).role == 'admin' && 
+                      resource.data.storeId == getUserData(request.auth.uid).storeId);
+      
+      // Users can update their own name/whatsapp, but not their role or status.
+      allow update: if request.auth.uid == userId &&
+                       request.resource.data.keys().hasOnly(['name', 'whatsapp']);
+                       
+      // Only admins/superadmins can create users (via Cloud Function) or change status.
+      // Note: Direct creation/update is limited. Most logic should be in Cloud Functions.
+      allow write: if getUserData(request.auth.uid).role == 'admin' || getUserData(request.auth.uid).role == 'superadmin';
     }
-    
-    // --- Global Settings Rules ---
-    match /appSettings/{settingId} {
-      // Any authenticated user can read the settings (e.g., fee settings, promo text).
+
+    // Rules for store-specific data
+    match /stores/{storeId}/{document=**} {
+        // A user can only access documents inside the store they belong to.
+        // Superadmin has access to all stores.
+        allow read, write: if getUserData(request.auth.uid).role == 'superadmin' || 
+                              getUserData(request.auth.uid).storeId == storeId;
+    }
+
+    // Rules for the main 'stores' collection documents themselves
+    match /stores/{storeId} {
+        // Allow reading the main store document if the user belongs to it or is a superadmin.
+        allow read: if getUserData(request.auth.uid).role == 'superadmin' ||
+                      getUserData(request.auth.uid).storeId == storeId;
+        
+        // Allow updating token balance or settings, but only by an admin of that store or superadmin.
+        allow update: if getUserData(request.auth.uid).role == 'superadmin' || 
+                        (getUserData(request.auth.uid).role == 'admin' && getUserData(request.auth.uid).storeId == storeId);
+
+        // Disallow client-side creation or deletion of stores. Should be done via a secure backend process.
+        allow create, delete: if false;
+    }
+
+    // Rules for global settings that everyone can read but only superadmins can change.
+    match /appSettings/{setting} {
       allow read: if request.auth != null;
-      // Only superadmins can change global app settings.
-      allow write: if isSuperAdmin();
+      allow write: if getUserData(request.auth.uid).role == 'superadmin';
     }
-    
+
+    // Rules for global redemption options
     match /redemptionOptions/{optionId} {
-        // Any authenticated user can read available promotions.
         allow read: if request.auth != null;
-        // Only admins and superadmins can create, update, or delete promotions.
-        allow write: if getUserData(request.auth.uid).role == 'admin' || isSuperAdmin();
+        allow write: if getUserData(request.auth.uid).role == 'superadmin' || getUserData(request.auth.uid).role == 'admin';
     }
-    
+
+    // Rules for global pending orders
     match /pendingOrders/{orderId} {
-        // Allow read/write if the user is part of the store mentioned in the order document.
-        allow read, write, delete: if request.auth != null && isStoreMember(resource.data.storeId) || isSuperAdmin();
-        allow create: if request.auth != null; // Any authenticated user can create a pending order
-    }
-    
-    // --- Platform-wide data (for superadmin) ---
-    match /platform/{docId} {
-        allow read, write: if isSuperAdmin();
+        allow read, write: if request.auth != null; // Allow any authenticated user to create/read pending orders
     }
   }
 }
