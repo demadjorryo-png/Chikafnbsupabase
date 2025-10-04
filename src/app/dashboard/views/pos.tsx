@@ -223,7 +223,7 @@ export default function POS({ onPrintRequest }: POSProps) {
   const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
-    if (!feeSettings || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') return 0;
+    if (!feeSettings || currentUser?.role === 'admin') return 0;
     
     const feeFromPercentage = totalAmount * feeSettings.feePercentage;
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
@@ -293,7 +293,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         }
         
         // 2. Token balance check and deduction for non-admins
-        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+        if (currentUser.role !== 'admin') {
             const currentTokenBalance = storeData.pradanaTokenBalance || 0;
             if (currentTokenBalance < transactionFee) {
                 throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
@@ -373,7 +373,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         onPrintRequest(finalTransactionData);
       }
       
-      if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+      if (currentUser.role !== 'admin') {
         refreshPradanaTokenBalance();
       }
       

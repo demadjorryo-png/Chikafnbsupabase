@@ -110,7 +110,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             name: data.name,
             category: data.category,
             price: data.price,
-            costPrice: (userRole === 'admin' || userRole === 'superadmin') ? data.costPrice : product.costPrice,
+            costPrice: (userRole === 'admin') ? data.costPrice : product.costPrice,
             'attributes.brand': data.brand,
             'attributes.barcode': data.barcode || '',
             imageUrl: imageUrl, // Save the new or existing image URL
@@ -237,7 +237,7 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
             )}
           />
           
-          {(userRole === 'admin' || userRole === 'superadmin') && (
+          {(userRole === 'admin') && (
               <FormField
                   control={form.control}
                   name="costPrice"

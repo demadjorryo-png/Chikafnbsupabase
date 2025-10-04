@@ -50,7 +50,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const defaultView = currentUser?.role === 'superadmin' ? 'platform-control' : (currentUser?.role === 'admin' ? 'overview' : 'pos');
+  const defaultView = currentUser?.role === 'admin' ? 'overview' : 'pos';
   const currentView = searchParams.get('view') || defaultView;
   
   const [isTopUpOpen, setIsTopUpOpen] = React.useState(false);
@@ -71,14 +71,6 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
   };
 
   const menuGroups = [
-    {
-        group: 'Platform',
-        icon: <ShieldCheck />,
-        roles: ['superadmin'],
-        items: [
-            { view: 'platform-control', label: 'Kontrol Platform', icon: <ShieldCheck />, roles: ['superadmin'] },
-        ]
-    },
     {
         group: 'Operasional',
         icon: <Store />,
@@ -120,7 +112,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
     },
   ];
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const tokenDisplay = (
       <div className="flex items-center justify-center gap-2 text-sidebar-foreground">
@@ -157,7 +149,8 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
       <SidebarContent>
         <SidebarMenu>
           {menuGroups.map((group) => {
-            const visibleItems = group.items.filter(item => currentUser && item.roles.includes(currentUser.role));
+            if (!currentUser) return null;
+            const visibleItems = group.items.filter(item => item.roles.includes(currentUser.role));
             if (visibleItems.length === 0) return null;
 
             return (

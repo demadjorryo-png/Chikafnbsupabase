@@ -33,7 +33,7 @@ export type Store = {
   transactionCounter?: number;
 };
 
-export type UserRole = 'admin' | 'cashier' | 'superadmin';
+export type UserRole = 'admin' | 'cashier';
 
 export type User = {
   id: string;

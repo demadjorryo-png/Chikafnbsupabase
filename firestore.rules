@@ -1,77 +1,80 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to get user's role and storeId from their own user document.
-    // This is more secure and efficient than passing it from the client.
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+  
+    // Helper function to check if a user is an admin of a specific store
+    function isAdmin(storeId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let storeDoc = get(/databases/$(database)/documents/stores/$(storeId)).data;
+      return request.auth.uid in storeDoc.adminUids && userDoc.role == 'admin';
     }
-
-    // Default deny all access.
-    match /{document=**} {
-      allow read, write: if false;
+    
+    // Helper function to check if a user is a cashier of a specific store
+    function isCashier(storeId) {
+       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+       return userDoc.role == 'cashier' && userDoc.storeId == storeId;
     }
-
-    // Rules for the 'users' collection
+    
+    // Helper function to check if user belongs to the store
+    function isStoreMember(storeId) {
+        return isAdmin(storeId) || isCashier(storeId);
+    }
+    
+    // Users can only read their own data. Admins can read data of users in their store.
     match /users/{userId} {
-      // Users can read their own data.
-      allow get: if request.auth.uid == userId;
-
-      // An admin can read data of any user belonging to their store.
-      // A superadmin can read any user.
-      allow list: if getUserData(request.auth.uid).role == 'superadmin' || 
-                     (getUserData(request.auth.uid).role == 'admin' && 
-                      resource.data.storeId == getUserData(request.auth.uid).storeId);
-      
-      // Users can update their own name/whatsapp, but not their role or status.
-      allow update: if request.auth.uid == userId &&
-                       request.resource.data.keys().hasOnly(['name', 'whatsapp']);
-                       
-      // Only admins/superadmins can create users (via Cloud Function) or change status.
-      // Note: Direct creation/update is limited. Most logic should be in Cloud Functions.
-      allow write: if getUserData(request.auth.uid).role == 'admin' || getUserData(request.auth.uid).role == 'superadmin';
+      allow read: if request.auth.uid == userId 
+                  || (isAdmin(get(/databases/$(database)/documents/users/$(userId)).data.storeId));
+      allow update: if request.auth.uid == userId; // Users can update their own data (e.g., password)
+      allow create, delete: if false; // Creation is handled by a Cloud Function for security
     }
 
-    // Rules for store-specific data
-    match /stores/{storeId}/{document=**} {
-        // A user can only access documents inside the store they belong to.
-        // Superadmin has access to all stores.
-        allow read, write: if getUserData(request.auth.uid).role == 'superadmin' || 
-                              getUserData(request.auth.uid).storeId == storeId;
+    // Rules for global settings
+    match /appSettings/{docId} {
+      allow read: if request.auth != null; // Any authenticated user can read
+      allow write: if false; // Only superadmin (via server/console) can write
     }
-
-    // Rules for the main 'stores' collection documents themselves
-    match /stores/{storeId} {
-        // Allow reading the main store document if the user belongs to it or is a superadmin.
-        allow read: if getUserData(request.auth.uid).role == 'superadmin' ||
-                      getUserData(request.auth.uid).storeId == storeId;
-        
-        // Allow updating token balance or settings, but only by an admin of that store or superadmin.
-        allow update: if getUserData(request.auth.uid).role == 'superadmin' || 
-                        (getUserData(request.auth.uid).role == 'admin' && getUserData(request.auth.uid).storeId == storeId);
-
-        // Disallow client-side creation or deletion of stores. Should be done via a secure backend process.
-        allow create, delete: if false;
-    }
-
-    // Rules for global settings that everyone can read but only superadmins can change.
-    match /appSettings/{setting} {
-      allow read: if request.auth != null;
-      allow write: if getUserData(request.auth.uid).role == 'superadmin';
-    }
-
-    // Rules for global redemption options
+    
     match /redemptionOptions/{optionId} {
         allow read: if request.auth != null;
-        allow write: if getUserData(request.auth.uid).role == 'superadmin' || getUserData(request.auth.uid).role == 'admin';
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Rules for global pending orders
-    match /pendingOrders/{orderId} {
-        allow read, write: if request.auth != null; // Allow any authenticated user to create/read pending orders
+    // Rules for stores and their subcollections
+    match /stores/{storeId} {
+      // Only members of the store can read the main store document
+      allow read: if isStoreMember(storeId);
+      allow write: if isAdmin(storeId); // Only admins can update store details (e.g., token balance, settings)
+
+      // Products can be read by any store member, written only by admins
+      match /products/{productId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if isAdmin(storeId);
+      }
+      
+      // Customers can be read/written by any store member
+      match /customers/{customerId} {
+        allow read, write: if isStoreMember(storeId);
+      }
+      
+      // Transactions can be read/written by any store member
+      match /transactions/{transactionId} {
+         allow read, write: if isStoreMember(storeId);
+      }
+      
+      // Tables can be read/written by any store member
+      match /tables/{tableId} {
+         allow read, write: if isStoreMember(storeId);
+      }
+
+      // Other sub-collections follow the same pattern
+      match /{subcollection}/{docId} {
+        allow read, write: if isStoreMember(storeId);
+      }
     }
+    
+     match /pendingOrders/{orderId} {
+        allow read, write: if request.auth != null;
+     }
   }
 }
