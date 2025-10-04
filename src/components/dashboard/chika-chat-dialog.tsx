@@ -348,3 +348,4 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     </Dialog>
   );
 }
+
