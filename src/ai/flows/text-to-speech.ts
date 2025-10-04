@@ -12,9 +12,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 
-const MALE_VOICES = ['Achernar', 'Zephyr'];
-const FEMALE_VOICES = ['Enceladus', 'Vindemiatrix'];
-
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
   gender: z.enum(['male', 'female']).optional().describe('The preferred gender of the voice. Defaults to female.'),
@@ -67,9 +64,9 @@ const textToSpeechFlow = ai.defineFlow(
   },
   async ({ text, gender = 'female' }) => {
     
-    // Randomly select a voice based on the specified gender
-    const voiceList = gender === 'male' ? MALE_VOICES : FEMALE_VOICES;
-    const voiceName = voiceList[Math.floor(Math.random() * voiceList.length)];
+    // Simplified voice selection to fix hydration error.
+    // Always use a default female voice. The specific voice can be configured here if needed.
+    const voiceName = gender === 'male' ? 'Achernar' : 'Enceladus';
     
     const { media } = await ai.generate({
       model: 'googleai/gemini-2.5-flash-preview-tts',
