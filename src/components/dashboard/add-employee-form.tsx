@@ -21,10 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import * as React from 'react';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { auth } from '@/lib/firebase';
 
 const FormSchema = z.object({
     email: z.string().email({
@@ -70,19 +70,24 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
       setIsLoading(true);
       
       try {
-        const functions = getFunctions();
-        const createEmployee = httpsCallable(functions, 'createEmployee');
-        
-        const result: any = await createEmployee({
-            email: data.email,
-            password: data.password,
-            name: data.name,
-            role: data.role,
-            storeId: activeStore.id,
+        const idToken = await auth.currentUser?.getIdToken(true);
+        if (!idToken) {
+          throw new Error("Tidak dapat memperoleh token otentikasi.");
+        }
+
+        const response = await fetch('/api/employees', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ ...data, storeId: activeStore.id }),
         });
 
-        if (result.data.error) {
-            throw new Error(result.data.error);
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Gagal menambahkan karyawan.');
         }
 
         toast({
@@ -95,17 +100,10 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
 
       } catch (error: any) {
         console.error("Error adding employee:", error);
-        let errorMessage = "Gagal menambahkan karyawan. Silakan coba lagi.";
-        if (error.message.includes('already-exists')) {
-            errorMessage = "Email ini sudah digunakan. Silakan pilih email lain.";
-        } else if (error.message.includes('permission-denied')) {
-            errorMessage = "Anda tidak memiliki izin untuk melakukan tindakan ini.";
-        }
-        
         toast({
             variant: 'destructive',
             title: 'Terjadi Kesalahan',
-            description: errorMessage,
+            description: error.message,
         });
       } finally {
         setIsLoading(false);
