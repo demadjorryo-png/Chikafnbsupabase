@@ -24,6 +24,7 @@ import { consultWithChika } from '@/ai/flows/app-consultant';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { AIConfirmationDialog } from './ai-confirmation-dialog';
 
 type Message = {
   id: number;
@@ -56,13 +57,13 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     pradanaTokenBalance,
     refreshPradanaTokenBalance,
   } = useAuth();
-  const { dashboardData } = useDashboard();
+  const { dashboardData, feeSettings: contextFeeSettings } = useDashboard();
   const { toast } = useToast();
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [feeSettings, setFeeSettings] =
-    React.useState<TransactionFeeSettings | null>(null);
+    React.useState<TransactionFeeSettings | null>(contextFeeSettings);
   const [isSessionActive, setIsSessionActive] = React.useState(false);
   const [awaitingRenewal, setAwaitingRenewal] = React.useState(false);
   const [chatEnded, setChatEnded] = React.useState(false);
@@ -81,7 +82,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
 
   React.useEffect(() => {
     if (open) {
-      if (isBusinessAnalystMode) {
+      if (isBusinessAnalystMode && !feeSettings) {
         getTransactionFeeSettings().then(setFeeSettings);
       }
       if (messages.length === 0) {
@@ -99,7 +100,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
       if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mode, initialMessage]); 
+  }, [open, mode, initialMessage, feeSettings]); 
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -165,7 +166,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
             const renewalFee = feeSettings.aiSessionFee;
             setMessages((prev) => [
               ...prev,
-              { id: Date.now(), sender: 'ai', text: `Waktu sesi Anda telah habis. Apakah Anda ingin memulai sesi baru untuk melanjutkan? (Biaya: ${renewalFee} Token)` },
+              { id: Date.now(), sender: 'ai', text: `Waktu sesi Anda telah habis. Apakah Anda ingin memulai sesi baru untuk melanjutkan?` },
             ]);
             toast({ title: "Sesi Berakhir", description: "Silakan konfirmasi untuk melanjutkan." });
           }, durationMs);
@@ -221,7 +222,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     setAwaitingRenewal(false);
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), sender: 'ai', text: 'Baik, silakan ketik pertanyaan Anda untuk memulai sesi baru.' },
+      { id: Date.now(), sender: 'ai', text: 'Sesi baru dimulai! Silakan lanjutkan pertanyaan Anda.' },
     ]);
     // The next user message will automatically trigger the !isSessionActive block 
     // in handleBusinessAnalyst, starting a new session and deducting the fee.
@@ -232,7 +233,7 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
     setChatEnded(true);
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), sender: 'ai', text: 'Tentu. Terima kasih telah menggunakan Chika AI. Sampai jumpa di lain waktu!' },
+      { id: Date.now(), sender: 'ai', text: 'Baik. Terima kasih telah menggunakan Chika AI. Sampai jumpa di lain waktu!' },
     ]);
   }
 
@@ -306,31 +307,43 @@ export function ChikaChatDialog({ open, onOpenChange, mode }: ChikaChatDialogPro
           </div>
         </ScrollArea>
         
-        {awaitingRenewal && (
-          <div className="p-4 border-t flex flex-col sm:flex-row justify-center gap-2">
-            <Button onClick={handleRenewSession} className="w-full sm:w-auto">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Lanjutkan Sesi (Biaya: {feeSettings?.aiSessionFee || 5} Token)
-            </Button>
-            <Button onClick={handleEndChat} variant="outline" className="w-full sm:w-auto">
-              Tidak, Terima Kasih
-            </Button>
-          </div>
-        )}
+        {awaitingRenewal && feeSettings && activeStore ? (
+            <div className="p-4 border-t flex flex-col sm:flex-row justify-center gap-2">
+                <AIConfirmationDialog
+                    featureName="Sesi Baru Chika AI"
+                    featureDescription={`Anda akan memulai sesi konsultasi baru selama ${feeSettings.aiSessionDurationMinutes} menit.`}
+                    feeSettings={{...feeSettings, aiUsageFee: feeSettings.aiSessionFee}}
+                    onConfirm={async () => {
+                        // This onConfirm is just for fee deduction. The session logic is handled by handleRenewSession.
+                        return Promise.resolve();
+                    }}
+                    onSuccess={handleRenewSession}
+                >
+                    <Button className="w-full sm:w-auto">
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Lanjutkan Sesi
+                    </Button>
+                </AIConfirmationDialog>
 
-        <DialogFooter>
-          <form onSubmit={handleFormSubmit} className="flex w-full items-center gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={chatEnded ? "Sesi telah berakhir." : "Ketik pesan Anda..."}
-              disabled={isLoading || awaitingRenewal || chatEnded}
-            />
-            <Button type="submit" disabled={isLoading || !input.trim() || awaitingRenewal || chatEnded}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
-        </DialogFooter>
+                <Button onClick={handleEndChat} variant="outline" className="w-full sm:w-auto">
+                    Tidak, Terima Kasih
+                </Button>
+            </div>
+        ) : (
+             <DialogFooter>
+                <form onSubmit={handleFormSubmit} className="flex w-full items-center gap-2">
+                    <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={chatEnded ? "Sesi telah berakhir." : "Ketik pesan Anda..."}
+                    disabled={isLoading || awaitingRenewal || chatEnded}
+                    />
+                    <Button type="submit" disabled={isLoading || !input.trim() || awaitingRenewal || chatEnded}>
+                    <Send className="h-4 w-4" />
+                    </Button>
+                </form>
+            </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
