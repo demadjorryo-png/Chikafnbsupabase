@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2, ServerCog, Printer } from 'lucide-react';
 import type { Table, CartItem, TableStatus, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction, writeBatch, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -53,14 +54,14 @@ import { Badge } from '@/components/ui/badge';
 
 
 type TablesProps = {
-  tables: Table[];
-  onDataChange: () => void;
-  isLoading: boolean;
   onPrintRequest: (transaction: Transaction) => void;
 };
 
-export default function Tables({ tables, onDataChange, isLoading, onPrintRequest }: TablesProps) {
+export default function Tables({ onPrintRequest }: TablesProps) {
   const { currentUser, activeStore } = useAuth();
+  const { dashboardData, isLoading, refreshData } = useDashboard();
+  const { tables } = dashboardData || {};
+
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const { toast } = useToast();
   const router = useRouter();
@@ -107,7 +108,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     try {
         await batch.commit();
         toast({ title: `${tableCount} meja berhasil digenerate!` });
-        onDataChange();
+        refreshData();
         closeDialogs();
     } catch (error) {
         console.error("Error bulk generating tables:", error);
@@ -133,7 +134,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
             currentOrder: null
         });
         toast({ title: 'Meja baru ditambahkan!' });
-        onDataChange();
+        refreshData();
         closeDialogs();
     } catch (error) {
         console.error("Error adding table:", error);
@@ -157,7 +158,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     try {
         await updateDoc(tableRef, { name: tableName, capacity: tableCapacity });
         toast({ title: 'Meja diperbarui!' });
-        onDataChange();
+        refreshData();
         closeDialogs();
     } catch (error) {
       console.error("Error saving table:", error);
@@ -175,7 +176,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     try {
       await deleteDoc(tableRef);
       toast({ title: `Meja ${selectedTable.name} dihapus` });
-      onDataChange();
+      refreshData();
       closeDialogs();
     } catch (error) {
        console.error("Error deleting table:", error);
@@ -197,7 +198,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
         });
 
         toast({ title: `Meja ${selectedTable.name} telah dibersihkan.` });
-        onDataChange();
+        refreshData();
         closeDialogs();
 
      } catch (error) {
@@ -231,7 +232,7 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     try {
         await updateDoc(tableRef, { status: newStatus });
         toast({ title: `Status meja ${table.name} diubah menjadi ${newStatus}` });
-        onDataChange();
+        refreshData();
     } catch(error) {
         console.error("Error changing status:", error);
         toast({ variant: 'destructive', title: 'Gagal mengubah status' });
@@ -530,5 +531,3 @@ export default function Tables({ tables, onDataChange, isLoading, onPrintRequest
     </>
   );
 }
-
-    
