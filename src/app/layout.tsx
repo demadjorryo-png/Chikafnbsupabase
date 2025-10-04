@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context';
+import { ThemeProvider } from '@/components/theme-provider';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'Kasir POS Chika',
   description: 'Aplikasi Kasir untuk Semua Jenis Usaha',
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -25,23 +25,17 @@ export default function RootLayout({
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-        <Toaster />
-        <Script id="service-worker-registration">
-          {`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/worker.js').then(registration => {
-                  console.log('Service Worker registered with scope:', registration.scope);
-                }).catch(err => {
-                  console.error('Service Worker registration failed:', err);
-                });
-              });
-            }
-          `}
-        </Script>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

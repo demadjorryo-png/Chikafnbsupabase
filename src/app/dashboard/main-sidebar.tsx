@@ -40,6 +40,7 @@ import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/auth-context';
+import { ThemeSwitcher } from '@/components/dashboard/theme-switcher';
 
 type MainSidebarProps = {
   pradanaTokenBalance: number;
@@ -190,6 +191,7 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
                   </div>
                </div>
             )}
+            <ThemeSwitcher />
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Pengaturan" onClick={() => navigate('settings')} isActive={currentView === 'settings'}>
               <Settings />
