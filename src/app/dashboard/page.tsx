@@ -77,12 +77,12 @@ function DashboardContent() {
     return <DashboardSkeleton />;
   }
 
-  const { products, customers, tables, feeSettings, users, transactions } = dashboardData;
+  const { products, customers, tables, feeSettings, users } = dashboardData;
 
   const renderView = () => {
     const unauthorizedCashierViews = ['employees', 'challenges', 'receipt-settings', 'customer-analytics'];
     if (currentUser?.role === 'cashier' && unauthorizedCashierViews.includes(view)) {
-        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
+        return <Tables onPrintRequest={setTransactionToPrint} />;
     }
 
     switch (view) {
@@ -95,21 +95,14 @@ function DashboardContent() {
         const tableId = searchParams.get('tableId');
         if (tableId) {
              return <POS 
-                products={products}
-                customers={customers}
-                tables={tables}
-                onDataChange={refreshData}
-                isLoading={isLoading}
-                feeSettings={feeSettings}
-                pradanaTokenBalance={pradanaTokenBalance}
                 onPrintRequest={setTransactionToPrint}
              />;
         }
-        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
+        return <Tables onPrintRequest={setTransactionToPrint} />;
       case 'products':
         return <Products />;
       case 'customers':
-        return <Customers customers={customers} onDataChange={refreshData} isLoading={isLoading} />;
+        return <Customers />;
       case 'customer-analytics':
         return <CustomerAnalytics />;
       case 'employees':
@@ -125,7 +118,7 @@ function DashboardContent() {
       case 'receipt-settings':
         return <ReceiptSettings />;
       default:
-        return <Tables tables={tables} onDataChange={refreshData} isLoading={isLoading} onPrintRequest={setTransactionToPrint} />;
+        return <Tables onPrintRequest={setTransactionToPrint} />;
     }
   };
 
@@ -197,3 +190,5 @@ function DashboardSkeleton() {
         </div>
     )
 }
+
+    

@@ -23,12 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Crown, ShoppingBag, TrendingUp, Users } from 'lucide-react';
 import type { Customer, Transaction } from '@/lib/types';
 import { startOfMonth, isWithinInterval } from 'date-fns';
-
-type CustomerAnalyticsProps = {
-  customers: Customer[];
-  transactions: Transaction[];
-  isLoading: boolean;
-};
+import { useDashboard } from '@/contexts/dashboard-context';
 
 type CustomerMetric = {
   customer: Customer;
@@ -37,13 +32,12 @@ type CustomerMetric = {
   averageSpent: number;
 };
 
-export default function CustomerAnalytics({
-  customers,
-  transactions,
-  isLoading,
-}: CustomerAnalyticsProps) {
+export default function CustomerAnalytics() {
+  const { dashboardData, isLoading } = useDashboard();
+  const { customers, transactions } = dashboardData || {};
+
   const { topSpenders, mostFrequent, metrics } = React.useMemo(() => {
-    if (!customers.length || !transactions.length) {
+    if (!customers || !transactions || customers.length === 0 || transactions.length === 0) {
       return { topSpenders: [], mostFrequent: [], metrics: {totalCustomers: 0, newCustomersThisMonth: 0, avgPurchaseValue: 0} };
     }
 
@@ -283,3 +277,5 @@ function CustomerAnalyticsSkeleton() {
         </div>
     )
 }
+
+    
