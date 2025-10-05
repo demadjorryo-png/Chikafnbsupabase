@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { streamToBuffer } from '@genkit-ai/core/media';
+import { streamToBuffer } from '@genkit-ai/core';
 
 
 const TextToSpeechInputSchema = z.object({
@@ -66,18 +66,17 @@ const textToSpeechFlow = ai.defineFlow(
   async ({ text, gender = 'female' }) => {
     
     const { stream } = await ai.streamText({
-        model: 'openai/tts-1',
+        model: 'google/text-to-speech',
         prompt: text,
         config: {
-          voice: gender === 'male' ? 'onyx' : 'nova',
-          format: 'pcm_16000',
+          voice: gender === 'male' ? 'en-US-Standard-D' : 'en-US-Standard-C',
         },
     });
     
     const audioBuffer = await streamToBuffer(stream);
 
     return {
-      audioDataUri: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 1, 16000)),
+      audioDataUri: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 1, 24000)),
     };
   }
 );
