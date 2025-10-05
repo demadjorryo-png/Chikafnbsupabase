@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { openai } from '@genkit-ai/openai';
 
 const AdminRecommendationInputSchema = z.object({
   totalRevenueLastWeek: z.number().describe('Total revenue from the previous week.'),
@@ -33,17 +34,9 @@ export async function getAdminRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'adminRecommendationPrompt',
-  model: 'googleai/gemini-1.5-flash',
+  model: openai('gpt-4o-mini'),
   input: { schema: AdminRecommendationInputSchema },
   output: { schema: AdminRecommendationOutputSchema },
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    ],
-  },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika.
 
 Tugas Anda adalah memberikan rekomendasi strategis mingguan dan bulanan untuk admin toko berdasarkan data kinerja berikut. Rekomendasi harus singkat, dapat ditindaklanjuti, dan dalam Bahasa Indonesia.

@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { openai } from '@genkit-ai/openai';
 
 const ChikaAnalystInputSchema = z.object({
   question: z.string().describe('The business-related question from the admin.'),
@@ -33,17 +34,9 @@ export async function askChika(
 
 const prompt = ai.definePrompt({
   name: 'businessAnalystPrompt',
-  model: 'googleai/gemini-1.5-flash',
+  model: openai('gpt-4o-mini'),
   input: { schema: ChikaAnalystInputSchema },
   output: { schema: ChikaAnalystOutputSchema },
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    ],
-  },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli yang berspesialisasi dalam industri F&B untuk aplikasi Kasir POS Chika. Anda sedang menganalisis data untuk kafe/restoran: {{activeStoreName}}.
 
 Tugas Anda adalah menjawab pertanyaan dari admin secara ringkas, cerdas, dan berdasarkan data yang diberikan. Selalu berikan jawaban dalam Bahasa Indonesia dan dalam konteks bisnis F&B.

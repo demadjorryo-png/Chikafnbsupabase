@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {openai} from '@genkit-ai/openai';
 
 const BirthdayFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -41,17 +42,9 @@ export async function getBirthdayFollowUp(
 
 const prompt = ai.definePrompt({
   name: 'birthdayFollowUpPrompt',
-  model: 'googleai/gemini-1.5-flash',
+  model: openai('gpt-4o-mini'),
   input: {schema: BirthdayFollowUpInputSchema},
   output: {schema: BirthdayFollowUpOutputSchema},
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    ],
-  },
   prompt: `You are Chika AI, a friendly assistant for Kasir POS Chika.
 
 Your task is to generate a birthday follow-up message for a customer. The message should be friendly, concise, and in Indonesian. It must wish them a happy birthday and offer a special discount.

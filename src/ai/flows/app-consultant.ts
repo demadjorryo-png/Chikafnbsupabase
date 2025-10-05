@@ -3,6 +3,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { openai } from '@genkit-ai/openai'; // Menggunakan jalur impor yang benar
 
 const AppConsultantInputSchema = z.object({
   conversationHistory: z.string().describe('The history of the conversation so far.'),
@@ -73,7 +74,7 @@ export const consultWithChika = ai.defineFlow(
       Setelah SEMUA informasi terkumpul, buat rangkuman yang jelas dan terstruktur. Akhiri dengan rekomendasi untuk langkah selanjutnya.
 
       **Contoh Rangkuman:**
-      "Terima kasih atas informasinya. Berikut adalah rangkuman kebutuhan aplikasi Anda:
+      "Terima kasih atas informasinya. Berikut adalah rangkasan kebutuhan aplikasi Anda:
       *   **Nama Bisnis:** [Nama Bisnis Pengguna]
       *   **Konsep:** [Konsep F&B]
       *   **Tujuan:** [Masalah yang ingin diselesaikan]
@@ -115,7 +116,7 @@ export const consultWithChika = ai.defineFlow(
 
     const { output } = await ai.generate({
       prompt: prompt,
-      model: 'googleai/gemini-1.5-flash',
+      model: openai('gpt-4o-mini'), // Menggunakan model openai
       output: {
         schema: AppConsultantOutputSchema,
       },

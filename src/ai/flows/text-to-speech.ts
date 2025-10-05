@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Text-to-Speech (TTS) AI agent.
@@ -11,6 +10,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
+import { openai } from '@genkit-ai/openai';
+import { streamToBuffer } from 'genkit/media';
+
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
@@ -64,36 +66,19 @@ const textToSpeechFlow = ai.defineFlow(
   },
   async ({ text, gender = 'female' }) => {
     
-    // Simplified voice selection to fix hydration error.
-    // Always use a default female voice. The specific voice can be configured here if needed.
-    const voiceName = gender === 'male' ? 'Achernar' : 'Enceladus';
-    
-    const { media } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName },
-          },
+    const { stream } = await ai.streamText({
+        model: openai('tts-1'),
+        prompt: text,
+        config: {
+          voice: gender === 'male' ? 'onyx' : 'nova',
+          format: 'pcm_16000',
         },
-      },
-      prompt: text,
     });
-
-    if (!media) {
-      throw new Error('No audio media was returned from the AI model.');
-    }
-
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-
-    const wavBase64 = await toWav(audioBuffer);
+    
+    const audioBuffer = await streamToBuffer(stream);
 
     return {
-      audioDataUri: 'data:audio/wav;base64,' + wavBase64,
+      audioDataUri: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 1, 16000)),
     };
   }
 );

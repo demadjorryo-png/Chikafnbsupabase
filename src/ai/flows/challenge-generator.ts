@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -11,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { openai } from '@genkit-ai/openai';
 
 const ChallengeGeneratorInputSchema = z.object({
   budget: z.number().describe('The total budget available for challenge rewards for the period.'),
@@ -46,17 +46,9 @@ const ChallengeGeneratorGptOutputSchema = z.object({
 
 const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
-  model: 'googleai/gemini-1.5-flash',
+  model: openai('gpt-4o-mini'),
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    ],
-  },
   prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk aplikasi "Kasir POS Chika".
 
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
