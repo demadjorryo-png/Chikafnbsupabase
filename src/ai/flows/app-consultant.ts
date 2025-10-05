@@ -113,18 +113,14 @@ export const consultWithChika = ai.defineFlow(
       Laporan ini telah saya teruskan ke tim teknis kami dengan tingkat prioritas [Tinggi/Sedang]. Kami akan segera menghubungi Anda setelah ada perkembangan. Terima kasih atas kesabaran Anda."
     `;
 
-    const llmResponse = await ai.generate({
+    const { output } = await ai.generate({
       prompt: prompt,
-      model: 'googleai/gemini-pro',
+      model: 'googleai/gemini-1.5-flash',
       output: {
         schema: AppConsultantOutputSchema,
       },
-      history: [
-        { role: 'user', content: input.conversationHistory },
-        { role: 'user', content: input.userInput }
-      ]
     });
     
-    return llmResponse.output!;
+    return output!;
   }
 );
