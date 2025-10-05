@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { streamToBuffer } from 'genkit/media';
+import { streamToBuffer } from '@genkit-ai/core/media';
 
 
 const TextToSpeechInputSchema = z.object({
