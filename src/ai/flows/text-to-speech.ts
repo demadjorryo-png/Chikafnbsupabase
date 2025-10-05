@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Text-to-Speech (TTS) AI agent.
@@ -76,9 +77,13 @@ const textToSpeechFlow = ai.defineFlow(
       },
     });
 
-    const audio = await response.media();
+    const { media } = await response;
+    if (!media) {
+        throw new Error('No audio media returned from text-to-speech flow.');
+    }
+    
     const audioBuffer = Buffer.from(
-      audio.url.substring(audio.url.indexOf(',') + 1),
+      media.url.substring(media.url.indexOf(',') + 1),
       'base64'
     );
 
