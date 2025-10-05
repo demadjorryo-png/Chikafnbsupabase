@@ -10,12 +10,14 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { streamToBuffer } from '@genkit-ai/core';
-
+import { googleAI } from '@genkit-ai/google-genai';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
-  gender: z.enum(['male', 'female']).optional().describe('The preferred gender of the voice. Defaults to female.'),
+  gender: z
+    .enum(['male', 'female'])
+    .optional()
+    .describe('The preferred gender of the voice. Defaults to female.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
@@ -64,19 +66,25 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async ({ text, gender = 'female' }) => {
-    
-    const { stream } = await ai.streamText({
-        model: 'google/text-to-speech',
-        prompt: text,
-        config: {
-          voice: gender === 'male' ? 'en-US-Standard-D' : 'en-US-Standard-C',
-        },
+    const ttsModel = googleAI.model('text-to-speech');
+
+    const { response } = ai.generateStream({
+      model: ttsModel,
+      prompt: text,
+      config: {
+        voice: gender === 'male' ? 'en-US-Standard-D' : 'en-US-Standard-C',
+      },
     });
-    
-    const audioBuffer = await streamToBuffer(stream);
+
+    const audio = await response.media();
+    const audioBuffer = Buffer.from(
+      audio.url.substring(audio.url.indexOf(',') + 1),
+      'base64'
+    );
 
     return {
-      audioDataUri: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 1, 24000)),
+      audioDataUri:
+        'data:audio/wav;base64,' + (await toWav(audioBuffer, 1, 24000)),
     };
   }
 );
