@@ -1,4 +1,5 @@
 
+import 'dotenv/config'; // Muat variabel .env di paling atas
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb, admin } from '@/lib/firebase-admin';
 
