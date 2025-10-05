@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai';
 
 const AdminRecommendationInputSchema = z.object({
   totalRevenueLastWeek: z.number().describe('Total revenue from the previous week.'),
@@ -34,7 +33,6 @@ export async function getAdminRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'adminRecommendationPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: AdminRecommendationInputSchema },
   output: { schema: AdminRecommendationOutputSchema },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika.
@@ -70,6 +68,9 @@ Berdasarkan data ini:
     {{/if}}
 
 Pastikan rekomendasi Anda berbeda untuk mingguan dan bulanan. Gunakan nada yang profesional namun memotivasi.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const adminRecommendationFlow = ai.defineFlow(

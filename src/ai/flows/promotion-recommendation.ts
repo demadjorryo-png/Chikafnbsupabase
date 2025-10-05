@@ -11,7 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { RedemptionOption } from '@/lib/types';
-import { openai } from '@genkit-ai/openai';
 
 const PromotionRecommendationInputSchema = z.object({
   currentRedemptionOptions: z.array(
@@ -48,7 +47,6 @@ export async function getPromotionRecommendations(
 
 const prompt = ai.definePrompt({
   name: 'promotionRecommendationPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: PromotionRecommendationInputSchema },
   output: { schema: PromotionRecommendationOutputSchema },
   prompt: `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Kasir POS Chika.
@@ -74,6 +72,9 @@ Setiap rekomendasi HARUS memiliki:
 - 'justification': Alasan mengapa ini ide yang bagus.
 - 'pointsRequired': Jumlah poin yang Anda sarankan untuk promo ini.
 - 'value': Nilai promo dalam Rupiah (misal, jika diskon Rp 25.000, value-nya 25000). Jika promo berupa barang gratis (seperti merchandise), value bisa 0.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const promotionRecommendationFlow = ai.defineFlow(

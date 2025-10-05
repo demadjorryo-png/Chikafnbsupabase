@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai';
 
 const ChallengeGeneratorInputSchema = z.object({
   budget: z.number().describe('The total budget available for challenge rewards for the period.'),
@@ -46,7 +45,6 @@ const ChallengeGeneratorGptOutputSchema = z.object({
 
 const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
   prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk aplikasi "Kasir POS Chika".
@@ -63,6 +61,9 @@ Periode Tantangan: {{startDate}} hingga {{endDate}}
 Total Anggaran Hadiah: Rp {{budget}}
 
 Buat satu set tantangan dalam Bahasa Indonesia.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 

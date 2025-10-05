@@ -10,7 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {openai} from '@genkit-ai/openai';
 
 const LoyaltyPointRecommendationInputSchema = z.object({
   loyaltyPoints: z
@@ -50,7 +49,6 @@ export async function getLoyaltyPointRecommendation(
 
 const prompt = ai.definePrompt({
   name: 'loyaltyPointRecommendationPrompt',
-  model: openai('gpt-4o-mini'),
   input: {schema: LoyaltyPointRecommendationInputSchema},
   output: {schema: LoyaltyPointRecommendationOutputSchema},
   prompt: `You are an expert in loyalty programs and customer engagement. A customer has {{loyaltyPoints}} loyalty points and is making a purchase of Rp {{totalPurchaseAmount}}. Here are the available redemption options:
@@ -62,6 +60,9 @@ const prompt = ai.definePrompt({
 Based on this information, recommend the optimal way for the customer to redeem their points to maximize their benefit and encourage redemption. The recommendation should be a single sentence in Indonesian.
 
 Recommendation: `,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const loyaltyPointRecommendationFlow = ai.defineFlow(

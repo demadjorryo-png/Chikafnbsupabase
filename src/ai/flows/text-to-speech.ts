@@ -10,7 +10,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { openai } from '@genkit-ai/openai';
 import { streamToBuffer } from 'genkit/media';
 
 
@@ -67,7 +66,7 @@ const textToSpeechFlow = ai.defineFlow(
   async ({ text, gender = 'female' }) => {
     
     const { stream } = await ai.streamText({
-        model: openai('tts-1'),
+        model: 'openai/tts-1',
         prompt: text,
         config: {
           voice: gender === 'male' ? 'onyx' : 'nova',

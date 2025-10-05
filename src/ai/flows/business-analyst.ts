@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai';
 
 const ChikaAnalystInputSchema = z.object({
   question: z.string().describe('The business-related question from the admin.'),
@@ -34,7 +33,6 @@ export async function askChika(
 
 const prompt = ai.definePrompt({
   name: 'businessAnalystPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: ChikaAnalystInputSchema },
   output: { schema: ChikaAnalystOutputSchema },
   prompt: `Anda adalah Chika AI, seorang analis bisnis ahli yang berspesialisasi dalam industri F&B untuk aplikasi Kasir POS Chika. Anda sedang menganalisis data untuk kafe/restoran: {{activeStoreName}}.
@@ -56,6 +54,9 @@ Contoh:
 PENTING: Format jawaban Anda menggunakan Markdown untuk keterbacaan yang lebih baik. Gunakan poin-poin (dengan '-' atau '*') dan teks tebal ('**teks**') untuk menyorot informasi kunci.
 
 Jawaban Analisis F&B Anda:`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const businessAnalystFlow = ai.defineFlow(

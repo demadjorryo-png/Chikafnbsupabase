@@ -3,7 +3,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai'; // Menggunakan jalur impor yang benar
 
 const AppConsultantInputSchema = z.object({
   conversationHistory: z.string().describe('The history of the conversation so far.'),
@@ -116,7 +115,7 @@ export const consultWithChika = ai.defineFlow(
 
     const { output } = await ai.generate({
       prompt: prompt,
-      model: openai('gpt-4o-mini'), // Menggunakan model openai
+      model: 'openai/gpt-4o-mini',
       output: {
         schema: AppConsultantOutputSchema,
       },

@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai';
 
 const OrderReadyFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -32,7 +31,6 @@ export type OrderReadyFollowUpOutput = z.infer<typeof OrderReadyFollowUpOutputSc
 
 const prompt = ai.definePrompt({
   name: 'orderReadyFollowUpPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: OrderReadyFollowUpInputSchema },
   output: { schema: OrderReadyFollowUpOutputSchema },
   prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.
@@ -66,6 +64,9 @@ Pesanan Anda di *Toko Chika* sudah siap diambil di kasir.
 Silakan segera diambil ya. Terima kasih!
 
 Buat pesan yang jelas, menyenangkan, dan profesional.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const orderReadyFollowUpFlow = ai.defineFlow(

@@ -10,7 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {openai} from '@genkit-ai/openai';
 
 const BirthdayFollowUpInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -42,7 +41,6 @@ export async function getBirthdayFollowUp(
 
 const prompt = ai.definePrompt({
   name: 'birthdayFollowUpPrompt',
-  model: openai('gpt-4o-mini'),
   input: {schema: BirthdayFollowUpInputSchema},
   output: {schema: BirthdayFollowUpOutputSchema},
   prompt: `You are Chika AI, a friendly assistant for Kasir POS Chika.
@@ -60,6 +58,9 @@ Customer Name: {{customerName}}
 Discount Percentage: {{discountPercentage}}%
 
 Generate a follow-up message.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const birthdayFollowUpFlow = ai.defineFlow(

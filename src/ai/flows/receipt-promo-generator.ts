@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { openai } from '@genkit-ai/openai';
 
 const ReceiptPromoInputSchema = z.object({
   activePromotions: z.array(z.string()).describe('A list of currently active loyalty redemption descriptions.'),
@@ -30,7 +29,6 @@ export async function getReceiptPromo(
 
 const prompt = ai.definePrompt({
   name: 'receiptPromoPrompt',
-  model: openai('gpt-4o-mini'),
   input: { schema: ReceiptPromoInputSchema },
   output: { schema: ReceiptPromoOutputSchema },
   prompt: `Anda adalah Chika AI, seorang copywriter kreatif untuk "Kasir POS Chika".
@@ -54,6 +52,9 @@ Contoh output yang baik:
 - "Kumpulkan terus poinnya dan tukar dengan Merchandise Eksklusif!"
 
 Buat satu kalimat promo yang paling menarik dalam Bahasa Indonesia.`,
+  config: {
+    model: 'openai/gpt-4o-mini',
+  },
 });
 
 const receiptPromoFlow = ai.defineFlow(
