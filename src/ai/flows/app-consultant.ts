@@ -29,10 +29,10 @@ export const consultWithChika = ai.defineFlow(
       Gunakan Bahasa Indonesia yang profesional, jelas, dan empatik di seluruh percakapan.
 
       **RIWAYAT PERCAKAPAN SEBELUMNYA:**
-      {{conversationHistory}}
+      {{{conversationHistory}}}
 
       **PESAN PENGGUNA TERBARU:**
-      "{{userInput}}"
+      "{{{userInput}}}"
 
       ---
 
@@ -113,16 +113,16 @@ export const consultWithChika = ai.defineFlow(
       Laporan ini telah saya teruskan ke tim teknis kami dengan tingkat prioritas [Tinggi/Sedang]. Kami akan segera menghubungi Anda setelah ada perkembangan. Terima kasih atas kesabaran Anda."
     `;
 
-    const finalPrompt = prompt
-      .replace('{{conversationHistory}}', input.conversationHistory)
-      .replace('{{userInput}}', input.userInput);
-
     const llmResponse = await ai.generate({
-      prompt: finalPrompt,
-      model: 'googleai/gemini-1.5-flash',
+      prompt: prompt,
+      model: 'googleai/gemini-pro',
       output: {
         schema: AppConsultantOutputSchema,
       },
+      history: [
+        { role: 'user', content: input.conversationHistory },
+        { role: 'user', content: input.userInput }
+      ]
     });
     
     return llmResponse.output!;
