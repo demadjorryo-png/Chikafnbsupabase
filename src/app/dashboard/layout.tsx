@@ -37,6 +37,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // If logged in, render the dashboard layout
   return (
+    <DashboardProvider>
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           {children}
@@ -44,6 +45,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           <ChikaChatButton />
         </div>
       </SidebarProvider>
+    </DashboardProvider>
   );
 }
 
@@ -55,9 +57,7 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <DashboardProvider>
-        {children}
-      </DashboardProvider>
+      {children}
     </AuthGuard>
   );
 }

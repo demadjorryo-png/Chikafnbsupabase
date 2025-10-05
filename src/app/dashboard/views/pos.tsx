@@ -50,7 +50,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -277,7 +277,22 @@ export default function POS({ onPrintRequest }: POSProps) {
       await runTransaction(db, async (transaction) => {
         
         const storeRef = doc(db, 'stores', storeId);
+        
+        const productReads = cart
+          .filter(item => !item.productId.startsWith('manual-'))
+          .map(item => ({
+            ref: doc(db, 'stores', storeId, 'products', item.productId),
+            item: item,
+          }));
+        
+        const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
+        
+        // ======================= ALL READS FIRST =======================
         const storeDoc = await transaction.get(storeRef);
+        const productDocs = await Promise.all(productReads.map(p => transaction.get(p.ref)));
+        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
+        // ==============================================================
+
         if (!storeDoc.exists()) {
             throw new Error("Store document not found.");
         }
@@ -301,17 +316,6 @@ export default function POS({ onPrintRequest }: POSProps) {
         transaction.update(storeRef, updatesForStore);
 
         // 3. Stock updates
-        const productReads = cart
-          .filter(item => !item.productId.startsWith('manual-'))
-          .map(item => ({
-            ref: doc(db, 'stores', storeId, 'products', item.productId),
-            item: item,
-          }));
-        
-        const productDocs = await Promise.all(
-          productReads.map(p => transaction.get(p.ref))
-        );
-        
         for (let i = 0; i < productDocs.length; i++) {
           const productDoc = productDocs[i];
           const { item } = productReads[i];
@@ -325,9 +329,10 @@ export default function POS({ onPrintRequest }: POSProps) {
         }
 
         // 4. Customer points update
-        if (selectedCustomer) {
-          const customerRef = doc(db, 'stores', storeId, 'customers', selectedCustomer.id);
-          transaction.update(customerRef, { loyaltyPoints: increment(pointsEarned - pointsToRedeem) });
+        if (selectedCustomer && customerDoc?.exists()) {
+          const customerPoints = customerDoc.data()?.loyaltyPoints || 0;
+          const newPoints = customerPoints + pointsEarned - pointsToRedeem;
+          transaction.update(customerDoc.ref, { loyaltyPoints: newPoints });
         }
         
         // 5. Create transaction record
@@ -724,3 +729,5 @@ export default function POS({ onPrintRequest }: POSProps) {
     </>
   );
 }
+
+    
