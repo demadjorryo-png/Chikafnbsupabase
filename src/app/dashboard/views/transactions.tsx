@@ -77,7 +77,7 @@ function TransactionDetailsDialog({ transaction, open, onOpenChange, users }: { 
                 <DialogHeader>
                     <DialogTitle className="font-headline tracking-wider">Detail Transaksi</DialogTitle>
                     <DialogDescription>
-                        ID: {transaction.id}
+                        Nota: {String(transaction.receiptNumber).padStart(6, '0')}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -330,6 +330,7 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Nota</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Pelanggan</TableHead>
                   <TableHead className="text-center">Status</TableHead>
@@ -341,6 +342,7 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
                 {isLoading ? (
                     Array.from({length: 10}).map((_, i) => (
                         <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-16"/></TableCell>
                             <TableCell><Skeleton className="h-5 w-24"/></TableCell>
                             <TableCell><Skeleton className="h-5 w-32"/></TableCell>
                             <TableCell className="text-center"><Skeleton className="h-6 w-20 mx-auto"/></TableCell>
@@ -352,6 +354,7 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
                     paginatedTransactions.map((transaction) => {
                     return (
                     <TableRow key={transaction.id}>
+                        <TableCell className="font-mono">{String(transaction.receiptNumber).padStart(6, '0')}</TableCell>
                         <TableCell>
                         {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
                             day: 'numeric',
@@ -503,5 +506,3 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
     </>
   );
 }
-
-    

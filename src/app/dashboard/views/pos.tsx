@@ -277,6 +277,11 @@ export default function POS({ onPrintRequest }: POSProps) {
       await runTransaction(db, async (transaction) => {
         
         const storeRef = doc(db, 'stores', storeId);
+        const storeDoc = await transaction.get(storeRef);
+        if (!storeDoc.exists()) {
+            throw new Error("Store document not found.");
+        }
+        const storeData = storeDoc.data();
         
         const productReads = cart
           .filter(item => !item.productId.startsWith('manual-'))
@@ -287,19 +292,15 @@ export default function POS({ onPrintRequest }: POSProps) {
         
         const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
         
-        // ======================= ALL READS FIRST =======================
-        const storeDoc = await transaction.get(storeRef);
         const productDocs = await Promise.all(productReads.map(p => transaction.get(p.ref)));
         const customerDoc = customerRef ? await transaction.get(customerRef) : null;
-        // ==============================================================
-
-        if (!storeDoc.exists()) {
-            throw new Error("Store document not found.");
-        }
-        const storeData = storeDoc.data();
+        
 
         // 1. Handle transaction count and first transaction date
-        const isFirstTransaction = storeData.transactionCounter === 0;
+        const currentCounter = storeData.transactionCounter || 0;
+        const newReceiptNumber = currentCounter + 1;
+        const isFirstTransaction = currentCounter === 0;
+
         const updatesForStore: { [key: string]: any } = {
             transactionCounter: increment(1)
         };
@@ -339,6 +340,7 @@ export default function POS({ onPrintRequest }: POSProps) {
         const newTransactionRef = doc(collection(db, 'stores', storeId, 'transactions'));
         const transactionData: Transaction = {
             id: newTransactionRef.id,
+            receiptNumber: newReceiptNumber,
             storeId: activeStore.id,
             customerId: selectedCustomer?.id || 'N/A',
             customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
@@ -729,5 +731,3 @@ export default function POS({ onPrintRequest }: POSProps) {
     </>
   );
 }
-
-    

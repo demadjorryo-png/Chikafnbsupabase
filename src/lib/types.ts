@@ -77,6 +77,7 @@ export type TransactionStatus = 'Diproses' | 'Selesai' | 'Selesai Dibayar';
 
 export type Transaction = {
   id: string;
+  receiptNumber: number;
   storeId: string;
   customerId: string;
   customerName: string;

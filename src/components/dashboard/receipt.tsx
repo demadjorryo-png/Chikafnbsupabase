@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -39,7 +40,7 @@ export function Receipt({ transaction, users }: ReceiptProps) {
       <div className="my-2 space-y-1">
         <div className="flex justify-between">
             <span>Nota:</span>
-            <span>{transaction.id}</span>
+            <span>{String(transaction.receiptNumber).padStart(6, '0')}</span>
         </div>
         <div className="flex justify-between">
             <span>Kasir:</span>
