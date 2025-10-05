@@ -8,6 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { db } from '@/lib/firebase'; // Ensure db is imported
 import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 import { z } from 'genkit';
 
