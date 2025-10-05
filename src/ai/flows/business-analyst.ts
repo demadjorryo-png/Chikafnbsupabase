@@ -66,7 +66,27 @@ const businessAnalystFlow = ai.defineFlow(
     outputSchema: ChikaAnalystOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    try {
+      // Defensive: clamp arrays to avoid extremely long prompts / high cost
+      const safeInput = {
+        ...input,
+        topSellingProducts: (input.topSellingProducts || []).slice(0, 25),
+        worstSellingProducts: (input.worstSellingProducts || []).slice(0, 25),
+      };
+
+      const { output } = await prompt(safeInput);
+
+      if (!output) {
+        // Log and return a structured error so callers can handle it
+        console.error('businessAnalystFlow: AI returned empty output', { store: input.activeStoreName });
+        throw new Error('AI did not return a result.');
+      }
+
+      return output!;
+    } catch (err: any) {
+      // Improve observability; do not leak sensitive details to clients
+      console.error('businessAnalystFlow error:', err?.message ?? err);
+      throw new Error('Terjadi kesalahan pada layanan AI. Silakan coba lagi nanti.');
+    }
   }
 );
