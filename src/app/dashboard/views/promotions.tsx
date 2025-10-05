@@ -18,10 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { RedemptionOption, Transaction } from '@/lib/types';
+import type { RedemptionOption, Transaction, TransactionItem } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Loader, Target, Save } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Target, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,7 +90,7 @@ export default function Promotions() {
         refreshData();
         toast({
         title: 'Promosi Dihapus!',
-        description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
+        description: `Promo &quot;${promotionToDelete.description}&quot; telah berhasil dihapus.`,
         });
     } catch (error) {
         console.error("Error deleting promotion: ", error);
@@ -156,7 +156,7 @@ export default function Promotions() {
     const calculateProductSales = (txs: Transaction[]) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
-          t.items.forEach(item => {
+          t.items.forEach((item: TransactionItem) => {
               if (!sales[item.productName]) {
                   sales[item.productName] = 0;
               }
@@ -195,7 +195,7 @@ export default function Promotions() {
         refreshData();
         toast({
             title: 'Draf Promo Dibuat!',
-            description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
+            description: `&quot;${rec.title}&quot; telah ditambahkan sebagai promo non-aktif.`,
         });
 
     } catch (error) {
@@ -269,7 +269,7 @@ export default function Promotions() {
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                      <p className="text-sm">{rec.description}</p>
-                                     <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
+                                     <p className="text-xs text-muted-foreground italic">&quot;{rec.justification}&quot;</p>
                                      <div className='flex justify-between text-xs pt-2'>
                                         <span className='font-semibold'>{rec.pointsRequired} Poin</span>
                                         <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
@@ -391,7 +391,7 @@ export default function Promotions() {
             <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
             <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus promosi secara permanen: <br />
-              <span className="font-bold">"{promotionToDelete?.description}"</span>.
+              <span className="font-bold">&quot;{promotionToDelete?.description}&quot;</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

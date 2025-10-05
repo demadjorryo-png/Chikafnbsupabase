@@ -21,7 +21,7 @@ import {
   Bar,
   BarChart,
 } from 'recharts';
-import { TrendingUp, DollarSign, Sparkles, Loader, ShoppingBag, Target, CheckCircle, FileDown, Calendar as CalendarIcon, TrendingDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, DollarSign, Sparkles, ShoppingBag, Target, CheckCircle, Calendar as CalendarIcon, TrendingDown, FileText, FileSpreadsheet } from 'lucide-react';
 import { subMonths, format, startOfMonth, endOfMonth, isWithinInterval, formatISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { AppliedStrategy, Product, Transaction, AdminRecommendationOutput } from '@/lib/types';
+import type { AppliedStrategy, AdminRecommendationOutput, TransactionItem } from '@/lib/types';
 import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -117,10 +117,10 @@ export default function AdminOverview() {
 
     const thisMonthTransactions = (transactions || []).filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfMonth(now), end: endOfMonth(now) }));
 
-    const calculateProductSales = (txs: any[]) => {
+    const calculateProductSales = (txs: typeof transactions) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
-          t.items.forEach((item: { productName: string; quantity: number; }) => {
+          t.items.forEach((item: TransactionItem) => {
               if (!sales[item.productName]) {
                   sales[item.productName] = 0;
               }
@@ -138,7 +138,7 @@ export default function AdminOverview() {
       topProductsThisMonth: sortedProductsThisMonth.slice(0, 3),
       worstProductsThisMonth: sortedProductsThisMonth.slice(-3).reverse(),
     };
-  }, [transactions, products, idLocale]);
+  }, [transactions, products]);
 
   const handleGenerateRecommendations = async () => {
     const thisMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 1]?.revenue || 0;

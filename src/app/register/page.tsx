@@ -23,8 +23,9 @@ import { Loader, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
-import { doc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { getTransactionFeeSettings } from '@/lib/app-settings';
+import { FirebaseError } from 'firebase/app';
 
 
 const registerSchema = z.object({
@@ -103,7 +104,7 @@ export default function RegisterPage() {
       });
       router.push('/login');
 
-    } catch (error: any) {
+    } catch (error) {
       // Cleanup: If user was created but Firestore failed, delete the user
       if (newUser) {
         await deleteUser(newUser).catch(deleteError => {
@@ -112,11 +113,13 @@ export default function RegisterPage() {
       }
 
       let errorMessage = 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.';
-      } else if (error.code) {
-        errorMessage = `Error: ${error.code}`;
-      } else if (error.message) {
+      if (error instanceof FirebaseError) {
+          if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.';
+          } else {
+            errorMessage = `Error: ${error.code}`;
+          }
+      } else if (error instanceof Error) {
         errorMessage = error.message;
       }
       

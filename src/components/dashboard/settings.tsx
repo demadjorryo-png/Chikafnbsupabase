@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -33,6 +32,7 @@ import {
 } from 'firebase/auth';
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { FirebaseError } from 'firebase/app';
 
 const PasswordFormSchema = z
   .object({
@@ -93,10 +93,12 @@ export default function Settings() {
         description: 'Password Anda telah berhasil diubah.',
       });
       form.reset();
-    } catch (error: any) {
+    } catch (error) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Password Anda saat ini salah.';
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = 'Password Anda saat ini salah.';
+        }
       }
       toast({
         variant: 'destructive',

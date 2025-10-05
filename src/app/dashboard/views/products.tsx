@@ -94,7 +94,7 @@ function StockToggle({ product, onStockChange, isUpdating }: { product: Product;
 export default function Products() {
   const { currentUser, activeStore } = useAuth();
   const { dashboardData, isLoading, refreshData } = useDashboard();
-  const products = dashboardData?.products || [];
+  const products = React.useMemo(() => dashboardData?.products || [], [dashboardData?.products]);
   
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
@@ -156,7 +156,7 @@ export default function Products() {
         await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
         toast({
             title: 'Produk Dihapus!',
-            description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
+            description: `Produk &quot;${selectedProduct.name}&quot; telah berhasil dihapus.`,
         });
         refreshData();
     } catch (error) {
@@ -198,7 +198,7 @@ export default function Products() {
   }, [products, searchTerm, selectedCategories]);
 
   const availableCategories = React.useMemo(() => {
-    const categories = new Set((products || []).map(p => p.category));
+    const categories = new Set(products.map(p => p.category));
     return Array.from(categories).sort();
   }, [products]);
 
@@ -380,7 +380,7 @@ export default function Products() {
           <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
           <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk secara permanen: <br />
-              <span className="font-bold">"{selectedProduct?.name}"</span>.
+              <span className="font-bold">&quot;{selectedProduct?.name}&quot;</span>.
           </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

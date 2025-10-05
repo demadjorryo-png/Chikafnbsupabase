@@ -195,7 +195,7 @@ export default function ReceiptSettings() {
                     <AlertTitle className="font-semibold text-accent">
                       Saran Teks Promo:
                     </AlertTitle>
-                    <AlertDescription>"{generatedPromo}"</AlertDescription>
+                    <AlertDescription>&quot;{generatedPromo}&quot;</AlertDescription>
                   </Alert>
                   <div className="flex gap-2">
                     <Button onClick={handleApplyPromo}>Terapkan</Button>

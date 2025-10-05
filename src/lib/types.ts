@@ -1,4 +1,3 @@
-
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -59,7 +58,7 @@ export type Product = {
   attributes: {
     brand: string;
     barcode?: string;
-    [key: string]: any; // Allow other generic attributes
+    [key: string]: string | number | boolean | null;
   };
 };
 
@@ -89,17 +88,19 @@ export type Transaction = {
   paymentMethod: 'Cash' | 'Card' | 'QRIS';
   pointsEarned: number;
   pointsRedeemed: number;
-  items: CartItem[];
+  items: TransactionItem[];
   tableId?: string; // Optional table reference
   status: TransactionStatus;
 };
 
-export type CartItem = {
-  productId: string;
-  productName: string;
-  quantity: number;
-  price: number;
-};
+export type TransactionItem = {
+    productId: string;
+    productName: string;
+    quantity: number;
+    price: number;
+}
+
+export type CartItem = TransactionItem;
 
 export type PendingOrder = {
   id: string;

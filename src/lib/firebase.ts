@@ -1,4 +1,4 @@
-''''use client';
+'use client';
 
 import {initializeApp, getApps, getApp} from 'firebase/app';
 import {getAuth} from 'firebase/auth';
@@ -22,4 +22,4 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-export { app, auth, db, storage };'''
+export { app, auth, db, storage };

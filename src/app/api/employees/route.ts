@@ -71,23 +71,28 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, userId: newUserId }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating employee via API route:', error);
     let errorMessage = 'An internal server error occurred.';
     let statusCode = 500;
     
-    if (error.code === 'auth/email-already-exists') {
-      errorMessage = 'The email address is already in use by another account.';
-      statusCode = 409; // Conflict
-    } else if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
-        errorMessage = 'Your session has expired. Please log in again.';
-        statusCode = 401; // Unauthorized
-    } else if (error.code === 'auth/invalid-argument') {
-        errorMessage = `Invalid argument provided: ${error.message}`;
-        statusCode = 400;
-    } else if (error.code === 'auth/invalid-credential' || error.message.includes('credential')) {
-        errorMessage = "Server configuration error. Could not initialize authentication service.";
-        statusCode = 500;
+    if (error instanceof Object && 'code' in error && 'message' in error) {
+        const firebaseError = error as { code: string, message: string };
+        if (firebaseError.code === 'auth/email-already-exists') {
+          errorMessage = 'The email address is already in use by another account.';
+          statusCode = 409; // Conflict
+        } else if (firebaseError.code === 'auth/id-token-expired' || firebaseError.code === 'auth/id-token-revoked') {
+            errorMessage = 'Your session has expired. Please log in again.';
+            statusCode = 401; // Unauthorized
+        } else if (firebaseError.code === 'auth/invalid-argument') {
+            errorMessage = `Invalid argument provided: ${firebaseError.message}`;
+            statusCode = 400;
+        } else if (firebaseError.code === 'auth/invalid-credential' || String(firebaseError.message).includes('credential')) {
+            errorMessage = "Server configuration error. Could not initialize authentication service.";
+            statusCode = 500;
+        }
+    } else if (error instanceof Error) {
+        errorMessage = error.message;
     }
 
     return NextResponse.json({ error: errorMessage }, { status: statusCode });

@@ -29,7 +29,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Gift, Sparkles, Loader, Send, Trophy, TrendingUp, Calendar, Moon } from 'lucide-react';
+import { Gift, Sparkles, Send, Trophy, TrendingUp, Calendar, Moon } from 'lucide-react';
 import { format, isWithinInterval, startOfMonth, endOfMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
-import type { Customer } from '@/lib/types';
+import type { Customer, User } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -207,7 +207,7 @@ export default function Overview() {
   
   const employeeSales = React.useMemo(() => {
       if (!users || !transactions) return [];
-    const sales: Record<string, { user: any; totalOmset: number }> = {};
+    const sales: Record<string, { user: User; totalOmset: number }> = {};
     const startOfThisMonth = startOfMonth(new Date());
     const endOfThisMonth = endOfMonth(new Date());
 

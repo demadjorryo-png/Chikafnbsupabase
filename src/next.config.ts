@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -40,6 +41,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       }
+    ],
+  },
+  experimental: {
+    serverComponentsExternalPackages: [
+        'firebase-admin',
+        'genkit', 
+        '@genkit-ai/core', 
+        'zod',
     ],
   },
   output: 'standalone',

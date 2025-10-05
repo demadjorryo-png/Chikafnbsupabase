@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Form, FormField, FormItem, FormControl, FormMessage, FormLabel } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
@@ -36,6 +36,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Format email tidak valid.' }),
@@ -92,14 +93,16 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password);
       router.push('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "Email atau password yang Anda masukkan salah.";
-        } else if (error.code === 'auth/too-many-requests') {
-            errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
-        } else if (error.message) {
-            errorMessage = error.message;
+        if (error instanceof FirebaseError) {
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                errorMessage = "Email atau password yang Anda masukkan salah.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+            } else {
+                errorMessage = error.message;
+            }
         }
         toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
     } finally {
@@ -117,10 +120,12 @@ export default function LoginPage() {
         });
         setIsForgotPasswordOpen(false);
         forgotPasswordForm.reset();
-    } catch (error: any) {
+    } catch (error) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        if (error.code === 'auth/user-not-found') {
-            errorMessage = "Email yang Anda masukkan tidak terdaftar.";
+        if (error instanceof FirebaseError) {
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = "Email yang Anda masukkan tidak terdaftar.";
+            }
         }
         toast({
             variant: 'destructive',

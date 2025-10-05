@@ -24,6 +24,11 @@ export async function sendWhatsAppNotification(
   return whatsAppNotificationFlow(input);
 }
 
+interface WhaCenterResponse {
+  status: 'success' | 'error';
+  reason?: string;
+}
+
 const whatsAppNotificationFlow = ai.defineFlow(
   {
     name: 'whatsAppNotificationFlow',
@@ -55,7 +60,7 @@ const whatsAppNotificationFlow = ai.defineFlow(
         throw new Error(`WhaCenter API responded with status ${response.status}`);
       }
       
-      const responseJson: any = await response.json();
+      const responseJson: WhaCenterResponse = await response.json();
       if(responseJson.status === 'error'){
         console.error('WhaCenter API Error:', responseJson.reason);
         throw new Error(responseJson.reason);

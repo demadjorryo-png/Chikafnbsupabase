@@ -90,7 +90,7 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
           try {
             const errorJson = JSON.parse(errorText);
             throw new Error(errorJson.error || 'Gagal menambahkan karyawan.');
-          } catch (e) {
+          } catch {
             // If parsing as JSON fails, use the raw text as the error message.
             // This is useful for catching HTML error pages or other non-JSON responses.
             throw new Error(errorText || 'Gagal menambahkan karyawan: Terjadi kesalahan tidak terduga.');
@@ -106,12 +106,12 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
         onEmployeeAdded();
         setDialogOpen(false);
 
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error adding employee:", error);
         toast({
             variant: 'destructive',
             title: 'Terjadi Kesalahan',
-            description: error.message,
+            description: (error as Error).message,
         });
       } finally {
         setIsLoading(false);

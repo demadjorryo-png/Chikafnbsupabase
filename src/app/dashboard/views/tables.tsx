@@ -40,15 +40,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, X, Check, ShoppingCart, BookMarked, SprayCan, Loader2, ServerCog, Printer } from 'lucide-react';
-import type { Table, CartItem, TableStatus, Transaction } from '@/lib/types';
+import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, Check, BookMarked, SprayCan, Loader2, ServerCog } from 'lucide-react';
+import type { Table, TableStatus, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, runTransaction, writeBatch, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -516,7 +516,7 @@ export default function Tables({ onPrintRequest }: TablesProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Bersihkan Meja?</AlertDialogTitle>
             <AlertDialogDescription>
-                Ini akan menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai 'Tersedia' dan siap untuk pelanggan berikutnya.
+                Ini akan menandai meja <span className="font-bold">{selectedTable?.name}</span> sebagai &apos;Tersedia&apos; dan siap untuk pelanggan berikutnya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

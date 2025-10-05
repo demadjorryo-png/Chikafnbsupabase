@@ -21,7 +21,6 @@ import {
   Sparkles,
   Percent,
   ScanBarcode,
-  Plus,
   Gift,
   Coins,
   Armchair,
@@ -51,7 +50,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentReference, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -66,7 +65,7 @@ type POSProps = {
 export default function POS({ onPrintRequest }: POSProps) {
   const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { dashboardData, isLoading, refreshData } = useDashboard();
-  const { products, customers, tables, feeSettings } = dashboardData;
+  const { products, customers, feeSettings } = dashboardData;
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -230,7 +229,7 @@ export default function POS({ onPrintRequest }: POSProps) {
     const feeCappedAtMin = Math.max(feeFromPercentage, feeSettings.minFeeRp);
     const feeCappedAtMax = Math.min(feeCappedAtMin, feeSettings.maxFeeRp);
     return feeCappedAtMax / feeSettings.tokenValueRp;
-  }, [totalAmount, feeSettings, currentUser]);
+  }, [totalAmount, feeSettings]);
   
   const handlePointsRedeemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);

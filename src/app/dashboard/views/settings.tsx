@@ -39,6 +39,7 @@ import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-setting
 import type { ReceiptSettings } from '@/lib/types';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FirebaseError } from 'firebase/app';
 
 
 const PasswordFormSchema = z
@@ -154,10 +155,12 @@ export default function Settings() {
         description: 'Password Anda telah berhasil diubah.',
       });
       passwordForm.reset();
-    } catch (error: any) {
+    } catch (error) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Password Anda saat ini salah.';
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = 'Password Anda saat ini salah.';
+        }
       }
       toast({
         variant: 'destructive',

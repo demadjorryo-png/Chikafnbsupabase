@@ -8,6 +8,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { FirebaseError } from 'firebase/app';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -100,9 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveStore(storeData);
         setPradanaTokenBalance(storeData.pradanaTokenBalance || 0);
         
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error handling user session:", error);
-        toast({ variant: 'destructive', title: 'Error Sesi', description: error.message });
+        toast({ variant: 'destructive', title: 'Error Sesi', description: (error as Error).message });
         await handleLogout();
         router.push('/login');
       } finally {
@@ -123,12 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // Let onAuthStateChanged handle the rest
-    } catch (error: any) {
+    } catch (error) {
         let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "Email atau password yang Anda masukkan salah.";
-        } else if (error.code === 'auth/too-many-requests') {
-            errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+        if (error instanceof FirebaseError) {
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                errorMessage = "Email atau password yang Anda masukkan salah.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
+            }
         }
         toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
         throw error;

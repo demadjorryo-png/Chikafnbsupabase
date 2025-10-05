@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button, type ButtonProps } from '@/components/ui/button';
+import { ButtonProps } from '@/components/ui/button';
 import { AILoadingOverlay } from './ai-loading-overlay';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -28,7 +28,7 @@ type AIConfirmationDialogProps<T> = {
   feeToDeduct?: number; // Optional specific fee for the feature
   onConfirm: () => Promise<T>;
   onSuccess: (result: T) => void;
-  onError?: (error: any) => void;
+  onError?: (error: Error) => void;
   children: React.ReactNode;
   buttonProps?: ButtonProps;
 };
@@ -42,7 +42,6 @@ export function AIConfirmationDialog<T>({
   onSuccess,
   onError,
   children,
-  buttonProps,
 }: AIConfirmationDialogProps<T>) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -86,7 +85,7 @@ export function AIConfirmationDialog<T>({
       } catch (refundError) {
         console.error("Critical: Failed to refund tokens after AI error.", refundError);
       }
-      if (onError) {
+      if (onError && error instanceof Error) {
         onError(error);
       }
     } finally {
