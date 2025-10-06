@@ -61,10 +61,10 @@ export const receiptPromoFlow = ai.defineFlow(
     const { output } = await ai.generate({
       model: 'openai/gpt-4o-mini',
       prompt: promptText,
-      input,
       output: {
         schema: ReceiptPromoOutputSchema,
       },
+      // input, // HAPUS, tidak didukung oleh Genkit
     });
 
     if (!output) {

@@ -83,7 +83,6 @@ export const promotionRecommendationFlow = ai.defineFlow(
     const { output } = await ai.generate({
       model: 'openai/gpt-4o-mini',
       prompt: promptText,
-      input,
       config: {
         maxOutputTokens: 2048,
         temperature: 0.7,
@@ -91,6 +90,7 @@ export const promotionRecommendationFlow = ai.defineFlow(
       output: {
         schema: PromotionRecommendationOutputSchema,
       },
+      // input, // HAPUS, tidak didukung oleh Genkit
     });
 
     if (!output) {
