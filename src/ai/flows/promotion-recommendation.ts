@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -10,7 +11,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { RedemptionOption } from '@/lib/types';
 
 const PromotionRecommendationInputSchema = z.object({
   currentRedemptionOptions: z.array(
@@ -45,11 +45,7 @@ export async function getPromotionRecommendations(
   return promotionRecommendationFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'promotionRecommendationPrompt',
-  input: { schema: PromotionRecommendationInputSchema },
-  output: { schema: PromotionRecommendationOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Kasir POS Chika.
+const promptText = `Anda adalah Chika AI, seorang ahli strategi loyalitas untuk Kasir POS Chika.
 
 Tugas Anda adalah menganalisis data promo saat ini dan kinerja produk untuk menghasilkan 2-3 rekomendasi promosi loyalitas yang kreatif dan dapat ditindaklanjuti. Rekomendasi harus dalam Bahasa Indonesia.
 
@@ -71,11 +67,7 @@ Setiap rekomendasi HARUS memiliki:
 - 'description': Deskripsi promo yang akan dilihat pelanggan.
 - 'justification': Alasan mengapa ini ide yang bagus.
 - 'pointsRequired': Jumlah poin yang Anda sarankan untuk promo ini.
-- 'value': Nilai promo dalam Rupiah (misal, jika diskon Rp 25.000, value-nya 25000). Jika promo berupa barang gratis (seperti merchandise), value bisa 0.`,
-  config: {
-    model: 'openai/gpt-4o-mini',
-  },
-});
+- 'value': Nilai promo dalam Rupiah (misal, jika diskon Rp 25.000, value-nya 25000). Jika promo berupa barang gratis (seperti merchandise), value bisa 0.`;
 
 const promotionRecommendationFlow = ai.defineFlow(
   {
@@ -84,7 +76,23 @@ const promotionRecommendationFlow = ai.defineFlow(
     outputSchema: PromotionRecommendationOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    const { output } = await ai.generate({
+      model: 'openai/gpt-4o-mini',
+      prompt: promptText,
+      config: {
+        maxOutputTokens: 2048,
+        temperature: 0.7,
+      },
+      output: {
+        schema: PromotionRecommendationOutputSchema,
+      },
+      input: input,
+    });
+
+    if (!output) {
+      throw new Error('AI did not return a valid recommendation.');
+    }
+
+    return output;
   }
 );
