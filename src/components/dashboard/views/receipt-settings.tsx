@@ -83,7 +83,7 @@ export default function ReceiptSettings() {
     } catch (error) {
       return; // Stop if not enough tokens
     }
-    
+
     setIsGenerating(true);
     setGeneratedPromo('');
     try {
@@ -120,24 +120,24 @@ export default function ReceiptSettings() {
   if (isLoading) {
     return <ReceiptSettingsSkeleton />;
   }
-  
+
   if (!activeStore) {
-      return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Pengaturan Struk</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Toko Tidak Ditemukan</AlertTitle>
-                    <AlertDescription>
-                        Silakan pilih toko dari halaman login untuk mengelola pengaturan struk.
-                    </AlertDescription>
-                </Alert>
-            </CardContent>
-        </Card>
-      )
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Pengaturan Struk</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Toko Tidak Ditemukan</AlertTitle>
+            <AlertDescription>
+              Silakan pilih toko dari halaman login untuk mengelola pengaturan struk.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -212,7 +212,7 @@ export default function ReceiptSettings() {
                     <AlertTitle className="font-semibold text-accent">
                       Saran Teks Promo:
                     </AlertTitle>
-                    <AlertDescription>"{generatedPromo}"</AlertDescription>
+                    <AlertDescription>&quot;{generatedPromo}&quot;</AlertDescription>
                   </Alert>
                   <div className="flex gap-2">
                     <Button onClick={handleApplyPromo}>Terapkan</Button>
@@ -249,27 +249,27 @@ export default function ReceiptSettings() {
 }
 
 function ReceiptSettingsSkeleton() {
-    return (
-        <Card>
-            <CardHeader>
-                <Skeleton className="h-8 w-1/2" />
-                <Skeleton className="h-4 w-3/4" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-24 w-full" />
-                </div>
-                <div className="grid gap-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-20 w-full" />
-                </div>
-                <div className="grid gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-20 w-full" />
-                </div>
-                <Skeleton className="h-10 w-40" />
-            </CardContent>
-        </Card>
-    )
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="h-4 w-3/4" />
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+        <Skeleton className="h-10 w-40" />
+      </CardContent>
+    </Card>
+  )
 }

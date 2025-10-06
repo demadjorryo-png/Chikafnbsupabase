@@ -65,15 +65,15 @@ export default function Promotions() {
   const { currentUser, activeStore, pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
   const { dashboardData, refreshData } = useDashboard();
   const { redemptionOptions, setRedemptionOptions, transactions, feeSettings } = {
-      ...dashboardData,
-      setRedemptionOptions: (data: any) => { /* Placeholder */ }
+    ...dashboardData,
+    setRedemptionOptions: (data: unknown) => { /* Placeholder */ }
   }
-  
+
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
-  
+
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
   const [rpPerPoint, setRpPerPoint] = React.useState(pointEarningSettings.rpPerPoint);
@@ -88,21 +88,21 @@ export default function Promotions() {
 
   const handleConfirmDelete = async () => {
     if (!promotionToDelete) return;
-    
+
     try {
-        await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
-        refreshData();
-        toast({
+      await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
+      refreshData();
+      toast({
         title: 'Promosi Dihapus!',
         description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
-        });
+      });
     } catch (error) {
-        console.error("Error deleting promotion: ", error);
-        toast({
-            variant: "destructive",
-            title: "Gagal menghapus",
-            description: "Terjadi kesalahan saat menghapus promosi."
-        });
+      console.error("Error deleting promotion: ", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal menghapus",
+        description: "Terjadi kesalahan saat menghapus promosi."
+      });
     }
 
 
@@ -127,19 +127,19 @@ export default function Promotions() {
     const optionRef = doc(db, 'redemptionOptions', id);
 
     try {
-        await updateDoc(optionRef, { isActive: newStatus });
-        refreshData();
-        toast({
-            title: 'Status Diperbarui',
-            description: `Status promosi telah berhasil diubah.`,
-        });
+      await updateDoc(optionRef, { isActive: newStatus });
+      refreshData();
+      toast({
+        title: 'Status Diperbarui',
+        description: `Status promosi telah berhasil diubah.`,
+      });
     } catch (error) {
-        console.error("Error updating promotion status: ", error);
-        toast({
-            variant: "destructive",
-            title: "Gagal memperbarui",
-            description: "Terjadi kesalahan saat mengubah status promosi."
-        });
+      console.error("Error updating promotion status: ", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal memperbarui",
+        description: "Terjadi kesalahan saat mengubah status promosi."
+      });
     }
   };
 
@@ -158,20 +158,20 @@ export default function Promotions() {
     const startOfThisMonth = startOfMonth(now);
     const endOfThisMonth = endOfMonth(now);
     const thisMonthTransactions = transactions.filter(t => isWithinInterval(new Date(t.createdAt), { start: startOfThisMonth, end: endOfThisMonth }));
-    
+
     const calculateProductSales = (txs: Transaction[]) => {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
-          t.items.forEach(item => {
-              if (!sales[item.productName]) {
-                  sales[item.productName] = 0;
-              }
-              sales[item.productName] += item.quantity;
-          });
+        t.items.forEach(item => {
+          if (!sales[item.productName]) {
+            sales[item.productName] = 0;
+          }
+          sales[item.productName] += item.quantity;
+        });
       });
       return Object.entries(sales).sort(([, a], [, b]) => b - a);
     };
-    
+
     const sortedProductsThisMonth = calculateProductSales(thisMonthTransactions);
     const topProducts = sortedProductsThisMonth.slice(0, 3).map(([name]) => name);
     const worstProducts = sortedProductsThisMonth.slice(-3).reverse().map(([name]) => name);
@@ -179,9 +179,9 @@ export default function Promotions() {
     try {
       const result = await getPromotionRecommendations({
         currentRedemptionOptions: redemptionOptions.map(o => ({
-            description: o.description,
-            pointsRequired: o.pointsRequired,
-            isActive: o.isActive,
+          description: o.description,
+          pointsRequired: o.pointsRequired,
+          isActive: o.isActive,
         })),
         topSellingProducts: topProducts,
         worstSellingProducts: worstProducts,
@@ -201,29 +201,29 @@ export default function Promotions() {
   };
 
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
-     if (!activeStore) return;
-     try {
-        await addDoc(collection(db, "redemptionOptions"), {
-            description: rec.description,
-            pointsRequired: rec.pointsRequired,
-            value: rec.value,
-            isActive: false, // New promos from AI are inactive by default
-            storeId: activeStore.id,
-        });
+    if (!activeStore) return;
+    try {
+      await addDoc(collection(db, "redemptionOptions"), {
+        description: rec.description,
+        pointsRequired: rec.pointsRequired,
+        value: rec.value,
+        isActive: false, // New promos from AI are inactive by default
+        storeId: activeStore.id,
+      });
 
-        refreshData();
-        toast({
-            title: 'Draf Promo Dibuat!',
-            description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
-        });
+      refreshData();
+      toast({
+        title: 'Draf Promo Dibuat!',
+        description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
+      });
 
     } catch (error) {
-        console.error("Error applying recommendation:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Menerapkan Promo',
-            description: 'Terjadi kesalahan saat menyimpan draf promo. Silakan coba lagi.',
-        });
+      console.error("Error applying recommendation:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menerapkan Promo',
+        description: 'Terjadi kesalahan saat menyimpan draf promo. Silakan coba lagi.',
+      });
     }
   };
 
@@ -234,178 +234,178 @@ export default function Promotions() {
 
   return (
     <>
-    <div className="grid gap-6">
-       {isAdmin && (
-         <Card>
+      <div className="grid gap-6">
+        {isAdmin && (
+          <Card>
             <CardHeader>
-                <CardTitle className="font-headline tracking-wider">Pengaturan Perolehan Poin</CardTitle>
-                <CardDescription>Atur berapa total belanja (dalam Rupiah) yang diperlukan untuk mendapatkan 1 poin loyalitas.</CardDescription>
+              <CardTitle className="font-headline tracking-wider">Pengaturan Perolehan Poin</CardTitle>
+              <CardDescription>Atur berapa total belanja (dalam Rupiah) yang diperlukan untuk mendapatkan 1 poin loyalitas.</CardDescription>
             </CardHeader>
             <CardContent className="max-w-sm space-y-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="rp-per-point">Belanja (Rp) untuk 1 Poin</Label>
-                    <Input 
-                        id="rp-per-point"
-                        type="number"
-                        value={rpPerPoint}
-                        onChange={(e) => setRpPerPoint(Number(e.target.value))}
-                        step="1000"
-                    />
-                </div>
-                 <Button onClick={handleSavePointEarning}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Simpan Pengaturan
-                </Button>
+              <div className="grid gap-2">
+                <Label htmlFor="rp-per-point">Belanja (Rp) untuk 1 Poin</Label>
+                <Input
+                  id="rp-per-point"
+                  type="number"
+                  value={rpPerPoint}
+                  onChange={(e) => setRpPerPoint(Number(e.target.value))}
+                  step="1000"
+                />
+              </div>
+              <Button onClick={handleSavePointEarning}>
+                <Save className="mr-2 h-4 w-4" />
+                Simpan Pengaturan
+              </Button>
             </CardContent>
-         </Card>
-      )}
-      {isAdmin && feeSettings && (
-        <Card>
+          </Card>
+        )}
+        {isAdmin && feeSettings && (
+          <Card>
             <CardHeader>
-                <CardTitle className="font-headline tracking-wider">Rekomendasi Promo Chika AI</CardTitle>
-                <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini.</CardDescription>
+              <CardTitle className="font-headline tracking-wider">Rekomendasi Promo Chika AI</CardTitle>
+              <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
-                    {isLoading ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
-                </Button>
-                {recommendations && (
-                    <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {recommendations.recommendations.map((rec, index) => (
-                            <Card key={index}>
-                                <CardHeader>
-                                    <CardTitle className="text-base flex items-center gap-2 text-accent"><Sparkles className="h-4 w-4" />{rec.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                     <p className="text-sm">{rec.description}</p>
-                                     <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
-                                     <div className='flex justify-between text-xs pt-2'>
-                                        <span className='font-semibold'>{rec.pointsRequired} Poin</span>
-                                        <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
-                                     </div>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={() => handleApplyRecommendation(rec)}>
-                                        <Target className="mr-2 h-4 w-4" />
-                                        Terapkan
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        ))}
-                    </div>
+              <Button onClick={handleGenerateRecommendations} disabled={isLoading}>
+                {isLoading ? (
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
                 )}
+                Buat Rekomendasi Baru ({feeSettings.aiUsageFee} Token)
+              </Button>
+              {recommendations && (
+                <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {recommendations.recommendations.map((rec, index) => (
+                    <Card key={index}>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-accent"><Sparkles className="h-4 w-4" />{rec.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm">{rec.description}</p>
+                        <p className="text-xs text-muted-foreground italic">&quot;{rec.justification}&quot;</p>
+                        <div className='flex justify-between text-xs pt-2'>
+                          <span className='font-semibold'>{rec.pointsRequired} Poin</span>
+                          <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button variant="outline" size="sm" onClick={() => handleApplyRecommendation(rec)}>
+                          <Target className="mr-2 h-4 w-4" />
+                          Terapkan
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
-        </Card>
-      )}
+          </Card>
+        )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="font-headline tracking-wider">
-                Promo Penukaran Poin
-              </CardTitle>
-              <CardDescription>
-                {isAdmin
-                  ? 'Kelola promo penukaran poin loyalitas yang aktif.'
-                  : 'Lihat promo penukaran poin loyalitas yang sedang aktif.'}
-              </CardDescription>
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="font-headline tracking-wider">
+                  Promo Penukaran Poin
+                </CardTitle>
+                <CardDescription>
+                  {isAdmin
+                    ? 'Kelola promo penukaran poin loyalitas yang aktif.'
+                    : 'Lihat promo penukaran poin loyalitas yang sedang aktif.'}
+                </CardDescription>
+              </div>
+              {isAdmin && (
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-1">
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Tambah Promo
+                      </span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle className="font-headline tracking-wider">Tambah Promo Baru</DialogTitle>
+                      <DialogDescription>
+                        Buat opsi penukaran poin loyalitas baru untuk pelanggan.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <AddPromotionForm setDialogOpen={setIsAddDialogOpen} onPromotionAdded={handlePromotionAdded} />
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
-            {isAdmin && (
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1">
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                      Tambah Promo
-                    </span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">Tambah Promo Baru</DialogTitle>
-                    <DialogDescription>
-                      Buat opsi penukaran poin loyalitas baru untuk pelanggan.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <AddPromotionForm setDialogOpen={setIsAddDialogOpen} onPromotionAdded={handlePromotionAdded} />
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Deskripsi</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Poin Dibutuhkan</TableHead>
-                <TableHead className="text-right">Nilai (Rp)</TableHead>
-                {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(redemptionOptions || []).map((option) => (
-                <TableRow key={option.id}>
-                  <TableCell className="font-medium">{option.description}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={option.isActive ? 'default' : 'destructive'}>
-                      {option.isActive ? 'Aktif' : 'Non-Aktif'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {option.pointsRequired.toLocaleString('id-ID')}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {option.value.toLocaleString('id-ID')}
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => toggleStatus(option.id)}>
-                            {option.isActive ? (
-                              <XCircle className="mr-2 h-4 w-4" />
-                            ) : (
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                            )}
-                            <span>{option.isActive ? 'Non-Aktifkan' : 'Aktifkan'}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>Ubah</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(option)}>
-                            Hapus
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Poin Dibutuhkan</TableHead>
+                  <TableHead className="text-right">Nilai (Rp)</TableHead>
+                  {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {(redemptionOptions || []).map((option) => (
+                  <TableRow key={option.id}>
+                    <TableCell className="font-medium">{option.description}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={option.isActive ? 'default' : 'destructive'}>
+                        {option.isActive ? 'Aktif' : 'Non-Aktif'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {option.pointsRequired.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {option.value.toLocaleString('id-ID')}
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => toggleStatus(option.id)}>
+                              {option.isActive ? (
+                                <XCircle className="mr-2 h-4 w-4" />
+                              ) : (
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                              )}
+                              <span>{option.isActive ? 'Non-Aktifkan' : 'Aktifkan'}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Ubah</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(option)}>
+                              Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
             <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus promosi secara permanen: <br />
-              <span className="font-bold">"{promotionToDelete?.description}"</span>.
+              <span className="font-bold">&quot;{promotionToDelete?.description}&quot;</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
