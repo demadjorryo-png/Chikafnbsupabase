@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -35,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { pointEarningSettings, updatePointEarningSettings } from '@/lib/point-earning-settings';
+import { getPointEarningSettings, updatePointEarningSettings } from '@/lib/point-earning-settings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +63,7 @@ import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dia
 export default function Promotions() {
   const { currentUser, activeStore } = useAuth();
   const { dashboardData, refreshData } = useDashboard();
-  const { redemptionOptions, transactions, feeSettings } = dashboardData || {};
+  const { redemptionOptions, transactions, products, feeSettings } = dashboardData || {};
   
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
@@ -72,10 +71,17 @@ export default function Promotions() {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
-  const [rpPerPoint, setRpPerPoint] = React.useState(pointEarningSettings.rpPerPoint);
+  const [rpPerPoint, setRpPerPoint] = React.useState(10000);
+  const [isSavingPoints, setIsSavingPoints] = React.useState(false);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [promotionToDelete, setPromotionToDelete] = React.useState<RedemptionOption | null>(null);
+
+  React.useEffect(() => {
+    getPointEarningSettings().then(settings => {
+      setRpPerPoint(settings.rpPerPoint);
+    });
+  }, []);
 
   const handleDeleteClick = (option: RedemptionOption) => {
     setPromotionToDelete(option);
@@ -107,12 +113,23 @@ export default function Promotions() {
   };
 
 
-  const handleSavePointEarning = () => {
-    updatePointEarningSettings({ rpPerPoint });
-    toast({
-      title: 'Pengaturan Disimpan!',
-      description: `Sekarang, pelanggan akan mendapatkan 1 poin untuk setiap pembelanjaan Rp ${rpPerPoint.toLocaleString('id-ID')}.`,
-    });
+  const handleSavePointEarning = async () => {
+    setIsSavingPoints(true);
+    try {
+      await updatePointEarningSettings({ rpPerPoint });
+      toast({
+        title: 'Pengaturan Disimpan!',
+        description: `Sekarang, pelanggan akan mendapatkan 1 poin untuk setiap pembelanjaan Rp ${rpPerPoint.toLocaleString('id-ID')}.`,
+      });
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: 'Gagal Menyimpan',
+        description: 'Terjadi kesalahan saat menyimpan pengaturan poin.',
+      });
+    } finally {
+        setIsSavingPoints(false);
+    }
   };
 
   const toggleStatus = async (id: string) => {
@@ -141,7 +158,7 @@ export default function Promotions() {
   };
 
   const handleGenerateRecommendations = async () => {
-    if (!activeStore || !feeSettings || !transactions || !redemptionOptions) {
+    if (!activeStore || !feeSettings || !transactions || !redemptionOptions || !products) {
         toast({ variant: 'destructive', title: 'Data tidak lengkap' });
         throw new Error('Incomplete data for generating recommendations');
     }
@@ -157,10 +174,13 @@ export default function Promotions() {
       const sales: Record<string, number> = {};
       txs.forEach(t => {
           t.items.forEach((item: TransactionItem) => {
-              if (!sales[item.productName]) {
-                  sales[item.productName] = 0;
+              const product = products.find(p => p.id === item.productId);
+              if (product) {
+                if (!sales[product.name]) {
+                    sales[product.name] = 0;
+                }
+                sales[product.name] += item.quantity;
               }
-              sales[item.productName] += item.quantity;
           });
       });
       return Object.entries(sales).sort(([, a], [, b]) => b - a);
@@ -234,8 +254,8 @@ export default function Promotions() {
                         step="1000"
                     />
                 </div>
-                 <Button onClick={handleSavePointEarning}>
-                    <Save className="mr-2 h-4 w-4" />
+                 <Button onClick={handleSavePointEarning} disabled={isSavingPoints}>
+                    {isSavingPoints && <Save className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Pengaturan
                 </Button>
             </CardContent>

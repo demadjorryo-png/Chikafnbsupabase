@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -48,7 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { pointEarningSettings } from '@/lib/point-earning-settings';
+import { getPointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,6 +71,12 @@ export default function POS({ onPrintRequest }: POSProps) {
   
   const [selectedTableId, setSelectedTableId] = React.useState(() => searchParams.get('tableId'));
   const [selectedTableName, setSelectedTableName] = React.useState(() => searchParams.get('tableName'));
+
+  const [pointSettings, setPointSettings] = React.useState({ rpPerPoint: 10000 });
+
+  React.useEffect(() => {
+      getPointEarningSettings().then(setPointSettings);
+  }, []);
 
   React.useEffect(() => {
     const currentView = searchParams.get('view');
@@ -220,7 +225,7 @@ export default function POS({ onPrintRequest }: POSProps) {
   
   const totalAmount = Math.max(0, subtotal - discountAmount);
   
-  const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointEarningSettings.rpPerPoint) : 0;
+  const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
     if (!feeSettings) return 0;
