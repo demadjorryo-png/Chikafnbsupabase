@@ -12,6 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const AdminRecommendationInputSchema = z.object({
+  businessDescription: z.string().describe('A brief description of the business (e.g., "kafe", "vape store").'),
   totalRevenueLastWeek: z.number().describe('Total revenue from the previous week.'),
   totalRevenueLastMonth: z.number().describe('Total revenue from the previous month.'),
   topSellingProducts: z.array(z.string()).describe('A list of the best-selling products.'),
@@ -35,9 +36,9 @@ const prompt = ai.definePrompt({
   name: 'adminRecommendationPrompt',
   input: { schema: AdminRecommendationInputSchema },
   output: { schema: AdminRecommendationOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika.
+  prompt: `Anda adalah Chika AI, seorang analis bisnis ahli untuk Kasir POS Chika. Anda sedang memberikan saran untuk sebuah **{{businessDescription}}**.
 
-Tugas Anda adalah memberikan rekomendasi strategis mingguan dan bulanan untuk admin toko berdasarkan data kinerja berikut. Rekomendasi harus singkat, dapat ditindaklanjuti, dan dalam Bahasa Indonesia.
+Tugas Anda adalah memberikan rekomendasi strategis mingguan dan bulanan untuk admin toko berdasarkan data kinerja berikut. Rekomendasi harus singkat, dapat ditindaklanjuti, relevan dengan jenis bisnis, dan dalam Bahasa Indonesia.
 
 Data Kinerja:
 - Total Pendapatan Minggu Lalu: Rp {{totalRevenueLastWeek}}
@@ -53,14 +54,14 @@ Data Kinerja:
 
 Berdasarkan data ini:
 
-1.  Buat **rekomendasi mingguan** yang berfokus pada tindakan jangka pendek.
+1.  Buat **rekomendasi mingguan** yang berfokus pada tindakan jangka pendek. Pastikan saran Anda relevan untuk sebuah **{{businessDescription}}**.
     {{#if worstSellingProducts.length}}
     Contoh: Sarankan promosi 'bundling' untuk produk yang kurang laris dengan produk terlaris, atau adakan acara 'happy hour' pada hari-hari sepi.
     {{else}}
     Contoh: Karena semua produk berkinerja baik, sarankan untuk fokus pada peningkatan interaksi pelanggan, seperti meminta ulasan atau menjalankan promosi di media sosial untuk meningkatkan kunjungan.
     {{/if}}
 
-2.  Buat **rekomendasi bulanan** yang berfokus pada strategi jangka panjang.
+2.  Buat **rekomendasi bulanan** yang berfokus pada strategi jangka panjang dan relevan untuk sebuah **{{businessDescription}}**.
     {{#if worstSellingProducts.length}}
     Contoh: Sarankan untuk mengurangi stok produk yang kurang laris dan bernegosiasi dengan pemasok untuk harga yang lebih baik pada produk terlaris, atau usulkan program loyalitas baru.
     {{else}}
