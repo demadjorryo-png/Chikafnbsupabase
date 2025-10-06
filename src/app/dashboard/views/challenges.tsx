@@ -63,6 +63,8 @@ export default function Challenges() {
         budget,
         startDate: format(date.from, 'yyyy-MM-dd'),
         endDate: format(date.to, 'yyyy-MM-dd'),
+        activeStoreName: activeStore.name,
+        businessDescription: activeStore.businessDescription || 'bisnis',
     });
   };
 
