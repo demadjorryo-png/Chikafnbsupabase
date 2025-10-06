@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
     setCurrentUser(null);
     setActiveStore(null);
+    setPradanaTokenBalance(0);
   }, []);
 
   const handleUserSession = React.useCallback(async (user: import('firebase/auth').User | null) => {
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            await handleLogout();
            router.push('/login');
            toast({ variant: 'destructive', title: 'Error Sesi', description: 'Tidak ada toko yang terasosiasi dengan akun Anda.' });
+           setIsLoading(false); // Fix: Ensure loading is set to false
            return;
         }
         
