@@ -26,7 +26,6 @@ import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { doc, writeBatch } from 'firebase/firestore';
 import { getTransactionFeeSettings } from '@/lib/app-settings';
 import { FirebaseError } from 'firebase/app';
-import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 
 
 const registerSchema = z.object({
@@ -99,7 +98,7 @@ export default function RegisterPage() {
       // Step 3: Commit the batch
       await batch.commit();
 
-      // Step 4: Send welcome message via WhatsApp
+      // Step 4: Send welcome message via WhatsApp API route (non-blocking)
       const welcomeMessage = 
 `🎉 *Selamat Datang di Chika POS F&B, ${values.adminName}!* 🎉
 
@@ -117,12 +116,20 @@ Anda sekarang dapat login ke aplikasi untuk mulai mengelola bisnis Anda.
 Salam hangat,
 *Tim Chika POS F&B*`;
 
-        const formattedPhone = values.whatsapp.startsWith('0') ? `62${values.whatsapp.substring(1)}` : values.whatsapp;
-        await sendWhatsAppNotification({
-            target: formattedPhone,
-            message: welcomeMessage
-        });
-
+      const formattedPhone = values.whatsapp.startsWith('0') ? `62${values.whatsapp.substring(1)}` : values.whatsapp;
+      
+      // Fire-and-forget the API call. We don't need to wait for it.
+      fetch('/api/notifications/whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              target: formattedPhone,
+              message: welcomeMessage
+          })
+      }).catch(err => {
+          // Log error but don't block user flow
+          console.error("Failed to send welcome WhatsApp message:", err);
+      });
 
       toast({
         title: 'Pendaftaran Berhasil!',
