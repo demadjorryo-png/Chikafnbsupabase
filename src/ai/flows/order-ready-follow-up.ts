@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
   name: 'orderReadyFollowUpPrompt',
   input: { schema: OrderReadyFollowUpInputSchema },
   output: { schema: OrderReadyFollowUpOutputSchema },
-  prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk Kasir POS Chika.
+  prompt: `Anda adalah Chika AI, asisten virtual yang ramah dan cerdas untuk kafe/restoran: {{activeStoreName}}..
 
 Tugas Anda adalah membuat pesan notifikasi WhatsApp yang terstruktur dan menarik untuk memberitahu pelanggan bahwa pesanan mereka sudah siap untuk diambil. Pesan harus dalam Bahasa Indonesia dan menggunakan format Markdown WhatsApp (misalnya, *teks tebal*).
 
@@ -57,7 +57,7 @@ Detail Pesanan:
 Contoh output yang baik untuk gaya 'fakta' dan waktu 14:30:
 *Selamat Siang, Kak Budi!*
 
-Pesanan Anda di *Toko Chika* sudah siap diambil di kasir.
+Pesanan Anda di *Kafe Chika* sudah siap diambil di kasir.
 
 > _Tahukah Anda? Kopi adalah minuman kedua yang paling banyak dikonsumsi di dunia setelah air!_
 

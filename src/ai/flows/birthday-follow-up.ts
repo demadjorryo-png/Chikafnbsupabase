@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   name: 'birthdayFollowUpPrompt',
   input: {schema: BirthdayFollowUpInputSchema},
   output: {schema: BirthdayFollowUpOutputSchema},
-  prompt: `You are Chika AI, a friendly assistant for Kasir POS Chika.
+  prompt: `You are Chika AI, a friendly assistant for {{activeStoreName}}.
 
 Your task is to generate a birthday follow-up message for a customer. The message should be friendly, concise, and in Indonesian. It must wish them a happy birthday and offer a special discount.
 

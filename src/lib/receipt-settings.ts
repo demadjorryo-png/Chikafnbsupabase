@@ -38,16 +38,25 @@ export async function getReceiptSettings(storeId: string): Promise<ReceiptSettin
 
 /**
  * Updates or creates receipt settings for a specific store in Firestore.
+ * This function now reads the existing settings first to merge them safely.
  * @param storeId The ID of the store to update.
  * @param newSettings An object containing the settings to update.
  */
 export async function updateReceiptSettings(storeId: string, newSettings: Partial<ReceiptSettings>) {
     const storeDocRef = doc(db, 'stores', storeId);
     try {
-        // Use setDoc with merge: true. This will create the document if it doesn't exist,
-        // or update it without overwriting other fields if it does.
+        // First, get the current settings to ensure we don't overwrite anything.
+        const currentSettings = await getReceiptSettings(storeId);
+        
+        // Merge the current settings with the new ones.
+        const updatedSettings = {
+            ...currentSettings,
+            ...newSettings,
+        };
+
+        // Use setDoc with merge: true to update the nested receiptSettings object.
         await setDoc(storeDocRef, {
-            receiptSettings: newSettings
+            receiptSettings: updatedSettings
         }, { merge: true });
         
         console.log(`Receipt settings updated for store ${storeId}.`);
@@ -56,5 +65,3 @@ export async function updateReceiptSettings(storeId: string, newSettings: Partia
         throw error; // Re-throw the error to be handled by the caller
     }
 }
-
-    

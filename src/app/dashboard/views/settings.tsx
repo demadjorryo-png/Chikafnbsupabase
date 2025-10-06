@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -180,21 +179,25 @@ export default function Settings() {
     if (!activeStore || !generalSettings) return;
     setIsGeneralSettingLoading(true);
     try {
-        const storeRef = doc(db, 'stores', activeStore.id);
-        await updateDoc(storeRef, {
-            businessDescription: businessDescription,
-            receiptSettings: {
-                ...activeStore.receiptSettings,
-                voiceGender: generalSettings.voiceGender,
-                notificationStyle: generalSettings.notificationStyle,
-            }
-        });
-        toast({ title: 'Pengaturan Umum Disimpan!' });
-        refreshData();
+      // First, update the business description on the store document
+      const storeRef = doc(db, 'stores', activeStore.id);
+      await updateDoc(storeRef, {
+        businessDescription: businessDescription,
+      });
+  
+      // Then, update the receipt settings using the dedicated function
+      await updateReceiptSettings(activeStore.id, {
+        voiceGender: generalSettings.voiceGender,
+        notificationStyle: generalSettings.notificationStyle,
+      });
+  
+      toast({ title: 'Pengaturan Umum Disimpan!' });
+      refreshData(); // Refresh auth context to get updated activeStore data
     } catch (error) {
-        toast({ variant: 'destructive', title: 'Gagal Menyimpan' });
+      console.error("Error saving general settings:", error);
+      toast({ variant: 'destructive', title: 'Gagal Menyimpan', description: (error as Error).message });
     } finally {
-        setIsGeneralSettingLoading(false);
+      setIsGeneralSettingLoading(false);
     }
   };
   

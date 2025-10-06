@@ -47,7 +47,7 @@ const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk aplikasi "Kasir POS Chika".
+  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk kafe/restoran: {{activeStoreName}}..
 
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
