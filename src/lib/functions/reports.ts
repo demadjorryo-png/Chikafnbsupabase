@@ -1,8 +1,6 @@
 
-'use server';
-
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import *s as logger from "firebase-functions/logger";
+import * as logger from "firebase-functions/logger";
 import { adminDb } from "@/lib/firebase-admin";
 import { sendWhatsAppNotification } from "@/ai/flows/whatsapp-notification";
 import { format } from 'date-fns';

@@ -1,4 +1,22 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "lib/functions",
+    "runtime": "nodejs18"
+  },
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "asia-southeast1"
+    }
+  },
   "storage": {
     "rules": "storage.rules"
   }

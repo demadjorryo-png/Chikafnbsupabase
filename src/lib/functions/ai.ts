@@ -1,4 +1,5 @@
 
+
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { VertexAI } from "@google-cloud/vertexai";
