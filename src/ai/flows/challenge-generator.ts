@@ -46,11 +46,7 @@ const ChallengeGeneratorGptOutputSchema = z.object({
   challenges: z.array(ChallengeSchema).describe('A list of generated sales challenges.'),
 });
 
-const prompt = ai.definePrompt({
-  name: 'challengeGeneratorPrompt',
-  input: { schema: ChallengeGeneratorInputSchema },
-  output: { schema: ChallengeGeneratorGptOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan. Anda membuat tantangan untuk sebuah **{{businessDescription}}** bernama **{{activeStoreName}}**.
+const promptText = `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan. Anda membuat tantangan untuk sebuah **{{businessDescription}}** bernama **{{activeStoreName}}**.
 
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
@@ -63,11 +59,7 @@ Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi ha
 Periode Tantangan: {{startDate}} hingga {{endDate}}
 Total Anggaran Hadiah: Rp {{budget}}
 
-Buat satu set tantangan yang relevan untuk **{{businessDescription}}** dalam Bahasa Indonesia.`,
-  config: {
-    model: 'googleai/gemini-1.5-flash-preview',
-  },
-});
+Buat satu set tantangan yang relevan untuk **{{businessDescription}}** dalam Bahasa Indonesia.`;
 
 
 const challengeGeneratorFlow = ai.defineFlow(
@@ -77,7 +69,15 @@ const challengeGeneratorFlow = ai.defineFlow(
     outputSchema: ChallengeGeneratorOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
+    const { output } = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-preview',
+      prompt: promptText,
+      input: input,
+      output: {
+        schema: ChallengeGeneratorGptOutputSchema,
+      },
+    });
+
     if (!output) {
       throw new Error('Failed to generate challenges from AI.');
     }
