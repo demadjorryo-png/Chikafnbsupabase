@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface AppConsultantInput {
   conversationHistory: string;
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callConsultWithChika = httpsCallable<AppConsultantInput, AppConsultantOutput>(functions, 'consultWithChika');
 
     const result = await callConsultWithChika({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface ReceiptPromoInput {
   activePromotions: string[];
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callReceiptPromo = httpsCallable<ReceiptPromoInput, ReceiptPromoOutput>(functions, 'receiptPromoFlow');
     
     const result = await callReceiptPromo(input);

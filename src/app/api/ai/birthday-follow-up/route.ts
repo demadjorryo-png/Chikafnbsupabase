@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface BirthdayFollowUpInput {
   storeId: string;
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callBirthdayFollowUp = httpsCallable<BirthdayFollowUpInput, BirthdayFollowUpOutput>(functions, 'birthdayFollowUpFlow');
     
     const result = await callBirthdayFollowUp(input);

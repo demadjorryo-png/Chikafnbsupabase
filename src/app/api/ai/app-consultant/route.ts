@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface AppConsultantInput {
   conversationHistory: string;
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callAppConsultant = httpsCallable<AppConsultantInput, AppConsultantOutput>(functions, 'consultWithChika');
     
     const result = await callAppConsultant(input);

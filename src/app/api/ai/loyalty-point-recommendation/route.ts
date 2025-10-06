@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface RedemptionOption {
   description: string;
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callLoyaltyPointRecommendation = httpsCallable<LoyaltyPointRecommendationInput, LoyaltyPointRecommendationOutput>(functions, 'loyaltyPointRecommendationFlow');
     
     const result = await callLoyaltyPointRecommendation(input);

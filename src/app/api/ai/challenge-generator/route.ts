@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin'; // Pastikan Admin SDK diinisialisasi di sini atau di tempat lain yang sesuai
+import { admin } from '@/lib/firebase-admin';
 
 interface ChallengeGeneratorInput {
   budget: number;
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callChallengeGenerator = httpsCallable<ChallengeGeneratorInput, ChallengeGeneratorOutput>(functions, 'challengeGeneratorFlow');
     
     const result = await callChallengeGenerator(input);
