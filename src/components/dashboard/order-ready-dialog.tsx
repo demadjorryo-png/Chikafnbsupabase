@@ -17,6 +17,7 @@ import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { getReceiptSettings } from '@/lib/receipt-settings';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 type OrderReadyDialogProps = {
@@ -100,19 +101,13 @@ export function OrderReadyDialog({
                 ? `62${customer.phone.substring(1)}`
                 : customer.phone;
 
-            const response = await fetch('/api/notifications/whatsapp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    target: formattedPhone,
-                    message: text,
-                })
+            const functions = getFunctions();
+            const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
+            await sendWhatsapp({
+                storeId: store.id,
+                target: formattedPhone,
+                message: text,
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Gagal mengirim pesan WhatsApp.');
-            }
             
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
             onSuccess?.();

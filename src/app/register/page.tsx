@@ -26,6 +26,8 @@ import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { doc, writeBatch } from 'firebase/firestore';
 import { getTransactionFeeSettings } from '@/lib/app-settings';
 import { FirebaseError } from 'firebase/app';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
 
 const registerSchema = z.object({
@@ -71,9 +73,10 @@ export default function RegisterPage() {
       
       // Step 2: Create a batch write for Firestore operations
       const batch = writeBatch(db);
+      const storeId = uid; // Using UID as store ID for simplicity
 
       // Create store document
-      const storeRef = doc(db, 'stores', uid); // Using UID as store ID for simplicity
+      const storeRef = doc(db, 'stores', storeId);
       batch.set(storeRef, {
         name: values.storeName,
         location: values.storeLocation,
@@ -98,7 +101,7 @@ export default function RegisterPage() {
       // Step 3: Commit the batch
       await batch.commit();
 
-      // Step 4: Send welcome message via WhatsApp API route (non-blocking)
+      // Step 4: Send welcome message via WhatsApp using a Cloud Function
       const welcomeMessage = 
 `🎉 *Selamat Datang di Chika POS F&B, ${values.adminName}!* 🎉
 
@@ -118,18 +121,36 @@ Salam hangat,
 
       const formattedPhone = values.whatsapp.startsWith('0') ? `62${values.whatsapp.substring(1)}` : values.whatsapp;
       
-      // Fire-and-forget the API call. We don't need to wait for it.
-      fetch('/api/notifications/whatsapp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              target: formattedPhone,
-              message: welcomeMessage
-          })
-      }).catch(err => {
-          // Log error but don't block user flow
-          console.error("Failed to send welcome WhatsApp message:", err);
+      const functions = getFunctions();
+      const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
+
+      // Fire-and-forget sending to user
+      sendWhatsapp({
+          storeId: storeId,
+          target: formattedPhone,
+          message: welcomeMessage
+      }).catch(err => console.error("Failed to send welcome WhatsApp to user:", err));
+      
+      // Also notify platform admin
+      getWhatsappSettings(storeId).then(settings => {
+          if (settings.adminGroup) {
+              const adminMessage = `*PENDAFTARAN TOKO BARU*
+Nama Toko: *${values.storeName}*
+Admin: *${values.adminName}*
+Email: ${values.email}
+Lokasi: ${values.storeLocation}
+            
+Akun telah berhasil dibuat dan mendapatkan bonus *${bonusTokens} Token*.`;
+
+              sendWhatsapp({
+                  storeId: storeId,
+                  target: settings.adminGroup,
+                  message: adminMessage,
+                  isGroup: true,
+              }).catch(err => console.error("Failed to send notification to admin group:", err));
+          }
       });
+
 
       toast({
         title: 'Pendaftaran Berhasil!',

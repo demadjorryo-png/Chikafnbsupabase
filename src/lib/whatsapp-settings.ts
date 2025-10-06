@@ -1,5 +1,8 @@
 
+
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+// Import adminDb when on server, db when on client
+import { adminDb } from './firebase-admin';
 import { db } from './firebase';
 
 export type WhatsappSettings = {
@@ -15,10 +18,13 @@ export const defaultWhatsappSettings: WhatsappSettings = {
 
 /**
  * Fetches WhatsApp settings from Firestore.
+ * This function can run on both client and server, but prefers adminDb if available.
+ * @param storeId The ID of the store.
  * @returns The WhatsApp settings, or default settings if not found.
  */
-export async function getWhatsappSettings(): Promise<WhatsappSettings> {
-    const settingsDocRef = doc(db, 'appSettings', 'whatsappConfig');
+export async function getWhatsappSettings(storeId: string): Promise<WhatsappSettings> {
+    const firestore = typeof window === 'undefined' ? adminDb : db;
+    const settingsDocRef = doc(firestore, 'appSettings', 'whatsappConfig');
     try {
         const docSnap = await getDoc(settingsDocRef);
 
