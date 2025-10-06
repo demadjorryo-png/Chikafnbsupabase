@@ -50,12 +50,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     try {
         const storeId = activeStore?.id;
         
-        let productCollectionRef, customerCollectionRef, tableCollectionRef;
+        let productCollectionRef, customerCollectionRef, tableCollectionRef, redemptionOptionsCollectionRef;
 
         if (storeId) {
              productCollectionRef = collection(db, 'stores', storeId, 'products');
              customerCollectionRef = collection(db, 'stores', storeId, 'customers');
              tableCollectionRef = collection(db, 'stores', storeId, 'tables');
+             redemptionOptionsCollectionRef = collection(db, 'stores', storeId, 'redemptionOptions');
         }
 
         const [
@@ -71,7 +72,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             storeId ? getDocs(query(productCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
             storeId ? getDocs(query(customerCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
             getDocs(query(collection(db, 'users'))),
-            getDocs(collection(db, 'redemptionOptions')),
+            storeId ? getDocs(query(redemptionOptionsCollectionRef)) : Promise.resolve({ docs: [] }),
             getTransactionFeeSettings(),
             storeId ? getDocs(query(tableCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
         ]);
