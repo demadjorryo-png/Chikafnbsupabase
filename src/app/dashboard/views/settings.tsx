@@ -33,6 +33,7 @@ import {
 } from 'firebase/auth';
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { useDashboard } from '@/contexts/dashboard-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
@@ -96,7 +97,8 @@ function ProfileCardSkeleton() {
 }
 
 export default function Settings() {
-  const { currentUser, activeStore, isLoading: isAuthLoading, refreshData } = useAuth();
+  const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
+  const { refreshData } = useDashboard();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
@@ -192,7 +194,7 @@ export default function Settings() {
       });
   
       toast({ title: 'Pengaturan Umum Disimpan!' });
-      refreshData(); // Refresh auth context to get updated activeStore data
+      refreshData(); // Refresh dashboard context to get updated activeStore data
     } catch (error) {
       console.error("Error saving general settings:", error);
       toast({ variant: 'destructive', title: 'Gagal Menyimpan', description: (error as Error).message });
