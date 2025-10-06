@@ -70,7 +70,7 @@ const challengeGeneratorFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-preview',
+      model: 'openai/gpt-4o-mini',
       prompt: promptText,
       input: input,
       output: {
