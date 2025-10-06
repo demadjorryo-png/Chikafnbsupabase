@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -13,6 +14,7 @@ import { z } from 'genkit';
 
 const ReceiptPromoInputSchema = z.object({
   activePromotions: z.array(z.string()).describe('A list of currently active loyalty redemption descriptions.'),
+  activeStoreName: z.string().describe('The name of the store for context.'),
 });
 export type ReceiptPromoInput = z.infer<typeof ReceiptPromoInputSchema>;
 
@@ -27,11 +29,7 @@ export async function getReceiptPromo(
   return receiptPromoFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'receiptPromoPrompt',
-  input: { schema: ReceiptPromoInputSchema },
-  output: { schema: ReceiptPromoOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang copywriter kreatif untuk kafe/restoran: {{activeStoreName}}.
+const promptText = `Anda adalah Chika AI, seorang copywriter kreatif untuk kafe/restoran: {{activeStoreName}}.
 
 Tugas Anda adalah membuat satu kalimat promosi yang singkat, menarik, dan cocok untuk dicetak di bagian bawah struk belanja.
 
@@ -51,11 +49,7 @@ Contoh output yang baik:
 - "Dapatkan Liquid Gratis hanya dengan 500 poin!"
 - "Kumpulkan terus poinnya dan tukar dengan Merchandise Eksklusif!"
 
-Buat satu kalimat promo yang paling menarik dalam Bahasa Indonesia.`,
-  config: {
-    model: 'openai/gpt-4o-mini',
-  },
-});
+Buat satu kalimat promo yang paling menarik dalam Bahasa Indonesia.`;
 
 const receiptPromoFlow = ai.defineFlow(
   {
@@ -64,7 +58,19 @@ const receiptPromoFlow = ai.defineFlow(
     outputSchema: ReceiptPromoOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    const { output } = await ai.generate({
+      model: 'openai/gpt-4o-mini',
+      prompt: promptText,
+      input: input,
+      output: {
+        schema: ReceiptPromoOutputSchema,
+      },
+    });
+
+    if (!output) {
+      throw new Error('AI did not return a valid promo text.');
+    }
+
+    return output;
   }
 );
