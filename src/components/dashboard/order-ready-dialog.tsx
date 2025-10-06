@@ -13,7 +13,6 @@ import {
 import { Loader, Send, Volume2 } from 'lucide-react';
 import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
-import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -101,12 +100,19 @@ export function OrderReadyDialog({
                 ? `62${customer.phone.substring(1)}`
                 : customer.phone;
 
-            const waResult = await sendWhatsAppNotification({
-                target: formattedPhone,
-                message: text,
+            const response = await fetch('/api/notifications/whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target: formattedPhone,
+                    message: text,
+                })
             });
 
-            if (!waResult.success) throw new Error(waResult.message);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Gagal mengirim pesan WhatsApp.');
+            }
             
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
             onSuccess?.();
