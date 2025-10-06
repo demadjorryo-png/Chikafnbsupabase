@@ -56,8 +56,12 @@ export async function POST(req: Request) {
     // e.g. console.info('AI proxy used by', ip, 'flow=receiptPromo');
 
     return NextResponse.json(result.data);
-  } catch (err: any) {
-    console.error('AI proxy error:', err?.message ?? err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (err: unknown) {
+    let message = 'Internal Server Error';
+    if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
+      message = (err as any).message;
+    }
+    console.error('AI proxy error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
