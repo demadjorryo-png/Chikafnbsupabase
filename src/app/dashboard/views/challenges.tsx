@@ -211,126 +211,125 @@ export default function Challenges() {
   return (
     <>
     <div className="grid gap-6">
-      <div className='grid md:grid-cols-2 gap-6'>
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline tracking-wider">Generator Tantangan AI</CardTitle>
-              <CardDescription>
-                Tetapkan anggaran hadiah dan rentang tanggal. Chika AI akan membuat tantangan penjualan
-                yang memotivasi berdasarkan total pendapatan (omset) untuk periode tersebut.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+        <CardHeader>
+            <CardTitle className="font-headline tracking-wider">Generator Tantangan AI</CardTitle>
+            <CardDescription>
+            Tetapkan anggaran hadiah dan rentang tanggal. Chika AI akan membuat tantangan penjualan
+            yang memotivasi berdasarkan total pendapatan (omset) untuk periode tersebut.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label htmlFor="budget">Anggaran Hadiah (Rp)</Label>
+                <Input
+                id="budget"
+                type="number"
+                value={budget}
+                onChange={(e) => setBudget(Number(e.target.value))}
+                placeholder="e.g., 500000"
+                step="50000"
+                />
+            </div>
                 <div className="space-y-2">
-                  <Label htmlFor="budget">Anggaran Hadiah (Rp)</Label>
-                  <Input
-                    id="budget"
-                    type="number"
-                    value={budget}
-                    onChange={(e) => setBudget(Number(e.target.value))}
-                    placeholder="e.g., 500000"
-                    step="50000"
-                  />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="date">Periode Tantangan</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.from ? (
-                            date.to ? (
-                                <>
-                                {format(date.from, "LLL dd, y")} -{" "}
-                                {format(date.to, "LLL dd, y")}
-                                </>
-                            ) : (
-                                format(date.from, "LLL dd, y")
-                            )
-                            ) : (
-                            <span>Pilih tanggal</span>
-                            )}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={2}
-                        />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-              </div>
-              <div className="pt-2">
-                 <AIConfirmationDialog
-                    featureName="Tantangan Karyawan"
-                    featureDescription="Anda akan membuat satu set tantangan penjualan berjenjang untuk karyawan berdasarkan anggaran dan periode yang Anda tentukan."
-                    feeSettings={feeSettings}
-                    onConfirm={handleGenerateChallenges}
-                    onSuccess={setGeneratedChallenges}
-                 >
-                    <Button className="w-full" disabled={!feeSettings}>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Buat dengan Chika AI
+                <Label htmlFor="date">Periode Tantangan</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                        date.to ? (
+                            <>
+                            {format(date.from, "LLL dd, y")} -{" "}
+                            {format(date.to, "LLL dd, y")}
+                            </>
+                        ) : (
+                            format(date.from, "LLL dd, y")
+                        )
+                        ) : (
+                        <span>Pilih tanggal</span>
+                        )}
                     </Button>
-                </AIConfirmationDialog>
-              </div>
-            </CardContent>
-          </Card>
-          {generatedChallenges && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-headline tracking-wider">
-                  Draf Tantangan yang Dihasilkan
-                </CardTitle>
-                <CardDescription>
-                  Tantangan untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>. Simpan untuk mengaktifkannya.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {generatedChallenges.challenges.map((challenge, index) => (
-                  <Card key={index} className="flex flex-col">
-                    <CardHeader>
-                      <CardTitle className='text-base flex items-center gap-2'>
-                        <Trophy className='w-4 h-4 text-primary'/>
-                        {challenge.tier}
-                      </CardTitle>
-                      <CardDescription>{challenge.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow space-y-2">
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            </div>
+            <div className="pt-2">
+                <AIConfirmationDialog
+                featureName="Tantangan Karyawan"
+                featureDescription="Anda akan membuat satu set tantangan penjualan berjenjang untuk karyawan berdasarkan anggaran dan periode yang Anda tentukan."
+                feeSettings={feeSettings}
+                onConfirm={handleGenerateChallenges}
+                onSuccess={setGeneratedChallenges}
+                >
+                <Button className="w-full" disabled={!feeSettings}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Buat dengan Chika AI
+                </Button>
+            </AIConfirmationDialog>
+            </div>
+        </CardContent>
+        </Card>
+
+        {generatedChallenges && (
+        <Card>
+            <CardHeader>
+            <CardTitle className="font-headline tracking-wider">
+                Draf Tantangan yang Dihasilkan
+            </CardTitle>
+            <CardDescription>
+                Tantangan untuk periode: <span className='font-semibold'>{generatedChallenges.period}</span>. Simpan untuk mengaktifkannya.
+            </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {generatedChallenges.challenges.map((challenge, index) => (
+                <Card key={index} className="flex flex-col">
+                <CardHeader>
+                    <CardTitle className='text-base flex items-center gap-2'>
+                    <Trophy className='w-4 h-4 text-primary'/>
+                    {challenge.tier}
+                    </CardTitle>
+                    <CardDescription>{challenge.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-2">
+                    <div>
+                        <p className="text-xs text-muted-foreground">Target Omset</p>
+                        <p className="font-semibold text-lg">Rp {challenge.target.toLocaleString('id-ID')}</p>
+                    </div>
                         <div>
-                            <p className="text-xs text-muted-foreground">Target Omset</p>
-                            <p className="font-semibold text-lg">Rp {challenge.target.toLocaleString('id-ID')}</p>
-                        </div>
-                         <div>
-                            <p className="text-xs text-muted-foreground">Hadiah</p>
-                            <p className="font-semibold text-accent">{challenge.reward}</p>
-                        </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </CardContent>
-                <CardFooter className='flex justify-end p-6'>
-                    <Button onClick={handleSaveChallenges} disabled={isSaving}>
-                        {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Simpan & Aktifkan
-                    </Button>
-                </CardFooter>
-            </Card>
-          )}
-      </div>
+                        <p className="text-xs text-muted-foreground">Hadiah</p>
+                        <p className="font-semibold text-accent">{challenge.reward}</p>
+                    </div>
+                </CardContent>
+                </Card>
+            ))}
+            </CardContent>
+            <CardFooter className='flex justify-end p-6'>
+                <Button onClick={handleSaveChallenges} disabled={isSaving}>
+                    {isSaving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Simpan & Aktifkan
+                </Button>
+            </CardFooter>
+        </Card>
+        )}
 
        {challengePeriods && challengePeriods.length > 0 && (
          <Card>
