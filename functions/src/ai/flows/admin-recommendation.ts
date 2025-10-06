@@ -77,10 +77,10 @@ export const adminRecommendationFlow = ai.defineFlow(
     const { output } = await ai.generate({
       model: 'openai/gpt-4o-mini',
       prompt: promptText,
-      input: input,
       output: {
         schema: AdminRecommendationOutputSchema,
       },
+      // input: input, // HAPUS, tidak didukung oleh Genkit
     });
 
     if (!output) {
