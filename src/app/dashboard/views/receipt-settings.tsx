@@ -19,12 +19,21 @@ import {
   defaultReceiptSettings
 } from '@/lib/receipt-settings';
 import { Loader, Receipt, Sparkles, WandSparkles, AlertCircle } from 'lucide-react';
-import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
+// Hapus import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
+
+interface ReceiptPromoInput {
+  activePromotions: string[];
+  activeStoreName: string;
+}
+
+interface ReceiptPromoOutput {
+  promoText: string;
+}
 
 export default function ReceiptSettings() {
   const { activeStore } = useAuth();
@@ -74,7 +83,7 @@ export default function ReceiptSettings() {
     }
   };
 
-  const handleGeneratePromo = async () => {
+  const handleGeneratePromo = async (): Promise<ReceiptPromoOutput> => {
     if (!redemptionOptions || !activeStore) {
         toast({ variant: 'destructive', title: 'Data promo atau toko tidak tersedia.'});
         throw new Error('Redemption options or active store not available');
@@ -84,10 +93,26 @@ export default function ReceiptSettings() {
       .map((o) => o.description);
 
     setGeneratedPromo('');
-    return getReceiptPromo({
+    
+    const inputData: ReceiptPromoInput = {
       activePromotions: activePromos,
       activeStoreName: activeStore.name,
+    };
+
+    const response = await fetch('/api/ai/receipt-promo-generator', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inputData),
     });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate receipt promo');
+    }
+
+    return response.json();
   };
 
   const handleApplyPromo = () => {

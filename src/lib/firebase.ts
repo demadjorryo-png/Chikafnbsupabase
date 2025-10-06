@@ -7,12 +7,12 @@ import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCZuXPnpa4lqpisO7U-6th_8kH_YCmgQok",
-  authDomain: "kasir-pos-chika-v2-09828-9a2a7.firebaseapp.com",
-  projectId: "kasir-pos-chika-v2-09828-9a2a7",
-  storageBucket: "kasir-pos-chika-v2-09828-9a2a7.firebasestorage.app",
-  messagingSenderId: "1041744002845",
-  appId: "1:1041744002845:web:7517aacfc7d8a8a6132bf4"
+  apiKey: "AIzaSyAT7g9niddpksmzpOhcz6g8dtWnq5Vd6ms",
+  authDomain: "kasir-pos-chika-toko-354-1abce.firebaseapp.com",
+  projectId: "kasir-pos-chika-toko-354-1abce",
+  storageBucket: "kasir-pos-chika-toko-354-1abce.firebasestorage.app",
+  messagingSenderId: "582069956448",
+  appId: "1:582069956448:web:d7cbbc87ae84a17c837805"
 };
 
 

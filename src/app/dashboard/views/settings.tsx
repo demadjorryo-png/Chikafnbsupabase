@@ -38,11 +38,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
 import type { ReceiptSettings, NotificationSettings } from '@/lib/types';
-import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
+// Hapus import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FirebaseError } from 'firebase/app';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+
+interface TextToSpeechInput {
+  text: string;
+  gender: 'male' | 'female';
+}
+
+interface TextToSpeechOutput {
+  audioDataUri: string;
+}
 
 
 const PasswordFormSchema = z
@@ -209,11 +218,26 @@ export default function Settings() {
     if (!generalSettings?.voiceGender) return;
     setIsSamplePlaying(true);
     try {
-        const { audioDataUri } = await convertTextToSpeech({
+        const inputData: TextToSpeechInput = {
             text: "Ini adalah contoh suara saya. Terima kasih.",
             gender: generalSettings.voiceGender,
+        };
+
+        const response = await fetch('/api/ai/text-to-speech', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(inputData),
         });
-        const audio = new Audio(audioDataUri);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to convert text to speech');
+        }
+
+        const result: TextToSpeechOutput = await response.json();
+        const audio = new Audio(result.audioDataUri);
         audio.play();
     } catch (error) {
         console.error("Error playing voice sample:", error);

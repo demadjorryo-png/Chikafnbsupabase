@@ -11,14 +11,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader, Send, Volume2 } from 'lucide-react';
-import { getOrderReadyFollowUp } from '@/ai/flows/order-ready-follow-up';
-import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
+import type { OrderReadyFollowUpOutput, OrderReadyFollowUpInput } from '@/functions/src/ai/flows/order-ready-follow-up';
+import type { TextToSpeechInput, TextToSpeechOutput } from '@/functions/src/ai/flows/text-to-speech';
 import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { getReceiptSettings } from '@/lib/receipt-settings';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-
 
 type OrderReadyDialogProps = {
   transaction: Transaction;
@@ -75,24 +74,28 @@ export function OrderReadyDialog({
     setIsLoading(true);
 
     try {
+        const functions = getFunctions();
         const nameToAnnounce = customer?.name || transaction.customerName;
         const now = new Date();
         const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         
-        const generatedTextResult = await getOrderReadyFollowUp({
+        const callOrderReadyFollowUp = httpsCallable<OrderReadyFollowUpInput, OrderReadyFollowUpOutput>(functions, 'orderReadyFollowUpFlow');
+        
+        const generatedTextResult = await callOrderReadyFollowUp({
             customerName: nameToAnnounce,
             storeName: store.name,
             itemsOrdered: transaction.items.map(item => item.productName),
             currentTime: currentTime,
             notificationStyle: receiptSettings.notificationStyle,
         });
-        
-        const text = generatedTextResult.followUpMessage;
+
+        const text = generatedTextResult.data.followUpMessage;
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const audioResult = await convertTextToSpeech({ text, gender: receiptSettings.voiceGender });
-            setAudioDataUri(audioResult.audioDataUri);
+            const callTextToSpeech = httpsCallable<TextToSpeechInput, TextToSpeechOutput>(functions, 'textToSpeechFlow');
+            const audioResult = await callTextToSpeech({ text, gender: receiptSettings.voiceGender });
+            setAudioDataUri(audioResult.data.audioDataUri);
             onSuccess?.();
         } else if (actionType === 'whatsapp') {
             if (!customer?.phone) throw new Error("Nomor telepon pelanggan tidak ditemukan untuk mengirim WhatsApp.");
@@ -101,7 +104,6 @@ export function OrderReadyDialog({
                 ? `62${customer.phone.substring(1)}`
                 : customer.phone;
 
-            const functions = getFunctions();
             const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
             await sendWhatsapp({
                 storeId: store.id,
@@ -157,7 +159,7 @@ export function OrderReadyDialog({
           <div className="rounded-lg border p-4">
             <p className="text-sm font-semibold mb-2">Detail Transaksi:</p>
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>ID: {transaction.id}</p>
+              <p>Nota: {String(transaction.receiptNumber).padStart(6, '0')}</p>
               <p>Pelanggan: {transaction.customerName}</p>
               <p>Item: {transaction.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}</p>
             </div>

@@ -27,8 +27,12 @@ import { doc, writeBatch } from 'firebase/firestore';
 import { getTransactionFeeSettings } from '@/lib/app-settings';
 import { FirebaseError } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getWhatsappSettings } from '@/lib/whatsapp-settings';
+// Hapus import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
+interface WhatsappSettings {
+  deviceId: string;
+  adminGroup: string;
+}
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -131,10 +135,12 @@ Salam hangat,
           message: welcomeMessage
       }).catch(err => console.error("Failed to send welcome WhatsApp to user:", err));
       
-      // Also notify platform admin
-      getWhatsappSettings(storeId).then(settings => {
-          if (settings.adminGroup) {
-              const adminMessage = `*PENDAFTARAN TOKO BARU*
+      // Ambil pengaturan WhatsApp dari API Route
+      const whatsappSettingsResponse = await fetch(`/api/whatsapp-settings?storeId=${storeId}`);
+      if (whatsappSettingsResponse.ok) {
+        const settings: WhatsappSettings = await whatsappSettingsResponse.json();
+        if (settings.adminGroup) {
+            const adminMessage = `*PENDAFTARAN TOKO BARU*
 Nama Toko: *${values.storeName}*
 Admin: *${values.adminName}*
 Email: ${values.email}
@@ -142,14 +148,16 @@ Lokasi: ${values.storeLocation}
             
 Akun telah berhasil dibuat dan mendapatkan bonus *${bonusTokens} Token*.`;
 
-              sendWhatsapp({
-                  storeId: storeId,
-                  target: settings.adminGroup,
-                  message: adminMessage,
-                  isGroup: true,
-              }).catch(err => console.error("Failed to send notification to admin group:", err));
-          }
-      });
+            sendWhatsapp({
+                storeId: storeId,
+                target: settings.adminGroup,
+                message: adminMessage,
+                isGroup: true,
+            }).catch(err => console.error("Failed to send notification to admin group:", err));
+        }
+      } else {
+        console.error("Failed to fetch WhatsApp settings from API route.");
+      }
 
 
       toast({

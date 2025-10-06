@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { adminApp } from '@/lib/firebase-admin';
+
+interface ReceiptPromoInput {
+  activePromotions: string[];
+  activeStoreName: string;
+}
+
+interface ReceiptPromoOutput {
+  promoText: string;
+}
 
 // Very small example of a server-side proxy endpoint that forwards requests to
 // a specific AI flow. This endpoint includes basic in-memory rate limiting and
@@ -31,18 +41,21 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const input = body?.input;
+    const input: ReceiptPromoInput = body?.input;
     if (!input) {
       return NextResponse.json({ error: 'Missing input in request body' }, { status: 400 });
     }
 
-    // Call the server-side AI flow (this runs on the server only)
-    const result = await getReceiptPromo(input);
+    // Panggil Cloud Function Genkit (receiptPromoFlow)
+    const functions = getFunctions(adminApp);
+    const callReceiptPromo = httpsCallable<ReceiptPromoInput, ReceiptPromoOutput>(functions, 'receiptPromoFlow');
+
+    const result = await callReceiptPromo(input);
 
     // Optionally log or persist an audit record here (don't log secrets)
     // e.g. console.info('AI proxy used by', ip, 'flow=receiptPromo');
 
-    return NextResponse.json(result);
+    return NextResponse.json(result.data);
   } catch (err: any) {
     console.error('AI proxy error:', err?.message ?? err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

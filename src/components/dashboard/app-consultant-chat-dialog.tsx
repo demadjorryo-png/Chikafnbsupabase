@@ -12,14 +12,20 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { BrainCircuit, Loader, Send, User, Sparkles } from 'lucide-react';
-import { consultWithChika } from '@/ai/flows/app-consultant';
+import { AppConsultantInput, AppConsultantOutput, consultWithChika } from '@/ai/flows/app-consultant';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import ReactMarkdown from 'react-markdown';
 import { useToast } from '@/hooks/use-toast';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getWhatsappSettings } from '@/lib/whatsapp-settings';
+import { functions } from 'genkit';
+
+
+interface WhatsappSettings {
+  deviceId: string;
+  adminGroup: string; // The group name or ID for admin notifications
+}
 
 type Message = {
   id: number;
@@ -124,10 +130,16 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
         setIsLoading(true);
 
         try {
-            const flowResult = await consultWithChika({
+            const apiInput: AppConsultantInput = {
                 conversationHistory: [...messages, userMessage].map((m) => `${m.sender}: ${m.text}`).join('\n'),
                 userInput: question,
-            });
+            };
+
+            const funcs = getFunctions();
+            const callConsultWithChika = httpsCallable<AppConsultantInput, AppConsultantOutput>(funcs, 'consultWithChika');
+            
+            const result = await callConsultWithChika(apiInput);
+            const flowResult = result.data;
 
             setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: flowResult.response }]);
 
@@ -137,15 +149,11 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
                     description: "Rangkuman percakapan ini sedang dikirim ke grup admin platform.",
                 });
 
-                const { adminGroup } = await getWhatsappSettings("platform"); // "platform" or a specific storeId
-                const functions = getFunctions();
-                const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
-                
+                const sendWhatsapp = httpsCallable(funcs, 'sendWhatsapp');
                 await sendWhatsapp({
-                    target: adminGroup,
+                    storeId: "platform", // Special identifier for platform-level actions
                     message: flowResult.escalationMessage,
                     isGroup: true,
-                    storeId: "platform", // Special identifier for platform-level actions
                 });
             }
 

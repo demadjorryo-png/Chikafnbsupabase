@@ -31,12 +31,20 @@ import { Logo } from '@/components/dashboard/logo';
 import { Loader, Sparkles, LogIn, Megaphone, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AppConsultantChatDialog } from '@/components/dashboard/app-consultant-chat-dialog';
-import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
+// Hapus import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
+
+interface LoginPromoSettings {
+  title: string;
+  line1: string;
+  line2: string;
+  line3: string;
+  footnote: string;
+}
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Format email tidak valid.' }),
@@ -52,8 +60,14 @@ export default function LoginPage() {
   const [isLoginLoading, setIsLoginLoading] = React.useState(false);
   const [isConsultDialogOpen, setIsConsultDialogOpen] = React.useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState(false);
-  const [promoSettings, setPromoSettings] = React.useState<LoginPromoSettings>(defaultLoginPromoSettings);
-  const [isPromoLoading, setIsPromoLoading] = React.useState(true);
+  const [promoSettings] = React.useState<LoginPromoSettings>({
+    title: "PROMO SPESIAL!",
+    line1: "Dapatkan aplikasi kasir canggih seperti ini hanya Rp 500/transaksi, tanpa biaya langganan bulanan.",
+    line2: "Biaya setup awal diskon 50%, hanya Rp 750.000 (dari Rp 1.500.000).",
+    line3: "",
+    footnote: "Penawaran terbatas!"
+  });
+  // Hapus const [isPromoLoading, setIsPromoLoading] = React.useState(true);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -74,19 +88,19 @@ export default function LoginPage() {
     },
   });
 
-  React.useEffect(() => {
-    async function fetchPromo() {
-        try {
-            const settings = await getLoginPromoSettings();
-            setPromoSettings(settings);
-        } catch (error) {
-            console.error("Failed to load promo settings, using defaults.");
-        } finally {
-            setIsPromoLoading(false);
-        }
-    }
-    fetchPromo();
-  }, []);
+  // Hapus React.useEffect(() => {
+  //   async function fetchPromo() {
+  //       try {
+  //           const settings = await getLoginPromoSettings();
+  //           setPromoSettings(settings);
+  //       } catch (error) {
+  //           console.error("Failed to load promo settings, using defaults.");
+  //       } finally {
+  //           setIsPromoLoading(false);
+  //       }
+  //   }
+  //   fetchPromo();
+  // }, []);
   
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
@@ -211,21 +225,14 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 text-left text-sm">
-                    {isPromoLoading ? (
-                        <div className="space-y-2">
-                            <Skeleton className="h-5 w-1/3" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-4/5" />
-                        </div>
-                    ) : (
-                        <>
-                            <p className="font-headline tracking-wider text-primary flex items-center gap-2 mb-2"><Megaphone/> {promoSettings.title}</p>
-                            {promoSettings.line1 && <p>{promoSettings.line1}</p>}
-                            {promoSettings.line2 && <p className="mt-2">{promoSettings.line2}</p>}
-                            {promoSettings.line3 && <p className="mt-2">{promoSettings.line3}</p>}
-                            {promoSettings.footnote && <p className="text-xs text-primary/80 mt-1">{promoSettings.footnote}</p>}
-                        </>
-                    )}
+                    {/* Hapus kondisional isPromoLoading, tampilkan langsung promoSettings */}
+                    <>
+                        <p className="font-headline tracking-wider text-primary flex items-center gap-2 mb-2"><Megaphone/> {promoSettings.title}</p>
+                        {promoSettings.line1 && <p>{promoSettings.line1}</p>}
+                        {promoSettings.line2 && <p className="mt-2">{promoSettings.line2}</p>}
+                        {promoSettings.line3 && <p className="mt-2">{promoSettings.line3}</p>}
+                        {promoSettings.footnote && <p className="text-xs text-primary/80 mt-1">{promoSettings.footnote}</p>}
+                    </>
                 </div>
                  <Button variant="outline" className="w-full" onClick={() => setIsConsultDialogOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4 text-primary" />

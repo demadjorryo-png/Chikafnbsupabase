@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { generateChallenges } from '@/ai/flows/challenge-generator';
-import type { ChallengeGeneratorOutput, Challenge } from '@/ai/flows/challenge-generator';
+// Hapus import { generateChallenges } from '@/ai/flows/challenge-generator';
+// Hapus import type { ChallengeGeneratorOutput, Challenge } from '@/ai/flows/challenge-generator';
 import { Loader, Sparkles, Trophy, Save, Calendar as CalendarIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -33,6 +33,26 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+interface Challenge {
+  tier: string;
+  description: string;
+  target: number;
+  reward: string;
+}
+
+interface ChallengeGeneratorOutput {
+  challenges: Challenge[];
+  period: string;
+}
+
+interface ChallengeGeneratorInput {
+  budget: number;
+  startDate: string;
+  endDate: string;
+  activeStoreName: string;
+  businessDescription: string;
+}
 
 function ChallengePeriodCard({ period, onStatusChange, onDelete, isProcessing }: { period: ChallengePeriod, onStatusChange: (id: string, newStatus: boolean) => void, onDelete: (id: string) => void, isProcessing: boolean }) {
   const [isOpen, setIsOpen] = React.useState(period.isActive);
@@ -115,7 +135,7 @@ export default function Challenges() {
   const [isProcessingAction, setIsProcessingAction] = React.useState(false);
   const [periodToDelete, setPeriodToDelete] = React.useState<ChallengePeriod | null>(null);
 
-  const handleGenerateChallenges = async () => {
+  const handleGenerateChallenges = async (): Promise<ChallengeGeneratorOutput> => {
     if (!activeStore || !currentUser || !feeSettings) {
         toast({ variant: 'destructive', title: 'Error', description: 'Data tidak lengkap untuk membuat tantangan.'});
         throw new Error('Incomplete data');
@@ -139,13 +159,29 @@ export default function Challenges() {
     }
     
     setGeneratedChallenges(null);
-    return generateChallenges({
+
+    const inputData: ChallengeGeneratorInput = {
         budget,
         startDate: format(date.from, 'yyyy-MM-dd'),
         endDate: format(date.to, 'yyyy-MM-dd'),
         activeStoreName: activeStore.name,
         businessDescription: activeStore.businessDescription || 'bisnis',
+    };
+
+    const response = await fetch('/api/ai/challenge-generator', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inputData),
     });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate challenges');
+    }
+
+    return response.json();
   };
 
   const handleSaveChallenges = async () => {

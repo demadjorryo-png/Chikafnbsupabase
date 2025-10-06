@@ -46,16 +46,14 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   // Ensure server-only packages are treated as externals for server components
-  experimental: {
-    serverComponentsExternalPackages: [
-      'firebase-admin',
-      'genkit',
-      '@genkit-ai/core',
-      '@genkit-ai/next',
-      '@genkit-ai/openai',
-      'zod',
-    ],
-  },
+  serverExternalPackages: [
+    'firebase-admin',
+    'genkit',
+    '@genkit-ai/core',
+    '@genkit-ai/next',
+    '@genkit-ai/openai',
+    'zod',
+  ],
 
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -69,6 +67,17 @@ const nextConfig: NextConfig = {
         '@genkit-ai/next': false,
         '@genkit-ai/openai': false,
         'genkit': false,
+        'net': false,
+        'tls': false,
+        'fs': false,
+        'os': false,
+        'path': false,
+        'crypto': false,
+        'http2': false,
+        'dns': false,
+        'async_hooks': false,
+        'dgram': false,
+        'child_process': false,
       };
     }
     return config;

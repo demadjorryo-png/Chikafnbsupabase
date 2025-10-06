@@ -18,13 +18,18 @@ import { db } from '@/lib/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import type { TopUpRequest } from '@/lib/types';
-import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
-import { getWhatsappSettings } from '@/lib/whatsapp-settings';
+// Hapus import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
+// Hapus import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 import { getBankAccountSettings, type BankAccountSettings } from '@/lib/bank-account-settings';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { format } from 'date-fns';
 import { Skeleton } from '../ui/skeleton';
+
+interface WhatsappSettings {
+  deviceId: string;
+  adminGroup: string; // The group name or ID for admin notifications
+}
 
 type TopUpDialogProps = {
   setDialogOpen: (open: boolean) => void;
@@ -110,34 +115,34 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
         description: `Pengajuan sebesar Rp ${totalAmount.toLocaleString('id-ID')} sedang diproses.`,
       });
       
-      // 3. Send WhatsApp notifications
+      // Hapus bagian pengiriman notifikasi WhatsApp
+      // Ini harus dilakukan oleh Cloud Function atau API Route di sisi server.
+      /*
       try {
-        const { adminGroup } = await getWhatsappSettings();
-        const adminMessage = `*PENGAJUAN TOP UP BARU*
-Toko: *${activeStore.name}*
-Admin: *${currentUser.name}*
-Jumlah: *Rp ${totalAmount.toLocaleString('id-ID')}*
-Status: *Pending*
+        const whatsappSettingsResponse = await fetch('/api/whatsapp-settings?storeId=platform');
+        if (whatsappSettingsResponse.ok) {
+          const settings: WhatsappSettings = await whatsappSettingsResponse.json();
+          if (settings.adminGroup) {
+              const adminMessage = `*PENGAJUAN TOP UP BARU*\nToko: *${activeStore.name}*\nAdmin: *${currentUser.name}*\nJumlah: *Rp ${totalAmount.toLocaleString('id-ID')}*\nStatus: *Pending*\n\nMohon untuk segera diverifikasi melalui panel Superadmin.\nLihat bukti: ${proofUrl}`;
 
-Mohon untuk segera diverifikasi melalui panel Superadmin.
-Lihat bukti: ${proofUrl}`;
+              const userMessage = `Halo *${currentUser.name}*, pengajuan top up Pradana Token Anda untuk toko *${activeStore.name}* sebesar *Rp ${totalAmount.toLocaleString('id-ID')}* telah berhasil kami terima dan sedang dalam proses verifikasi.`;
 
-        const userMessage = `Halo *${currentUser.name}*, pengajuan top up Pradana Token Anda untuk toko *${activeStore.name}* sebesar *Rp ${totalAmount.toLocaleString('id-ID')}* telah berhasil kami terima dan sedang dalam proses verifikasi.`;
-
-        // Send to platform admin group
-        if(adminGroup) {
-           await sendWhatsAppNotification({ isGroup: true, target: adminGroup, message: adminMessage });
-        }
-        
-        // Send to store admin
-        if(currentUser.whatsapp) {
-          const formattedPhone = currentUser.whatsapp.startsWith('0') ? `62${currentUser.whatsapp.substring(1)}` : currentUser.whatsapp;
-          await sendWhatsAppNotification({ target: formattedPhone, message: userMessage });
+              if(settings.adminGroup) {
+                 // await sendWhatsAppNotification({ isGroup: true, target: settings.adminGroup, message: adminMessage });
+              }
+              
+              if(currentUser.whatsapp) {
+                const formattedPhone = currentUser.whatsapp.startsWith('0') ? `62${currentUser.whatsapp.substring(1)}` : currentUser.whatsapp;
+                // await sendWhatsAppNotification({ target: formattedPhone, message: userMessage });
+              }
+          }
+        } else {
+          console.error("Failed to fetch WhatsApp settings from API route.");
         }
       } catch (notificationError) {
           console.error('Failed to send WhatsApp notification:', notificationError);
-          // Non-blocking, so we just log the error but don't show a toast to the user
       }
+      */
 
       setDialogOpen(false);
     } catch (error) {
@@ -240,7 +245,7 @@ Lihat bukti: ${proofUrl}`;
                 <CardHeader className="p-4">
                   <CardDescription>Total yang harus ditransfer (termasuk kode unik)</CardDescription>
                   <CardTitle className="text-3xl font-mono text-primary">
-                    Rp {(amount + uniqueCode).toLocaleString('id-ID')}
+                    Rp ${(amount + uniqueCode).toLocaleString('id-ID')}
                   </CardTitle>
                 </CardHeader>
               </Card>

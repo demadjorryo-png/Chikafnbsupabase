@@ -6,13 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader, Sparkles } from 'lucide-react';
 import type { Customer, RedemptionOption } from '@/lib/types';
-import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommendation';
+// Hapus import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommendation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { AIConfirmationDialog } from './ai-confirmation-dialog';
 import { useAuth } from '@/contexts/auth-context';
+
+interface LoyaltyPointRecommendationInput {
+  loyaltyPoints: number;
+  totalPurchaseAmount: number;
+  availableRedemptionOptions: RedemptionOption[];
+}
+
+interface LoyaltyPointRecommendationOutput {
+  recommendation: string;
+}
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
@@ -47,17 +57,33 @@ export function LoyaltyRecommendation({
   }, [toast, activeStore]);
 
 
-  const handleGetRecommendation = async () => {
+  const handleGetRecommendation = async (): Promise<LoyaltyPointRecommendationOutput> => {
     if (redemptionOptions.length === 0) {
         toast({ variant: 'destructive', title: 'Tidak Ada Promo Aktif', description: 'Tidak ada promo penukaran poin yang dapat direkomendasikan saat ini.' });
         throw new Error('No active redemption options');
     }
     setRecommendation('');
-    return getLoyaltyPointRecommendation({
+
+    const inputData: LoyaltyPointRecommendationInput = {
       loyaltyPoints: customer.loyaltyPoints,
       totalPurchaseAmount,
       availableRedemptionOptions: redemptionOptions,
+    };
+
+    const response = await fetch('/api/ai/loyalty-point-recommendation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inputData),
     });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get loyalty point recommendation');
+    }
+
+    return response.json();
   };
 
   return (

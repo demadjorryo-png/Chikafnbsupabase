@@ -34,12 +34,25 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import type { AppliedStrategy, AdminRecommendationOutput, TransactionItem } from '@/lib/types';
-import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
+import type { AppliedStrategy, TransactionItem } from '@/lib/types';
+// Hapus import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import Papa from 'papaparse';
 import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
+
+interface AdminRecommendationInput {
+  businessDescription: string;
+  totalRevenueLastWeek: number;
+  totalRevenueLastMonth: number;
+  topSellingProducts: string[];
+  worstSellingProducts: string[];
+}
+
+interface AdminRecommendationOutput {
+  weeklyRecommendation: string;
+  monthlyRecommendation: string;
+}
 
 
 const chartConfig = {
@@ -140,17 +153,32 @@ export default function AdminOverview() {
     };
   }, [transactions, products]);
 
-  const handleGenerateRecommendations = async () => {
+  const handleGenerateRecommendations = async (): Promise<AdminRecommendationOutput> => {
     const thisMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 1]?.revenue || 0;
     const lastMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 2]?.revenue || 0;
     
-    return getAdminRecommendations({
+    const inputData: AdminRecommendationInput = {
         businessDescription: activeStore?.businessDescription || 'Toko',
         totalRevenueLastWeek: thisMonthRevenue / 4,
         totalRevenueLastMonth: lastMonthRevenue,
         topSellingProducts: topProductsThisMonth.map(([name]) => name),
         worstSellingProducts: worstProductsThisMonth.map(([name]) => name),
+    };
+
+    const response = await fetch('/api/ai/admin-recommendation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inputData),
     });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch recommendations');
+    }
+
+    return response.json();
   }
 
   const handleApplyStrategy = async (type: 'weekly' | 'monthly', recommendation: string) => {

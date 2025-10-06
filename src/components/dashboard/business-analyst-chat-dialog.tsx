@@ -18,11 +18,24 @@ import { deductAiUsageFee } from '@/lib/app-settings';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
+// Hapus import { askChika, type ChikaAnalystInput } from '@/ai/flows/business-analyst';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { AIConfirmationDialog } from './ai-confirmation-dialog';
+
+interface ChikaAnalystInput {
+  conversationHistory: string;
+  userInput: string;
+  businessType?: 'fnb' | 'retail';
+}
+
+interface BusinessAnalystOutput {
+  response: string;
+  shouldEscalateToAdmin: boolean;
+  escalationMessage?: string;
+}
+
 
 type Message = {
   id: number;
@@ -195,15 +208,31 @@ export function BusinessAnalystChatDialog({ open, onOpenChange }: BusinessAnalys
           const topSellingProducts = sortedProducts.slice(0, 5).map(([name]) => name);
           const worstSellingProducts = sortedProducts.slice(-5).reverse().map(([name]) => name);
 
-          const aiInput: ChikaAnalystInput = { 
-              question: userInput, 
-              activeStoreName: activeStore.name, 
-              totalRevenueLastMonth, 
-              topSellingProducts, 
-              worstSellingProducts 
+          const aiInput: ChikaAnalystInput = {
+              conversationHistory: [...messages, { sender: 'user', text: userInput }].map((m) => `${m.sender}: ${m.text}`).join('\n'),
+              userInput: userInput,
+              businessType: activeStore.businessType, // Tambahkan ini
+              // Data lain yang relevan untuk AI seperti top/worst selling products, total revenue dll.
+              // Akan lebih baik jika data ini diambil di API route atau di Cloud Function
+              // untuk menghindari pengiriman data besar melalui fetch body jika tidak perlu
           };
-          const result = await askChika(aiInput);
-          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: result.answer }]);
+
+          const response = await fetch('/api/ai/business-analyst', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(aiInput),
+          });
+
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to get business analyst response');
+          }
+
+          const result: BusinessAnalystOutput = await response.json();
+          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: result.response }]);
+
       } catch (aiError) {
           console.error("AI processing error:", aiError);
           setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat memproses pertanyaan Anda. Coba lagi.' }]);

@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
+// Hapus import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
 import type { Customer, User } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
@@ -50,6 +50,20 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
+
+interface BirthdayFollowUpInput {
+  storeId: string;
+  customerName: string;
+  birthDate: string; // YYYY-MM-DD
+  productName: string;
+  discountPercentage: number;
+  validUntil: string; // YYYY-MM-DD
+}
+
+interface BirthdayFollowUpOutput {
+  whatsappMessage: string;
+}
+
 
 const chartConfig = {
   revenue: {
@@ -59,27 +73,45 @@ const chartConfig = {
 };
 
 function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Customer, open: boolean, onOpenChange: (open: boolean) => void }) {
-    const { feeSettings } = useDashboard();
+    const { feeSettings, activeStore } = useDashboard(); // Tambahkan activeStore dari useDashboard
     const { toast } = useToast();
     const [discount, setDiscount] = React.useState(15);
     const [message, setMessage] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
-    const handleGenerate = async () => {
-        if (!feeSettings) {
-            toast({variant: 'destructive', title: 'Pengaturan biaya tidak ditemukan'});
-            throw new Error('Fee settings not found');
+    const handleGenerate = async (): Promise<BirthdayFollowUpOutput> => {
+        if (!feeSettings || !activeStore?.id) {
+            toast({variant: 'destructive', title: 'Pengaturan biaya atau ID toko tidak ditemukan'});
+            throw new Error('Fee settings or store ID not found');
         }
 
         setIsLoading(true);
         setMessage('');
         try {
-            const result = await getBirthdayFollowUp({
+            const inputData: BirthdayFollowUpInput = {
+                storeId: activeStore.id,
                 customerName: customer.name,
                 discountPercentage: discount,
                 birthDate: customer.birthDate,
+                productName: "produk pilihan", // Placeholder, sesuaikan jika ada logika produk di sini
+                validUntil: format(addDays(new Date(), 7), 'yyyy-MM-dd'), // Contoh: valid selama 7 hari
+            };
+
+            const response = await fetch('/api/ai/birthday-follow-up', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(inputData),
             });
-            setMessage(result.followUpMessage);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate birthday message');
+            }
+
+            const result: BirthdayFollowUpOutput = await response.json();
+            setMessage(result.whatsappMessage);
             return result; // Return for AIConfirmationDialog
         } catch (error) {
             console.error("Error generating birthday message:", error);
@@ -94,7 +126,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
         ? `62${customer.phone.substring(1)}` 
         : customer.phone;
     
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = message ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}` : '#';
 
 
     React.useEffect(() => {
@@ -145,7 +177,7 @@ function BirthdayFollowUpDialog({ customer, open, onOpenChange }: { customer: Cu
                                 <AlertDescription>{message}</AlertDescription>
                             </Alert>
                              <Link href={whatsappUrl} target="_blank" className="w-full">
-                                <Button className="w-full" variant="secondary">
+                                <Button className="w-full" variant="secondary" disabled={!message}>
                                     <Send className="mr-2 h-4 w-4" />
                                     Kirim via WhatsApp
                                 </Button>

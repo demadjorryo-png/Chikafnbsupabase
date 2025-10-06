@@ -1,6 +1,5 @@
+'use server';
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-// Import adminDb as this function is now exclusively server-side.
 import { adminDb } from './firebase-admin';
 
 export type WhatsappSettings = {
@@ -21,18 +20,17 @@ export const defaultWhatsappSettings: WhatsappSettings = {
  * @returns The WhatsApp settings, or default settings if not found.
  */
 export async function getWhatsappSettings(storeId: string): Promise<WhatsappSettings> {
-    const firestore = adminDb; // Use adminDb exclusively
-    const settingsDocRef = doc(firestore, 'appSettings', 'whatsappConfig');
+    const settingsDocRef = adminDb.collection('appSettings').doc('whatsappConfig');
     try {
-        const docSnap = await getDoc(settingsDocRef);
+        const docSnap = await settingsDocRef.get();
 
-        if (docSnap.exists()) {
+        if (docSnap.exists) {
             // Merge with defaults to ensure all properties are present
-            return { ...defaultWhatsappSettings, ...docSnap.data() };
+            return { ...defaultWhatsappSettings, ...docSnap.data() as WhatsappSettings };
         } else {
             console.warn(`WhatsApp settings not found, creating document with default values.`);
             // If the document doesn't exist, create it with default values
-            await setDoc(settingsDocRef, defaultWhatsappSettings);
+            await settingsDocRef.set(defaultWhatsappSettings);
             return defaultWhatsappSettings;
         }
     } catch (error) {
@@ -43,22 +41,15 @@ export async function getWhatsappSettings(storeId: string): Promise<WhatsappSett
 }
 
 /**
- * Updates or creates WhatsApp settings in Firestore.
- * This is intended for use in client-side settings pages where 'db' is available.
- * @param newSettings An object containing the settings to update.
- */
-export async function updateWhatsappSettings(newSettings: Partial<WhatsappSettings>) {
-    // This function can remain as is if it's only called from a client component that has access to 'db'.
-    // For this to be safe, we need to ensure it's not imported alongside getWhatsappSettings on the client.
-    // A better approach would be a dedicated settings update function/API route.
-    // Let's import db dynamically inside the function to be safe.
-    const { db } = await import('./firebase');
-    const settingsDocRef = doc(db, 'appSettings', 'whatsappConfig');
-    try {
-        await setDoc(settingsDocRef, newSettings, { merge: true });
-        console.log(`WhatsApp settings updated.`);
-    } catch (error) {
-        console.error(`Error updating WhatsApp settings:`, error);
-        throw error; // Re-throw the error to be handled by the caller
-    }
-}
+ * // Temporarily disabled: This function is intended for client-side updates
+ * // and uses client-side Firebase SDK. It should not be part of Cloud Functions.
+ * // If needed, refactor to use Firebase Admin SDK or a separate API endpoint.
+ * export async function updateWhatsappSettings(newSettings: Partial<WhatsappSettings>) {
+ *     // We are using adminDb for server-side operations, which does not have `db`.
+ *     // This function would typically interact with the client-side Firebase `db`.
+ *     // If this function is truly needed within a Cloud Function context, it needs
+ *     // to be rewritten to use the Firebase Admin SDK.
+ *     console.error("updateWhatsappSettings is not implemented for Cloud Functions.");
+ *     throw new Error("updateWhatsappSettings is not available in this environment.");
+ * }
+*/

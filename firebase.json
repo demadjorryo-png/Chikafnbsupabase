@@ -3,7 +3,7 @@
     "rules": "firestore.rules"
   },
   "functions": {
-    "source": "src/lib/functions",
+    "source": "functions",
     "runtime": "nodejs20"
   },
   "hosting": {
