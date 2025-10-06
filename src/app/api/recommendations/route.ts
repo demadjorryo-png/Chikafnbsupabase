@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { adminApp } from '@/lib/firebase-admin';
+import { admin } from '@/lib/firebase-admin';
 
 interface AdminRecommendationInput {
   businessDescription: string;
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid input parameters' }, { status: 400 });
     }
 
-    const functions = getFunctions(adminApp);
+  const functions = getFunctions(admin);
     const callAdminRecommendation = httpsCallable<AdminRecommendationInput, AdminRecommendationOutput>(functions, 'adminRecommendationFlow');
 
     const result = await callAdminRecommendation({
