@@ -9,8 +9,8 @@ import type { TransactionFeeSettings } from './types';
 export const defaultFeeSettings: TransactionFeeSettings = {
   tokenValueRp: 1000,    // 1 token = Rp 1000
   feePercentage: 0.005,  // Biaya 0.5% per transaksi
-  minFeeRp: 50,         // Biaya minimum Rp 50
-  maxFeeRp: 250,        // Biaya maksimum Rp 250
+  minFeeRp: 500,         // Biaya minimum Rp 500
+  maxFeeRp: 2500,        // Biaya maksimum Rp 2500
   aiUsageFee: 1,       // Biaya 1 token per penggunaan AI tunggal
   newStoreBonusTokens: 50, // Bonus 50 token untuk toko baru
   aiBusinessPlanFee: 25, // Biaya 25 token untuk AI Business Plan
