@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder, Table, TransactionFeeSettings } from '@/lib/types';
+import type { User, RedemptionOption, Product, Store, Customer, Transaction, PendingOrder, Table, TransactionFeeSettings, ChallengePeriod } from '@/lib/types';
 import { getTransactionFeeSettings, defaultFeeSettings } from '@/lib/app-settings';
 
 interface DashboardContextType {
@@ -18,6 +18,7 @@ interface DashboardContextType {
     users: User[];
     redemptionOptions: RedemptionOption[];
     tables: Table[];
+    challengePeriods: ChallengePeriod[];
     feeSettings: TransactionFeeSettings;
   };
   isLoading: boolean;
@@ -38,6 +39,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [redemptionOptions, setRedemptionOptions] = useState<RedemptionOption[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
+  const [challengePeriods, setChallengePeriods] = useState<ChallengePeriod[]>([]);
   const [feeSettings, setFeeSettings] = useState<TransactionFeeSettings>(defaultFeeSettings);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,13 +52,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     try {
         const storeId = activeStore?.id;
         
-        let productCollectionRef, customerCollectionRef, tableCollectionRef, redemptionOptionsCollectionRef;
+        let productCollectionRef, customerCollectionRef, tableCollectionRef, redemptionOptionsCollectionRef, challengePeriodsCollectionRef;
 
         if (storeId) {
              productCollectionRef = collection(db, 'stores', storeId, 'products');
              customerCollectionRef = collection(db, 'stores', storeId, 'customers');
              tableCollectionRef = collection(db, 'stores', storeId, 'tables');
              redemptionOptionsCollectionRef = collection(db, 'stores', storeId, 'redemptionOptions');
+             challengePeriodsCollectionRef = collection(db, 'stores', storeId, 'challengePeriods');
         }
 
         const [
@@ -67,6 +70,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             redemptionOptionsSnapshot,
             feeSettingsData,
             tablesSnapshot,
+            challengePeriodsSnapshot,
         ] = await Promise.all([
             getDocs(collection(db, 'stores')),
             storeId ? getDocs(query(productCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
@@ -75,6 +79,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             storeId ? getDocs(query(redemptionOptionsCollectionRef)) : Promise.resolve({ docs: [] }),
             getTransactionFeeSettings(),
             storeId ? getDocs(query(tableCollectionRef, orderBy('name'))) : Promise.resolve({ docs: [] }),
+            storeId ? getDocs(query(challengePeriodsCollectionRef, orderBy('createdAt', 'desc'))) : Promise.resolve({ docs: [] }),
         ]);
 
         setStores(storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
@@ -83,6 +88,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         setTables(tablesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Table)));
         setRedemptionOptions(redemptionOptionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption)));
+        setChallengePeriods(challengePeriodsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChallengePeriod)));
         setFeeSettings(feeSettingsData);
         
         if (activeStore) {
@@ -153,6 +159,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         users,
         redemptionOptions,
         tables,
+        challengePeriods,
         feeSettings,
     },
     isLoading,

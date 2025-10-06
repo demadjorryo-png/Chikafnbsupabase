@@ -1,3 +1,4 @@
+
 'use client';
 
 // Untuk menambah kategori produk baru, tambahkan nama kategori di dalam daftar di bawah ini.
@@ -130,7 +131,6 @@ export type RedemptionOption = {
 };
 
 export type Challenge = {
-  id: string;
   tier: string;
   description: string;
   target: number;
@@ -138,12 +138,13 @@ export type Challenge = {
 };
 
 export type ChallengePeriod = {
-  id?: string;
+  id: string;
   startDate: string;
   endDate: string;
   period: string;
   challenges: Challenge[];
   isActive: boolean;
+  createdAt: string;
 };
 
 export type TableStatus = 'Tersedia' | 'Terisi' | 'Dipesan' | 'Menunggu Dibersihkan';
