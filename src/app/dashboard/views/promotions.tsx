@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -201,6 +202,7 @@ export default function Promotions() {
 
     return getPromotionRecommendations({
       businessDescription: activeStore.businessDescription || 'toko umum',
+      activeStoreName: activeStore.name,
       currentRedemptionOptions: redemptionOptions.map(o => ({
           description: o.description,
           pointsRequired: o.pointsRequired,

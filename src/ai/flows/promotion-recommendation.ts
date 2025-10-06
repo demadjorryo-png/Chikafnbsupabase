@@ -14,6 +14,7 @@ import { z } from 'genkit';
 
 const PromotionRecommendationInputSchema = z.object({
   businessDescription: z.string().describe('A brief description of the business (e.g., "kafe", "vape store").'),
+  activeStoreName: z.string().describe('The name of the store for context.'),
   currentRedemptionOptions: z.array(
     z.object({
       description: z.string(),
