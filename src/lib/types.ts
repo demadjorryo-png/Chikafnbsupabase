@@ -25,6 +25,7 @@ export type Store = {
   id: string;
   name: string;
   location: string;
+  businessDescription?: string; // New field for business context
   receiptSettings?: ReceiptSettings;
   pradanaTokenBalance: number;
   adminUids: string[];

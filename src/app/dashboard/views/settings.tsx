@@ -25,13 +25,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,6 +41,7 @@ import type { ReceiptSettings } from '@/lib/types';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FirebaseError } from 'firebase/app';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const PasswordFormSchema = z
@@ -95,11 +97,12 @@ function ProfileCardSkeleton() {
 }
 
 export default function Settings() {
-  const { currentUser, activeStore, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, activeStore, isLoading: isAuthLoading, refreshData } = useAuth();
   const [isPasswordChangeLoading, setIsPasswordChangeLoading] = React.useState(false);
   const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
   const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle'> | null>(null);
+  const [businessDescription, setBusinessDescription] = React.useState('');
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
@@ -114,6 +117,7 @@ export default function Settings() {
                 notificationStyle: settings.notificationStyle
             });
         });
+        setBusinessDescription(activeStore.businessDescription || '');
     }
   }, [activeStore]);
 
@@ -176,11 +180,17 @@ export default function Settings() {
     if (!activeStore || !generalSettings) return;
     setIsGeneralSettingLoading(true);
     try {
-        await updateReceiptSettings(activeStore.id, { 
-            voiceGender: generalSettings.voiceGender,
-            notificationStyle: generalSettings.notificationStyle,
+        const storeRef = doc(db, 'stores', activeStore.id);
+        await updateDoc(storeRef, {
+            businessDescription: businessDescription,
+            receiptSettings: {
+                ...activeStore.receiptSettings,
+                voiceGender: generalSettings.voiceGender,
+                notificationStyle: generalSettings.notificationStyle,
+            }
         });
         toast({ title: 'Pengaturan Umum Disimpan!' });
+        refreshData();
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal Menyimpan' });
     } finally {
@@ -250,11 +260,22 @@ export default function Settings() {
         {currentUser?.role === 'admin' && (
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline tracking-wider">Pengaturan Umum Notifikasi</CardTitle>
-                    <CardDescription>Pilih suara dan gaya pesan untuk notifikasi pesanan siap.</CardDescription>
+                    <CardTitle className="font-headline tracking-wider">Pengaturan Umum</CardTitle>
+                    <CardDescription>Pengaturan ini akan memengaruhi cara kerja fitur AI di toko Anda.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="max-w-md space-y-2">
+                    <div className="space-y-2">
+                        <Label htmlFor='business-description' className='flex items-center gap-2'><Info className='h-4 w-4' /> Deskripsi Singkat Bisnis</Label>
+                        <Textarea 
+                            id='business-description'
+                            placeholder='Contoh: Kafe modern dengan kopi spesialti dan kue buatan sendiri.'
+                            value={businessDescription}
+                            onChange={(e) => setBusinessDescription(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Berikan AI konteks tentang jenis bisnis Anda untuk rekomendasi yang lebih relevan.</p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Gender Suara Panggilan</Label>
                         {generalSettings ? (
                             <div className="flex items-center gap-2">
@@ -286,7 +307,7 @@ export default function Settings() {
                         ) : <Skeleton className="h-10 w-full" />}
                        
                     </div>
-                     <div className="max-w-md space-y-2">
+                     <div className="space-y-2">
                         <Label>Gaya Pesan Notifikasi</Label>
                         {generalSettings ? (
                            <RadioGroup

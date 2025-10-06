@@ -90,7 +90,7 @@ export default function Promotions() {
         refreshData();
         toast({
         title: 'Promosi Dihapus!',
-        description: `Promo &quot;${promotionToDelete.description}&quot; telah berhasil dihapus.`,
+        description: `Promo "${promotionToDelete.description}" telah berhasil dihapus.`,
         });
     } catch (error) {
         console.error("Error deleting promotion: ", error);
@@ -171,6 +171,7 @@ export default function Promotions() {
     const worstProducts = sortedProductsThisMonth.slice(-3).reverse().map(([name]) => name);
 
     return getPromotionRecommendations({
+      businessDescription: activeStore.businessDescription || 'toko umum',
       currentRedemptionOptions: redemptionOptions.map(o => ({
           description: o.description,
           pointsRequired: o.pointsRequired,
@@ -195,7 +196,7 @@ export default function Promotions() {
         refreshData();
         toast({
             title: 'Draf Promo Dibuat!',
-            description: `&quot;${rec.title}&quot; telah ditambahkan sebagai promo non-aktif.`,
+            description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
         });
 
     } catch (error) {
@@ -244,7 +245,7 @@ export default function Promotions() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline tracking-wider">Rekomendasi Promo Chika AI</CardTitle>
-                <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini.</CardDescription>
+                <CardDescription>Dapatkan ide promo loyalitas baru berdasarkan data penjualan terkini dan jenis bisnis Anda.</CardDescription>
             </CardHeader>
             <CardContent>
                 <AIConfirmationDialog
@@ -269,7 +270,7 @@ export default function Promotions() {
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                      <p className="text-sm">{rec.description}</p>
-                                     <p className="text-xs text-muted-foreground italic">&quot;{rec.justification}&quot;</p>
+                                     <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
                                      <div className='flex justify-between text-xs pt-2'>
                                         <span className='font-semibold'>{rec.pointsRequired} Poin</span>
                                         <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
@@ -391,7 +392,7 @@ export default function Promotions() {
             <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
             <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus promosi secara permanen: <br />
-              <span className="font-bold">&quot;{promotionToDelete?.description}&quot;</span>.
+              <span className="font-bold">"{promotionToDelete?.description}"</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -408,5 +409,3 @@ export default function Promotions() {
     </>
   );
 }
-
-    
