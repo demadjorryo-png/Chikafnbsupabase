@@ -29,7 +29,7 @@ export async function getReceiptPromo(
   return receiptPromoFlow(input);
 }
 
-const promptText = `Anda adalah Chika AI, seorang copywriter kreatif untuk kafe/restoran: {{activeStoreName}}.
+const promptText = `Anda adalah Chika AI, seorang copywriter kreatif untuk kafe/restoran.
 
 Tugas Anda adalah membuat satu kalimat promosi yang singkat, menarik, dan cocok untuk dicetak di bagian bawah struk belanja.
 

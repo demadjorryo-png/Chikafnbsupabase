@@ -20,7 +20,6 @@ import {
 } from '@/lib/receipt-settings';
 import { Loader, Receipt, Sparkles, WandSparkles, AlertCircle } from 'lucide-react';
 import { getReceiptPromo } from '@/ai/flows/receipt-promo-generator';
-import type { RedemptionOption } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -76,16 +75,19 @@ export default function ReceiptSettings() {
   };
 
   const handleGeneratePromo = async () => {
-    if (!redemptionOptions) {
-        toast({ variant: 'destructive', title: 'Data promo tidak tersedia.'});
-        throw new Error('Redemption options not available');
+    if (!redemptionOptions || !activeStore) {
+        toast({ variant: 'destructive', title: 'Data promo atau toko tidak tersedia.'});
+        throw new Error('Redemption options or active store not available');
     }
     const activePromos = redemptionOptions
       .filter((o) => o.isActive)
       .map((o) => o.description);
 
     setGeneratedPromo('');
-    return getReceiptPromo({ activePromotions: activePromos });
+    return getReceiptPromo({
+      activePromotions: activePromos,
+      activeStoreName: activeStore.name,
+    });
   };
 
   const handleApplyPromo = () => {
