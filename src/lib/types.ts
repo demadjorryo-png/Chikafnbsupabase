@@ -13,6 +13,10 @@ export const productCategories = [
 
 export type ProductCategory = (typeof productCategories)[number];
 
+export type PointEarningSettings = {
+    rpPerPoint: number;
+};
+
 export type ReceiptSettings = {
     headerText: string;
     footerText: string;
@@ -27,6 +31,7 @@ export type Store = {
   location: string;
   businessDescription?: string; // New field for business context
   receiptSettings?: ReceiptSettings;
+  pointEarningSettings?: PointEarningSettings;
   pradanaTokenBalance: number;
   adminUids: string[];
   createdAt: string;

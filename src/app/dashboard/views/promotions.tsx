@@ -78,10 +78,12 @@ export default function Promotions() {
   const [promotionToDelete, setPromotionToDelete] = React.useState<RedemptionOption | null>(null);
 
   React.useEffect(() => {
-    getPointEarningSettings().then(settings => {
-      setRpPerPoint(settings.rpPerPoint);
-    });
-  }, []);
+    if (activeStore?.id) {
+      getPointEarningSettings(activeStore.id).then(settings => {
+        setRpPerPoint(settings.rpPerPoint);
+      });
+    }
+  }, [activeStore]);
 
   const handleDeleteClick = (option: RedemptionOption) => {
     setPromotionToDelete(option);
@@ -89,10 +91,10 @@ export default function Promotions() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!promotionToDelete) return;
+    if (!promotionToDelete || !activeStore) return;
     
     try {
-        await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
+        await deleteDoc(doc(db, "stores", activeStore.id, "redemptionOptions", promotionToDelete.id));
         refreshData();
         toast({
         title: 'Promosi Dihapus!',
@@ -114,9 +116,10 @@ export default function Promotions() {
 
 
   const handleSavePointEarning = async () => {
+    if (!activeStore) return;
     setIsSavingPoints(true);
     try {
-      await updatePointEarningSettings({ rpPerPoint });
+      await updatePointEarningSettings(activeStore.id, { rpPerPoint });
       toast({
         title: 'Pengaturan Disimpan!',
         description: `Sekarang, pelanggan akan mendapatkan 1 poin untuk setiap pembelanjaan Rp ${rpPerPoint.toLocaleString('id-ID')}.`,
@@ -133,12 +136,12 @@ export default function Promotions() {
   };
 
   const toggleStatus = async (id: string) => {
-    if (!redemptionOptions) return;
+    if (!redemptionOptions || !activeStore) return;
     const option = redemptionOptions.find(o => o.id === id);
     if (!option) return;
 
     const newStatus = !option.isActive;
-    const optionRef = doc(db, 'redemptionOptions', id);
+    const optionRef = doc(db, 'stores', activeStore.id, 'redemptionOptions', id);
 
     try {
         await updateDoc(optionRef, { isActive: newStatus });
@@ -205,12 +208,11 @@ export default function Promotions() {
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
      if (!activeStore) return;
      try {
-        await addDoc(collection(db, "redemptionOptions"), {
+        await addDoc(collection(db, "stores", activeStore.id, "redemptionOptions"), {
             description: rec.description,
             pointsRequired: rec.pointsRequired,
             value: rec.value,
             isActive: false, // New promos from AI are inactive by default
-            storeId: activeStore.id,
         });
 
         refreshData();
@@ -252,6 +254,7 @@ export default function Promotions() {
                         value={rpPerPoint}
                         onChange={(e) => setRpPerPoint(Number(e.target.value))}
                         step="1000"
+                        disabled={isSavingPoints}
                     />
                 </div>
                  <Button onClick={handleSavePointEarning} disabled={isSavingPoints}>

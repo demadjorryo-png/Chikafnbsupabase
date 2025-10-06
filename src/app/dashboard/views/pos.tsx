@@ -47,7 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { getPointEarningSettings } from '@/lib/point-earning-settings';
+import { getPointEarningSettings, type PointEarningSettings } from '@/lib/point-earning-settings';
 import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,11 +72,13 @@ export default function POS({ onPrintRequest }: POSProps) {
   const [selectedTableId, setSelectedTableId] = React.useState(() => searchParams.get('tableId'));
   const [selectedTableName, setSelectedTableName] = React.useState(() => searchParams.get('tableName'));
 
-  const [pointSettings, setPointSettings] = React.useState({ rpPerPoint: 10000 });
+  const [pointSettings, setPointSettings] = React.useState<PointEarningSettings | null>(null);
 
   React.useEffect(() => {
-      getPointEarningSettings().then(setPointSettings);
-  }, []);
+    if (activeStore?.id) {
+        getPointEarningSettings(activeStore.id).then(setPointSettings);
+    }
+  }, [activeStore]);
 
   React.useEffect(() => {
     const currentView = searchParams.get('view');
@@ -225,7 +227,7 @@ export default function POS({ onPrintRequest }: POSProps) {
   
   const totalAmount = Math.max(0, subtotal - discountAmount);
   
-  const pointsEarned = selectedCustomer ? Math.floor(totalAmount / pointSettings.rpPerPoint) : 0;
+  const pointsEarned = (selectedCustomer && pointSettings) ? Math.floor(totalAmount / pointSettings.rpPerPoint) : 0;
   
   const transactionFee = React.useMemo(() => {
     if (!feeSettings) return 0;
@@ -335,9 +337,10 @@ export default function POS({ onPrintRequest }: POSProps) {
         }
 
         // 4. Customer points update
-        if (selectedCustomer && customerDoc?.exists()) {
+        if (selectedCustomer && customerDoc?.exists() && pointSettings) {
+          const earnedPoints = Math.floor(totalAmount / pointSettings.rpPerPoint);
           const customerPoints = customerDoc.data()?.loyaltyPoints || 0;
-          const newPoints = customerPoints + pointsEarned - pointsToRedeem;
+          const newPoints = customerPoints + earnedPoints - pointsToRedeem;
           transaction.update(customerDoc.ref, { loyaltyPoints: newPoints });
         }
         

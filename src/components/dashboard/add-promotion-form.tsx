@@ -19,6 +19,7 @@ import { addDoc, collection } from 'firebase/firestore';
 import * as React from 'react';
 import { Loader } from 'lucide-react';
 import type { RedemptionOption } from '@/lib/types';
+import { useAuth } from '@/contexts/auth-context';
 
 
 const FormSchema = z.object({
@@ -31,10 +32,11 @@ const FormSchema = z.object({
 
 type AddPromotionFormProps = {
   setDialogOpen: (open: boolean) => void;
-  onPromotionAdded: (newPromotion: RedemptionOption) => void;
+  onPromotionAdded: () => void;
 };
 
 export function AddPromotionForm({ setDialogOpen, onPromotionAdded }: AddPromotionFormProps) {
+  const { activeStore } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -48,28 +50,26 @@ export function AddPromotionForm({ setDialogOpen, onPromotionAdded }: AddPromoti
   });
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
+    if (!activeStore) {
+        toast({ variant: 'destructive', title: 'Toko tidak aktif' });
+        return;
+    }
     setIsLoading(true);
     
     try {
-        const docRef = await addDoc(collection(db, "redemptionOptions"), {
+        await addDoc(collection(db, "stores", activeStore.id, "redemptionOptions"), {
             description: data.description,
             pointsRequired: data.pointsRequired,
             value: data.value,
             isActive: true, // New promotions are active by default
         });
 
-        const newPromotion: RedemptionOption = {
-            id: docRef.id,
-            ...data,
-            isActive: true,
-        };
-
         toast({
             title: 'Promo Berhasil Ditambahkan!',
             description: `"${data.description}" sekarang tersedia untuk penukaran poin.`,
         });
 
-        onPromotionAdded(newPromotion);
+        onPromotionAdded();
         setDialogOpen(false);
 
     } catch (error) {

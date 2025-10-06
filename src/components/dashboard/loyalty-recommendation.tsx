@@ -12,6 +12,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { AIConfirmationDialog } from './ai-confirmation-dialog';
+import { useAuth } from '@/contexts/auth-context';
 
 type LoyaltyRecommendationProps = {
   customer: Customer;
@@ -24,14 +25,16 @@ export function LoyaltyRecommendation({
   totalPurchaseAmount,
   feeSettings
 }: LoyaltyRecommendationProps) {
+  const { activeStore } = useAuth();
   const [recommendation, setRecommendation] = React.useState('');
   const [redemptionOptions, setRedemptionOptions] = React.useState<RedemptionOption[]>([]);
   const { toast } = useToast();
   
   React.useEffect(() => {
+    if (!activeStore) return;
     const fetchRedemptionOptions = async () => {
         try {
-            const q = query(collection(db, 'redemptionOptions'), where('isActive', '==', true));
+            const q = query(collection(db, 'stores', activeStore.id, 'redemptionOptions'), where('isActive', '==', true));
             const querySnapshot = await getDocs(q);
             const options = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption));
             setRedemptionOptions(options);
@@ -41,7 +44,7 @@ export function LoyaltyRecommendation({
         }
     }
     fetchRedemptionOptions();
-  }, [toast]);
+  }, [toast, activeStore]);
 
 
   const handleGetRecommendation = async () => {
