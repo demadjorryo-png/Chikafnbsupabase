@@ -17,6 +17,9 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import ReactMarkdown from 'react-markdown';
+import { useToast } from '@/hooks/use-toast';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getWhatsappSettings } from '@/lib/whatsapp-settings';
 
 type Message = {
   id: number;
@@ -88,7 +91,8 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
     const [input, setInput] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-    const initialMessage = "Halo, saya Chika, asisten AI dari PT ERA MAJU MAPAN BERSAMA PRADANA. Saya bisa membantu Anda merancang aplikasi baru atau melaporkan kendala teknis. Apa yang bisa saya bantu?";
+    const initialMessage = "Halo, saya Chika, asisten AI. Saya bisa membantu Anda merancang aplikasi baru atau melaporkan kendala teknis. Apa yang bisa saya bantu?";
+    const { toast } = useToast();
     
     React.useEffect(() => {
         if (open) {
@@ -120,11 +124,31 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
         setIsLoading(true);
 
         try {
-            const result = await consultWithChika({
+            const flowResult = await consultWithChika({
                 conversationHistory: [...messages, userMessage].map((m) => `${m.sender}: ${m.text}`).join('\n'),
                 userInput: question,
             });
-            setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: result.response }]);
+
+            setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: flowResult.response }]);
+
+            if (flowResult.shouldEscalateToAdmin && flowResult.escalationMessage) {
+                toast({
+                    title: "Mengirim Rangkuman ke Admin",
+                    description: "Rangkuman percakapan ini sedang dikirim ke grup admin platform.",
+                });
+
+                const { adminGroup } = await getWhatsappSettings("platform"); // "platform" or a specific storeId
+                const functions = getFunctions();
+                const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
+                
+                await sendWhatsapp({
+                    target: adminGroup,
+                    message: flowResult.escalationMessage,
+                    isGroup: true,
+                    storeId: "platform", // Special identifier for platform-level actions
+                });
+            }
+
         } catch (error) {
             console.error("Consultant AI processing error:", error);
             setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat memproses permintaan Anda. Coba lagi.' }]);
