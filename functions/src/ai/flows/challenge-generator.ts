@@ -72,10 +72,10 @@ export const challengeGeneratorFlow = ai.defineFlow(
     const { output } = await ai.generate({
       model: 'openai/gpt-4o-mini',
       prompt: promptText,
-      input,
       output: {
         schema: ChallengeGeneratorGptOutputSchema,
       },
+      // input, // HAPUS, tidak didukung oleh Genkit
     });
 
     if (!output) {
