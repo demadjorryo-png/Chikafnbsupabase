@@ -22,7 +22,7 @@ jobs:
         run: npm run typecheck
 
       - name: Run AI setup check (conditional)
-        if: secrets.OPENAI_API_KEY != ''
+        if: ${{ github.secrets.OPENAI_API_KEY != '' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run check-ai-setup
