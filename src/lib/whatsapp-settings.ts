@@ -1,9 +1,7 @@
 
-
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-// Import adminDb when on server, db when on client
+// Import adminDb as this function is now exclusively server-side.
 import { adminDb } from './firebase-admin';
-import { db } from './firebase';
 
 export type WhatsappSettings = {
     deviceId: string;
@@ -17,13 +15,13 @@ export const defaultWhatsappSettings: WhatsappSettings = {
 };
 
 /**
- * Fetches WhatsApp settings from Firestore.
- * This function can run on both client and server, but prefers adminDb if available.
- * @param storeId The ID of the store.
+ * Fetches WhatsApp settings from Firestore using the Admin SDK.
+ * This function is intended for server-side use only (e.g., in Cloud Functions).
+ * @param storeId The ID of the store (can be "platform" for global settings).
  * @returns The WhatsApp settings, or default settings if not found.
  */
 export async function getWhatsappSettings(storeId: string): Promise<WhatsappSettings> {
-    const firestore = typeof window === 'undefined' ? adminDb : db;
+    const firestore = adminDb; // Use adminDb exclusively
     const settingsDocRef = doc(firestore, 'appSettings', 'whatsappConfig');
     try {
         const docSnap = await getDoc(settingsDocRef);
@@ -46,9 +44,15 @@ export async function getWhatsappSettings(storeId: string): Promise<WhatsappSett
 
 /**
  * Updates or creates WhatsApp settings in Firestore.
+ * This is intended for use in client-side settings pages where 'db' is available.
  * @param newSettings An object containing the settings to update.
  */
 export async function updateWhatsappSettings(newSettings: Partial<WhatsappSettings>) {
+    // This function can remain as is if it's only called from a client component that has access to 'db'.
+    // For this to be safe, we need to ensure it's not imported alongside getWhatsappSettings on the client.
+    // A better approach would be a dedicated settings update function/API route.
+    // Let's import db dynamically inside the function to be safe.
+    const { db } = await import('./firebase');
     const settingsDocRef = doc(db, 'appSettings', 'whatsappConfig');
     try {
         await setDoc(settingsDocRef, newSettings, { merge: true });
