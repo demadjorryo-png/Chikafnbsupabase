@@ -145,6 +145,7 @@ export default function AdminOverview() {
     const lastMonthRevenue = monthlyGrowthData[monthlyGrowthData.length - 2]?.revenue || 0;
     
     return getAdminRecommendations({
+        businessDescription: activeStore?.businessDescription || 'Toko',
         totalRevenueLastWeek: thisMonthRevenue / 4,
         totalRevenueLastMonth: lastMonthRevenue,
         topSellingProducts: topProductsThisMonth.map(([name]) => name),

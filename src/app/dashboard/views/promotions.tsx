@@ -20,7 +20,7 @@ import {
 import type { RedemptionOption, Transaction, TransactionItem } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Target, Save } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, CheckCircle, XCircle, Sparkles, Target, Save, Loader2, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +46,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, addDoc, writeBatch } from 'firebase/firestore';
 import {
   Dialog,
   DialogContent,
@@ -59,6 +59,8 @@ import { AddPromotionForm } from '@/components/dashboard/add-promotion-form';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { AIConfirmationDialog } from '@/components/dashboard/ai-confirmation-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 export default function Promotions() {
   const { currentUser, activeStore } = useAuth();
@@ -67,6 +69,9 @@ export default function Promotions() {
   
   const isAdmin = currentUser?.role === 'admin';
   const [recommendations, setRecommendations] = React.useState<PromotionRecommendationOutput | null>(null);
+  const [selectedRecommendations, setSelectedRecommendations] = React.useState<PromotionRecommendationOutput['recommendations']>([]);
+  const [isSavingRecommendations, setIsSavingRecommendations] = React.useState(false);
+
   const { toast } = useToast();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
@@ -167,6 +172,7 @@ export default function Promotions() {
     }
     
     setRecommendations(null);
+    setSelectedRecommendations([]);
 
     const now = new Date();
     const startOfThisMonth = startOfMonth(now);
@@ -205,31 +211,54 @@ export default function Promotions() {
     });
   };
 
-  const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
-     if (!activeStore) return;
-     try {
-        await addDoc(collection(db, "stores", activeStore.id, "redemptionOptions"), {
+  const handleToggleRecommendation = (rec: PromotionRecommendationOutput['recommendations'][0], checked: boolean | 'indeterminate') => {
+    setSelectedRecommendations(prev => {
+        if (checked) {
+            return [...prev, rec];
+        } else {
+            return prev.filter(item => item.title !== rec.title);
+        }
+    });
+  };
+  
+  const handleSaveSelectedRecommendations = async () => {
+    if (!activeStore || selectedRecommendations.length === 0) return;
+    setIsSavingRecommendations(true);
+    
+    const batch = writeBatch(db);
+    const collectionRef = collection(db, "stores", activeStore.id, "redemptionOptions");
+
+    selectedRecommendations.forEach(rec => {
+        const newDocRef = doc(collectionRef);
+        batch.set(newDocRef, {
             description: rec.description,
             pointsRequired: rec.pointsRequired,
             value: rec.value,
             isActive: false, // New promos from AI are inactive by default
         });
+    });
 
-        refreshData();
+    try {
+        await batch.commit();
         toast({
-            title: 'Draf Promo Dibuat!',
-            description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
+            title: 'Draf Promo Disimpan!',
+            description: `${selectedRecommendations.length} rekomendasi promo telah ditambahkan sebagai draf.`,
         });
-
+        refreshData();
+        setRecommendations(null); // Clear recommendations after saving
+        setSelectedRecommendations([]);
     } catch (error) {
-        console.error("Error applying recommendation:", error);
+        console.error("Error applying batch recommendations:", error);
         toast({
             variant: 'destructive',
             title: 'Gagal Menerapkan Promo',
             description: 'Terjadi kesalahan saat menyimpan draf promo. Silakan coba lagi.',
         });
+    } finally {
+        setIsSavingRecommendations(false);
     }
   };
+
 
   const handlePromotionAdded = () => {
     refreshData();
@@ -258,7 +287,7 @@ export default function Promotions() {
                     />
                 </div>
                  <Button onClick={handleSavePointEarning} disabled={isSavingPoints}>
-                    {isSavingPoints && <Save className="mr-2 h-4 w-4 animate-spin" />}
+                    {isSavingPoints ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Simpan Pengaturan
                 </Button>
             </CardContent>
@@ -285,28 +314,52 @@ export default function Promotions() {
                 </AIConfirmationDialog>
                 
                 {recommendations && (
-                    <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {recommendations.recommendations.map((rec, index) => (
-                            <Card key={index}>
-                                <CardHeader>
-                                    <CardTitle className="text-base flex items-center gap-2 text-accent"><Sparkles className="h-4 w-4" />{rec.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                     <p className="text-sm">{rec.description}</p>
-                                     <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
-                                     <div className='flex justify-between text-xs pt-2'>
-                                        <span className='font-semibold'>{rec.pointsRequired} Poin</span>
-                                        <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
-                                     </div>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={() => handleApplyRecommendation(rec)}>
-                                        <Target className="mr-2 h-4 w-4" />
-                                        Terapkan
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        ))}
+                    <div className="mt-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {recommendations.recommendations.map((rec, index) => {
+                                const isSelected = selectedRecommendations.some(r => r.title === rec.title);
+                                return (
+                                <Card 
+                                    key={index}
+                                    className={cn(
+                                        "transition-all cursor-pointer",
+                                        isSelected ? "border-primary shadow-lg" : "border-border"
+                                    )}
+                                    onClick={() => handleToggleRecommendation(rec, !isSelected)}
+                                >
+                                    <CardHeader>
+                                        <div className="flex justify-between items-start">
+                                            <CardTitle className="text-base flex items-center gap-2 text-accent pr-4">
+                                                <Sparkles className="h-4 w-4" />
+                                                {rec.title}
+                                            </CardTitle>
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={(checked) => handleToggleRecommendation(rec, checked)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                         <p className="text-sm">{rec.description}</p>
+                                         <p className="text-xs text-muted-foreground italic">"{rec.justification}"</p>
+                                         <div className='flex justify-between text-xs pt-2'>
+                                            <span className='font-semibold'>{rec.pointsRequired} Poin</span>
+                                            <span className='font-semibold'>Senilai Rp {rec.value.toLocaleString('id-ID')}</span>
+                                         </div>
+                                    </CardContent>
+                                </Card>
+                                )
+                            })}
+                        </div>
+                        {selectedRecommendations.length > 0 && (
+                            <div className="mt-6 flex justify-end">
+                                <Button onClick={handleSaveSelectedRecommendations} disabled={isSavingRecommendations}>
+                                    {isSavingRecommendations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                                    Simpan {selectedRecommendations.length} Rekomendasi
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
             </CardContent>
