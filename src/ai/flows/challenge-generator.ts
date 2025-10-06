@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -15,6 +16,8 @@ const ChallengeGeneratorInputSchema = z.object({
   budget: z.number().describe('The total budget available for challenge rewards for the period.'),
   startDate: z.string().describe('The start date of the challenge period in YYYY-MM-DD format.'),
   endDate: z.string().describe('The end date of the challenge period in YYYY-MM-DD format.'),
+  activeStoreName: z.string().describe('The name of the store for context.'),
+  businessDescription: z.string().describe('A brief description of the business (e.g., "kafe", "vape store").'),
 });
 export type ChallengeGeneratorInput = z.infer<typeof ChallengeGeneratorInputSchema>;
 
@@ -47,12 +50,12 @@ const prompt = ai.definePrompt({
   name: 'challengeGeneratorPrompt',
   input: { schema: ChallengeGeneratorInputSchema },
   output: { schema: ChallengeGeneratorGptOutputSchema },
-  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan untuk kafe/restoran: {{activeStoreName}}..
+  prompt: `Anda adalah Chika AI, seorang ahli dalam merancang program insentif karyawan. Anda membuat tantangan untuk sebuah **{{businessDescription}}** bernama **{{activeStoreName}}**.
 
 Tugas Anda adalah membuat 3-4 tingkatan tantangan penjualan untuk karyawan berdasarkan total anggaran hadiah untuk periode tertentu. Tantangan harus didasarkan pada pencapaian total pendapatan penjualan (omset) dalam Rupiah Indonesia (Rp).
 
 Gunakan Bahasa Indonesia untuk semua output teks.
-Nama tingkatan (tier) harus kreatif dan memotivasi (contoh: "Penjual Gesit", "Bintang Penjualan", "Raja Omset").
+Nama tingkatan (tier) harus kreatif dan memotivasi, relevan dengan **{{businessDescription}}** (contoh untuk kafe: "Barista Gesit", "Penyeduh Bintang", "Raja Omset").
 Deskripsi tantangan harus singkat, memotivasi, dan dalam Bahasa Indonesia.
 Target harus realistis namun menantang bagi karyawan toko, dimulai dari dasar yang wajar dan meningkat untuk setiap tingkatan. Pertimbangkan durasi tantangan saat menetapkan target. Periode yang lebih pendek harus memiliki target yang lebih rendah.
 Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi harus mendapatkan hadiah terbesar. Hadiahnya bisa berupa bonus tunai.
@@ -60,9 +63,9 @@ Hadiah harus didistribusikan dari anggaran yang disediakan. Tingkat tertinggi ha
 Periode Tantangan: {{startDate}} hingga {{endDate}}
 Total Anggaran Hadiah: Rp {{budget}}
 
-Buat satu set tantangan dalam Bahasa Indonesia.`,
+Buat satu set tantangan yang relevan untuk **{{businessDescription}}** dalam Bahasa Indonesia.`,
   config: {
-    model: 'openai/gpt-4o-mini',
+    model: 'googleai/gemini-1.5-flash-preview',
   },
 });
 
