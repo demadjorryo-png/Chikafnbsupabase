@@ -1,0 +1,8 @@
+{
+    "scripts": {
+        "lint": "next lint --dir src --dir functions/src",
+        "typecheck": "tsc --noEmit && tsc --noEmit -p functions/tsconfig.json",
+        "format": "prettier --write .",
+        "prebuild": "npm run lint && npm run typecheck"
+    }
+}
