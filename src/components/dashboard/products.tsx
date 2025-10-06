@@ -61,33 +61,33 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 
 type ProductsProps = {
-    products: Product[];
-    onDataChange: () => void;
-    isLoading: boolean;
+  products: Product[];
+  onDataChange: () => void;
+  isLoading: boolean;
 };
 
 function ProductDetailsDialog({ product, open, onOpenChange, userRole, storeName }: { product: Product; open: boolean; onOpenChange: (open: boolean) => void; userRole: 'admin' | 'cashier'; storeName: string; }) {
-    if (!product) return null;
+  if (!product) return null;
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="font-headline tracking-wider">{product.name}</DialogTitle>
-                    <DialogDescription>
-                        SKU: {product.attributes.barcode || 'N/A'}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2 py-4 text-sm">
-                   <div><strong>Merek:</strong> {product.attributes.brand}</div>
-                   <div className="flex items-center gap-1"><strong>Kategori:</strong> <Badge variant="outline">{product.category}</Badge></div>
-                   <div><strong>Stok di {storeName}:</strong> {product.stock}</div>
-                   {userRole === 'admin' && <div><strong>Harga Pokok:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
-                   <div><strong>Harga Jual:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-headline tracking-wider">{product.name}</DialogTitle>
+          <DialogDescription>
+            SKU: {product.attributes.barcode || 'N/A'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-4 text-sm">
+          <div><strong>Merek:</strong> {product.attributes.brand}</div>
+          <div className="flex items-center gap-1"><strong>Kategori:</strong> <Badge variant="outline">{product.category}</Badge></div>
+          <div><strong>Stok di {storeName}:</strong> {product.stock}</div>
+          {userRole === 'admin' && <div><strong>Harga Pokok:</strong> Rp {product.costPrice.toLocaleString('id-ID')}</div>}
+          <div><strong>Harga Jual:</strong> Rp {product.price.toLocaleString('id-ID')}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function Products({ products, onDataChange, isLoading }: ProductsProps) {
@@ -105,7 +105,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
-  
+
   const currentStoreId = activeStore?.id;
 
 
@@ -113,7 +113,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
     if (!currentStoreId) return;
     const newStock = currentStock + adjustment;
     if (newStock < 0) return;
-    
+
     setUpdatingStock(productId);
 
     const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
@@ -137,7 +137,7 @@ export default function Products({ products, onDataChange, isLoading }: Products
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
   };
-  
+
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product);
     setIsEditDialogOpen(true);
@@ -147,27 +147,27 @@ export default function Products({ products, onDataChange, isLoading }: Products
     setSelectedProduct(product);
     setIsDeleteDialogOpen(true);
   };
-  
+
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
-    
+
     try {
-        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
-        toast({
-            title: 'Produk Dihapus!',
-            description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
-        });
-        onDataChange();
+      await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
+      toast({
+        title: 'Produk Dihapus!',
+        description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
+      });
+      onDataChange();
     } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Menghapus Produk',
-            description: 'Terjadi kesalahan saat menghapus produk dari database.'
-        });
-        console.error("Error deleting product:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menghapus Produk',
+        description: 'Terjadi kesalahan saat menghapus produk dari database.'
+      });
+      console.error("Error deleting product:", error);
     } finally {
-        setIsDeleteDialogOpen(false);
-        setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
     }
   }
 
@@ -175,16 +175,16 @@ export default function Products({ products, onDataChange, isLoading }: Products
   const handleDataUpdate = () => {
     onDataChange();
   }
-  
+
   const handleCategoryFilterChange = (category: ProductCategory) => {
     setSelectedCategories(prev => {
-        const newCategories = new Set(prev);
-        if (newCategories.has(category)) {
-            newCategories.delete(category);
-        } else {
-            newCategories.add(category);
-        }
-        return newCategories;
+      const newCategories = new Set(prev);
+      if (newCategories.has(category)) {
+        newCategories.delete(category);
+      } else {
+        newCategories.add(category);
+      }
+      return newCategories;
     });
   };
 
@@ -246,20 +246,20 @@ export default function Products({ products, onDataChange, isLoading }: Products
                   <DropdownMenuLabel>Filter berdasarkan kategori</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <ScrollArea className="h-48">
-                  {availableCategories.map(category => (
-                    <DropdownMenuCheckboxItem 
+                    {availableCategories.map(category => (
+                      <DropdownMenuCheckboxItem
                         key={category}
                         checked={selectedCategories.has(category)}
                         onSelect={(e) => e.preventDefault()} // prevent menu from closing
                         onClick={() => handleCategoryFilterChange(category)}
-                    >
+                      >
                         {category}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                      </DropdownMenuCheckboxItem>
+                    ))}
                   </ScrollArea>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
+
               {isAdmin && (
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                   <DialogTrigger asChild>
@@ -279,16 +279,16 @@ export default function Products({ products, onDataChange, isLoading }: Products
                         Menambahkan produk baru ke inventaris {activeStore?.name}.
                       </DialogDescription>
                     </DialogHeader>
-                    {activeStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
+                    {activeStore && <AddProductForm
+                      setDialogOpen={setIsAddDialogOpen}
+                      userRole={userRole}
                       onProductAdded={handleDataUpdate}
                       activeStore={activeStore}
                     />}
                   </DialogContent>
                 </Dialog>
               )}
-              
+
             </div>
           </div>
         </CardHeader>
@@ -324,31 +324,31 @@ export default function Products({ products, onDataChange, isLoading }: Products
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
                       {isAdmin ? (
                         <div className="flex items-center justify-center gap-2">
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, -1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
-                                {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
-                            </span>
-                            <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => handleStockChange(product.id, product.stock, 1)}
-                                disabled={updatingStock === product.id}
-                            >
-                                <Plus className="h-4 w-4" />
-                            </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-6 w-6"
+                            onClick={() => handleStockChange(product.id, product.stock, -1)}
+                            disabled={updatingStock === product.id}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className={cn('w-8 text-center', getStockColorClass(product.stock))}>
+                            {updatingStock === product.id ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : product.stock}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-6 w-6"
+                            onClick={() => handleStockChange(product.id, product.stock, 1)}
+                            disabled={updatingStock === product.id}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
                         </div>
                       ) : (
                         <span className={cn(getStockColorClass(product.stock))}>
-                            {product.stock}
+                          {product.stock}
                         </span>
                       )}
                     </TableCell>
@@ -356,21 +356,21 @@ export default function Products({ products, onDataChange, isLoading }: Products
                       Rp {product.price.toLocaleString('id-ID')}
                     </TableCell>
                     {isAdmin && (
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
                             </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEditClick(product)}>Ubah</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Hapus</DropdownMenuItem>
-                            </DropdownMenuContent>
+                          </DropdownMenuContent>
                         </DropdownMenu>
-                        </TableCell>
+                      </TableCell>
                     )}
                   </TableRow>
                 ))
@@ -389,44 +389,44 @@ export default function Products({ products, onDataChange, isLoading }: Products
           storeName={activeStore.name}
         />
       )}
-  
+
       {selectedProduct && isEditDialogOpen && activeStore && (
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                  <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
-                  <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
-                  </DialogHeader>
-                  <EditProductForm 
-                  setDialogOpen={setIsEditDialogOpen} 
-                  userRole={userRole} 
-                  onProductUpdated={handleDataUpdate}
-                  activeStore={activeStore}
-                  product={selectedProduct}
-                  />
-              </DialogContent>
-          </Dialog>
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
+              <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
+            </DialogHeader>
+            <EditProductForm
+              setDialogOpen={setIsEditDialogOpen}
+              userRole={userRole}
+              onProductUpdated={handleDataUpdate}
+              activeStore={activeStore}
+              product={selectedProduct}
+            />
+          </DialogContent>
+        </Dialog>
       )}
-  
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-      <AlertDialogContent>
+        <AlertDialogContent>
           <AlertDialogHeader>
-          <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
-          <AlertDialogDescription>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk secara permanen: <br />
-              <span className="font-bold">"{selectedProduct?.name}"</span>.
-          </AlertDialogDescription>
+              <span className="font-bold">&quot;{selectedProduct?.name}&quot;</span>.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
-          <AlertDialogAction
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-          >
+            >
               Ya, Hapus
-          </AlertDialogAction>
+            </AlertDialogAction>
           </AlertDialogFooter>
-      </AlertDialogContent>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   );

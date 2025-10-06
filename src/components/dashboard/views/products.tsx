@@ -82,7 +82,7 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
       (e.target as HTMLInputElement).blur();
     }
   };
-  
+
   const getStockColorClass = (stock: number): string => {
     if (stock < 3) return 'text-destructive';
     if (stock < 10) return 'text-yellow-500';
@@ -92,16 +92,16 @@ function StockInput({ product, onStockChange, isUpdating }: { product: Product; 
 
   return (
     <div className="flex items-center justify-center">
-      {isUpdating ? 
+      {isUpdating ?
         <Loader2 className="h-4 w-4 animate-spin mx-auto" /> :
-        <Input 
-            type="number"
-            value={currentStock}
-            onBlur={handleBlur}
-            onChange={(e) => setCurrentStock(Number(e.target.value))}
-            onKeyDown={handleKeyDown}
-            onFocus={(e) => e.target.select()}
-            className={cn('w-20 h-7 text-center', getStockColorClass(currentStock))}
+        <Input
+          type="number"
+          value={currentStock}
+          onBlur={handleBlur}
+          onChange={(e) => setCurrentStock(Number(e.target.value))}
+          onKeyDown={handleKeyDown}
+          onFocus={(e) => e.target.select()}
+          className={cn('w-20 h-7 text-center', getStockColorClass(currentStock))}
         />
       }
     </div>
@@ -113,7 +113,7 @@ export default function Products() {
   const { currentUser, activeStore } = useAuth();
   const { dashboardData, isLoading, refreshData } = useDashboard();
   const products = dashboardData?.products || [];
-  
+
   const userRole = currentUser?.role || 'cashier';
   const isAdmin = userRole === 'admin';
 
@@ -127,13 +127,13 @@ export default function Products() {
 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategories, setSelectedCategories] = React.useState<Set<ProductCategory>>(new Set());
-  
+
   const currentStoreId = activeStore?.id;
 
 
   const handleStockChange = async (productId: string, newStock: number) => {
     if (!currentStoreId || newStock < 0) return;
-    
+
     setUpdatingStock(productId);
 
     const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
@@ -163,27 +163,27 @@ export default function Products() {
     setSelectedProduct(product);
     setIsDeleteDialogOpen(true);
   };
-  
+
   const handleConfirmDelete = async () => {
     if (!selectedProduct || !currentStoreId) return;
-    
+
     try {
-        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
-        toast({
-            title: 'Produk Dihapus!',
-            description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
-        });
-        refreshData();
+      await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
+      toast({
+        title: 'Produk Dihapus!',
+        description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,
+      });
+      refreshData();
     } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Menghapus Produk',
-            description: 'Terjadi kesalahan saat menghapus produk dari database.'
-        });
-        console.error("Error deleting product:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menghapus Produk',
+        description: 'Terjadi kesalahan saat menghapus produk dari database.'
+      });
+      console.error("Error deleting product:", error);
     } finally {
-        setIsDeleteDialogOpen(false);
-        setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
     }
   }
 
@@ -191,16 +191,16 @@ export default function Products() {
   const handleDataUpdate = () => {
     refreshData();
   }
-  
+
   const handleCategoryFilterChange = (category: ProductCategory) => {
     setSelectedCategories(prev => {
-        const newCategories = new Set(prev);
-        if (newCategories.has(category)) {
-            newCategories.delete(category);
-        } else {
-            newCategories.add(category);
-        }
-        return newCategories;
+      const newCategories = new Set(prev);
+      if (newCategories.has(category)) {
+        newCategories.delete(category);
+      } else {
+        newCategories.add(category);
+      }
+      return newCategories;
     });
   };
 
@@ -255,47 +255,47 @@ export default function Products() {
                   <DropdownMenuLabel>Filter berdasarkan kategori</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <ScrollArea className="h-48">
-                  {availableCategories.map(category => (
-                    <DropdownMenuCheckboxItem 
+                    {availableCategories.map(category => (
+                      <DropdownMenuCheckboxItem
                         key={category}
                         checked={selectedCategories.has(category)}
                         onSelect={(e) => e.preventDefault()} // prevent menu from closing
                         onClick={() => handleCategoryFilterChange(category)}
-                    >
+                      >
                         {category}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                      </DropdownMenuCheckboxItem>
+                    ))}
                   </ScrollArea>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
+
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                  <DialogTrigger asChild>
+                <DialogTrigger asChild>
                   <Button size="sm" className="h-10 gap-1" disabled={!activeStore}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                       Tambah Produk
-                      </span>
+                    </span>
                   </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                      <DialogTitle className="font-headline tracking-wider">
+                    <DialogTitle className="font-headline tracking-wider">
                       Tambah Produk Baru
-                      </DialogTitle>
-                      <DialogDescription>
+                    </DialogTitle>
+                    <DialogDescription>
                       Menambahkan produk baru ke inventaris {activeStore?.name}.
-                      </DialogDescription>
+                    </DialogDescription>
                   </DialogHeader>
-                  {activeStore && <AddProductForm 
-                      setDialogOpen={setIsAddDialogOpen} 
-                      userRole={userRole} 
-                      onProductAdded={handleDataUpdate}
-                      activeStore={activeStore}
+                  {activeStore && <AddProductForm
+                    setDialogOpen={setIsAddDialogOpen}
+                    userRole={userRole}
+                    onProductAdded={handleDataUpdate}
+                    activeStore={activeStore}
                   />}
-                  </DialogContent>
+                </DialogContent>
               </Dialog>
-              
+
             </div>
           </div>
         </CardHeader>
@@ -329,35 +329,35 @@ export default function Products() {
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-center font-mono" onClick={(e) => e.stopPropagation()}>
-                       {isAdmin ? (
-                         <StockInput 
-                          product={product} 
+                      {isAdmin ? (
+                        <StockInput
+                          product={product}
                           onStockChange={handleStockChange}
                           isUpdating={updatingStock === product.id}
-                         />
-                       ) : (
-                         product.stock
-                       )}
+                        />
+                      ) : (
+                        product.stock
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {product.price.toLocaleString('id-ID')}
                     </TableCell>
                     {isAdmin && (
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
                             </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEditClick(product)}>Ubah</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(product)}>Hapus</DropdownMenuItem>
-                            </DropdownMenuContent>
+                          </DropdownMenuContent>
                         </DropdownMenu>
-                        </TableCell>
+                      </TableCell>
                     )}
                   </TableRow>
                 ))
@@ -366,44 +366,44 @@ export default function Products() {
           </Table>
         </CardContent>
       </Card>
-  
+
       {selectedProduct && isEditDialogOpen && activeStore && (
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                  <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
-                  <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
-                  </DialogHeader>
-                  <EditProductForm 
-                  setDialogOpen={setIsEditDialogOpen} 
-                  userRole={userRole} 
-                  onProductUpdated={handleDataUpdate}
-                  activeStore={activeStore}
-                  product={selectedProduct}
-                  />
-              </DialogContent>
-          </Dialog>
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-headline tracking-wider">Ubah Produk</DialogTitle>
+              <DialogDescription>Perbarui detail untuk {selectedProduct.name}.</DialogDescription>
+            </DialogHeader>
+            <EditProductForm
+              setDialogOpen={setIsEditDialogOpen}
+              userRole={userRole}
+              onProductUpdated={handleDataUpdate}
+              activeStore={activeStore}
+              product={selectedProduct}
+            />
+          </DialogContent>
+        </Dialog>
       )}
-  
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-      <AlertDialogContent>
+        <AlertDialogContent>
           <AlertDialogHeader>
-          <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
-          <AlertDialogDescription>
+            <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+            <AlertDialogDescription>
               Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk secara permanen: <br />
-              <span className="font-bold">"{selectedProduct?.name}"</span>.
-          </AlertDialogDescription>
+              <span className="font-bold">&quot;{selectedProduct?.name}&quot;</span>.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
-          <AlertDialogAction
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-          >
+            >
               Ya, Hapus
-          </AlertDialogAction>
+            </AlertDialogAction>
           </AlertDialogFooter>
-      </AlertDialogContent>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   );

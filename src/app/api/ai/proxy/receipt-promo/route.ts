@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { admin } from '@/lib/firebase-admin';
 
@@ -58,8 +58,8 @@ export async function POST(req: Request) {
     return NextResponse.json(result.data);
   } catch (err: unknown) {
     let message = 'Internal Server Error';
-    if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
-      message = (err as any).message;
+    if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+      message = (err as { message: string }).message;
     }
     console.error('AI proxy error:', message);
     return NextResponse.json({ error: message }, { status: 500 });

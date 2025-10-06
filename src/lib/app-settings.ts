@@ -65,7 +65,13 @@ export async function getPradanaTokenBalance(storeId: string): Promise<number> {
  * @param toast A function to display notifications to the user.
  * @param featureName A friendly name for the feature being used (optional).
  */
-export async function deductAiUsageFee(currentBalance: number, feeToDeduct: number, storeId: string, toast: Function, featureName?: string) {
+export async function deductAiUsageFee(
+  currentBalance: number,
+  feeToDeduct: number,
+  storeId: string,
+  toast: (args: { variant: string; title: string; description: string }) => void,
+  featureName?: string
+) {
   if (currentBalance < feeToDeduct) {
     toast({
       variant: 'destructive',
