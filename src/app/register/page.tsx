@@ -26,6 +26,7 @@ import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { doc, writeBatch } from 'firebase/firestore';
 import { getTransactionFeeSettings } from '@/lib/app-settings';
 import { FirebaseError } from 'firebase/app';
+import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 
 
 const registerSchema = z.object({
@@ -97,6 +98,31 @@ export default function RegisterPage() {
 
       // Step 3: Commit the batch
       await batch.commit();
+
+      // Step 4: Send welcome message via WhatsApp
+      const welcomeMessage = 
+`🎉 *Selamat Datang di Chika POS F&B, ${values.adminName}!* 🎉
+
+Toko Anda telah berhasil dibuat dengan detail berikut:
+- *Nama Toko:* ${values.storeName}
+- *Nama Admin:* ${values.adminName}
+- *Email Login:* ${values.email}
+
+Sebagai bonus selamat datang, kami telah menambahkan *${bonusTokens} Pradana Token* ke akun Anda.
+
+*PENTING:* Mohon jaga kerahasiaan password Anda dan jangan bagikan kepada siapapun.
+
+Anda sekarang dapat login ke aplikasi untuk mulai mengelola bisnis Anda.
+
+Salam hangat,
+*Tim Chika POS F&B*`;
+
+        const formattedPhone = values.whatsapp.startsWith('0') ? `62${values.whatsapp.substring(1)}` : values.whatsapp;
+        await sendWhatsAppNotification({
+            target: formattedPhone,
+            message: welcomeMessage
+        });
+
 
       toast({
         title: 'Pendaftaran Berhasil!',
