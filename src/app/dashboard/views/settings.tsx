@@ -25,23 +25,24 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { auth, db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info } from 'lucide-react';
+import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info, Newspaper } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
-import type { ReceiptSettings } from '@/lib/types';
+import type { ReceiptSettings, NotificationSettings } from '@/lib/types';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FirebaseError } from 'firebase/app';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 
 const PasswordFormSchema = z
@@ -103,6 +104,7 @@ export default function Settings() {
   const [isGeneralSettingLoading, setIsGeneralSettingLoading] = React.useState(false);
   const [isSamplePlaying, setIsSamplePlaying] = React.useState(false);
   const [generalSettings, setGeneralSettings] = React.useState<Pick<ReceiptSettings, 'voiceGender' | 'notificationStyle'> | null>(null);
+  const [notificationSettings, setNotificationSettings] = React.useState<NotificationSettings | null>(null);
   const [businessDescription, setBusinessDescription] = React.useState('');
   
   const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
@@ -119,6 +121,7 @@ export default function Settings() {
             });
         });
         setBusinessDescription(activeStore.businessDescription || '');
+        setNotificationSettings(activeStore.notificationSettings || { dailySummaryEnabled: true });
     }
   }, [activeStore]);
 
@@ -178,23 +181,22 @@ export default function Settings() {
   };
   
   const handleGeneralSettingSave = async () => {
-    if (!activeStore || !generalSettings) return;
+    if (!activeStore || !generalSettings || !notificationSettings) return;
     setIsGeneralSettingLoading(true);
     try {
-      // First, update the business description on the store document
-      const storeRef = doc(db, 'stores', activeStore.id);
-      await updateDoc(storeRef, {
-        businessDescription: businessDescription,
-      });
+        const storeRef = doc(db, 'stores', activeStore.id);
+        await setDoc(storeRef, {
+            businessDescription: businessDescription,
+            notificationSettings: notificationSettings
+        }, { merge: true });
   
-      // Then, update the receipt settings using the dedicated function
       await updateReceiptSettings(activeStore.id, {
         voiceGender: generalSettings.voiceGender,
         notificationStyle: generalSettings.notificationStyle,
       });
   
       toast({ title: 'Pengaturan Umum Disimpan!' });
-      refreshData(); // Refresh dashboard context to get updated activeStore data
+      refreshData();
     } catch (error) {
       console.error("Error saving general settings:", error);
       toast({ variant: 'destructive', title: 'Gagal Menyimpan', description: (error as Error).message });
@@ -330,6 +332,19 @@ export default function Settings() {
                                 </div>
                             </RadioGroup>
                         ) : <Skeleton className="h-10 w-full" />}
+                    </div>
+                    <div className="space-y-2">
+                         <Label className='flex items-center gap-2'><Newspaper className='h-4 w-4' /> Notifikasi Ringkasan Harian</Label>
+                         {notificationSettings ? (
+                            <div className='flex items-center space-x-2 rounded-md border p-3'>
+                                <Switch
+                                    id="daily-summary-switch"
+                                    checked={notificationSettings.dailySummaryEnabled}
+                                    onCheckedChange={(checked) => setNotificationSettings(s => s ? {...s, dailySummaryEnabled: checked} : null)}
+                                />
+                                <Label htmlFor="daily-summary-switch" className='font-normal'>Aktifkan pengiriman ringkasan penjualan harian via WhatsApp</Label>
+                            </div>
+                         ) : <Skeleton className="h-12 w-full" />}
                     </div>
                      <Button onClick={handleGeneralSettingSave} disabled={isGeneralSettingLoading}>
                         {isGeneralSettingLoading && <Loader className="mr-2 h-4 w-4 animate-spin"/>}

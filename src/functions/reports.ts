@@ -27,6 +27,12 @@ export const sendDailySalesSummary = onSchedule({
         const promises = storesSnapshot.docs.map(async (storeDoc) => {
             const store = storeDoc.data();
             const storeId = storeDoc.id;
+
+            // Periksa apakah notifikasi untuk toko ini diaktifkan
+            if (store.notificationSettings?.dailySummaryEnabled === false) {
+                logger.info(`Pengiriman ringkasan harian dinonaktifkan untuk toko: ${store.name}`);
+                return;
+            }
             
             // 1. Hitung data penjualan hari ini
             const today = new Date();
@@ -71,7 +77,9 @@ Halo *${adminData.name}*, berikut adalah ringkasan penjualan Anda hari ini:
 - *Total Omset*: Rp ${totalRevenue.toLocaleString('id-ID')}
 - *Jumlah Transaksi*: ${totalTransactions}
 
-Terus pantau dan optimalkan performa penjualan Anda melalui dasbor Chika. Semangat selalu! 💪`;
+Terus pantau dan optimalkan performa penjualan Anda melalui dasbor Chika. Semangat selalu! 💪
+
+_Apabila tidak berkenan, fitur ini dapat dinonaktifkan di menu Pengaturan._`;
                         
                         try {
                             const formattedPhone = adminData.whatsapp.startsWith('0') 

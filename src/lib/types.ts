@@ -26,6 +26,10 @@ export type ReceiptSettings = {
     notificationStyle: 'fakta' | 'pantun';
 };
 
+export type NotificationSettings = {
+  dailySummaryEnabled: boolean;
+};
+
 export type Store = {
   id: string;
   name: string;
@@ -33,6 +37,7 @@ export type Store = {
   businessDescription?: string; // New field for business context
   receiptSettings?: ReceiptSettings;
   pointEarningSettings?: PointEarningSettings;
+  notificationSettings?: NotificationSettings;
   pradanaTokenBalance: number;
   adminUids: string[];
   createdAt: string;
