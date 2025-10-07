@@ -1,36 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { admin } from '@/lib/firebase-admin';
+import { NextRequest, NextResponse } from 'next/server'
 
-interface OrderReadyFollowUpInput {
-  customerName: string;
-  storeName: string;
-  itemsOrdered: string[];
-  currentTime: string;
-  notificationStyle: 'fakta' | 'pantun';
-}
-
-interface OrderReadyFollowUpOutput {
-  followUpMessage: string;
-}
-
-export async function POST(request: NextRequest) {
-  const input: OrderReadyFollowUpInput = await request.json();
-
-  const { customerName, storeName, itemsOrdered, currentTime, notificationStyle } = input;
-
-  if (!customerName || !storeName || !itemsOrdered || !currentTime || !notificationStyle) {
-    return NextResponse.json({ error: 'Missing required input parameters' }, { status: 400 });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-  const functions = getFunctions(admin);
-    const callOrderReadyFollowUp = httpsCallable<OrderReadyFollowUpInput, OrderReadyFollowUpOutput>(functions, 'orderReadyFollowUpFlow');
-    
-    const result = await callOrderReadyFollowUp(input);
-    return NextResponse.json(result.data);
-  } catch (error) {
-    console.error('Error calling orderReadyFollowUpFlow Cloud Function:', error);
-    return NextResponse.json({ error: 'Failed to get order ready follow-up message' }, { status: 500 });
+    const { customerName, storeName, itemsOrdered, currentTime, notificationStyle } = await req.json()
+    const items = Array.isArray(itemsOrdered) ? itemsOrdered.join(', ') : ''
+    const style = notificationStyle === 'pantun'
+      ? `Ada pantun manis untukmu!`
+      : `Info singkat untukmu!`
+    const text = `${style}\nHalo ${customerName}, pesanan kamu di ${storeName} sudah siap pada ${currentTime}. Item: ${items}. Terima kasih!`
+    return NextResponse.json({ followUpMessage: text })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Failed' }, { status: 400 })
   }
 }
+

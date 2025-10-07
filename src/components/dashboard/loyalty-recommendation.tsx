@@ -7,8 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader, Sparkles } from 'lucide-react';
 import type { Customer, RedemptionOption } from '@/lib/types';
 // Hapus import { getLoyaltyPointRecommendation } from '@/ai/flows/loyalty-point-recommendation';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
 import { AIConfirmationDialog } from './ai-confirmation-dialog';
@@ -44,10 +43,20 @@ export function LoyaltyRecommendation({
     if (!activeStore) return;
     const fetchRedemptionOptions = async () => {
         try {
-            const q = query(collection(db, 'stores', activeStore.id, 'redemptionOptions'), where('isActive', '==', true));
-            const querySnapshot = await getDocs(q);
-            const options = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RedemptionOption));
-            setRedemptionOptions(options);
+            const { data, error } = await supabase
+              .from('redemption_options')
+              .select('*')
+              .eq('store_id', activeStore.id)
+              .eq('is_active', true)
+            if (error) throw error
+            const options = (data || []).map((r: any) => ({
+              id: r.id,
+              description: r.description,
+              pointsRequired: r.points_required,
+              value: Number(r.value ?? 0),
+              isActive: !!r.is_active,
+            })) as RedemptionOption[]
+            setRedemptionOptions(options)
         } catch (error) {
             console.error("Failed to fetch redemption options for AI", error);
             toast({ variant: 'destructive', title: 'Gagal memuat data promo aktif.'});

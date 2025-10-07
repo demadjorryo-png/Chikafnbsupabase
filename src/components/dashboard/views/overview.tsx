@@ -58,8 +58,7 @@ import { getBirthdayFollowUp } from '@/ai/flows/birthday-follow-up';
 import type { Customer, Transaction, User, PendingOrder } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { PendingOrderFollowUpDialog } from '@/components/dashboard/pending-order-follow-up-dialog';
 import { useAuth } from '@/contexts/auth-context';
@@ -288,7 +287,11 @@ export default function Overview({ transactions, users, customers, pendingOrders
     if (!orderToDelete) return;
 
     try {
-      await deleteDoc(doc(db, 'pendingOrders', orderToDelete.id));
+      const { error } = await supabase
+        .from('pending_orders')
+        .delete()
+        .eq('id', orderToDelete.id)
+      if (error) throw error;
       onDataChange();
       toast({
         title: 'Pesanan Dihapus',

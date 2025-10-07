@@ -44,8 +44,7 @@ import {
 import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Combobox } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, onSnapshot, query, where, Unsubscribe } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -70,29 +69,30 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
 
   React.useEffect(() => {
     if (!currentStoreId) return;
-
-    const q = query(collection(db, "pendingOrders"), where("storeId", "==", currentStoreId));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const updatedOrders: PendingOrder[] = [];
-        snapshot.forEach((doc) => {
-            updatedOrders.push({ id: doc.id, ...doc.data() } as PendingOrder);
-        });
-        setRealtimeOrders(updatedOrders);
-        toast({
-          title: "Pesanan Diperbarui",
-          description: "Daftar pesanan tertunda telah diperbarui secara real-time.",
-        });
-    }, (error) => {
-        console.error("Error listening to pending orders:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Memperbarui Pesanan',
-            description: 'Tidak dapat memuat pembaruan pesanan secara real-time.'
-        });
-    });
-
-    return () => unsubscribe();
+    let stop = false;
+    const fetchOrders = async () => {
+      const { data, error } = await supabase
+        .from('pending_orders')
+        .select('*')
+        .eq('store_id', currentStoreId)
+        .order('created_at', { ascending: false })
+      if (!error && data && !stop) {
+        setRealtimeOrders(data.map((d: any) => ({
+          id: d.id,
+          storeId: d.store_id,
+          customerId: d.customer_id,
+          customerName: d.customer_name,
+          customerAvatarUrl: d.customer_avatar_url,
+          productId: d.product_id,
+          productName: d.product_name,
+          quantity: d.quantity,
+          createdAt: new Date(d.created_at).toISOString(),
+        })) as PendingOrder[])
+      }
+    }
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => { stop = true; clearInterval(interval) }
   }, [currentStoreId, toast]);
 
   const customerOptions = customers.map((c) => ({
@@ -182,20 +182,18 @@ export default function PendingOrders({ products, customers, onDataChange, isLoa
     }
 
     try {
-        const batchPromises = pendingList.map(item => {
-            return addDoc(collection(db, 'pendingOrders'), {
-                storeId: currentStoreId,
-                customerId: selectedCustomer.id,
-                customerName: selectedCustomer.name,
-                customerAvatarUrl: selectedCustomer.avatarUrl,
-                productId: item.productId,
-                productName: item.productName,
-                quantity: item.quantity,
-                createdAt: new Date().toISOString(),
-            });
-        });
-        
-        await Promise.all(batchPromises);
+        const rows = pendingList.map(item => ({
+          store_id: currentStoreId,
+          customer_id: selectedCustomer.id,
+          customer_name: selectedCustomer.name,
+          customer_avatar_url: selectedCustomer.avatarUrl,
+          product_id: item.productId,
+          product_name: item.productName,
+          quantity: item.quantity,
+          created_at: new Date().toISOString(),
+        }))
+        const { error } = await supabase.from('pending_orders').insert(rows)
+        if (error) throw error
 
         toast({
         title: 'Pesanan Tertunda Dibuat!',

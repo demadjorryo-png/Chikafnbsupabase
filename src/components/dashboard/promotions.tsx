@@ -46,8 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, collection, addDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Dialog,
   DialogContent,
@@ -91,7 +90,11 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
     if (!promotionToDelete) return;
 
     try {
-      await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
+      const { error } = await supabase
+        .from('redemption_options')
+        .delete()
+        .eq('id', promotionToDelete.id)
+      if (error) throw error
       setRedemptionOptions(prev => prev.filter(p => p.id !== promotionToDelete.id));
       toast({
         title: 'Promosi Dihapus!',
@@ -125,10 +128,12 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
     if (!option) return;
 
     const newStatus = !option.isActive;
-    const optionRef = doc(db, 'redemptionOptions', id);
-
     try {
-      await updateDoc(optionRef, { isActive: newStatus });
+      const { error } = await supabase
+        .from('redemption_options')
+        .update({ is_active: newStatus })
+        .eq('id', id)
+      if (error) throw error
       setRedemptionOptions((prevOptions) =>
         prevOptions.map((opt) =>
           opt.id === id ? { ...opt, isActive: newStatus } : opt
@@ -207,22 +212,25 @@ export default function Promotions({ redemptionOptions, setRedemptionOptions, tr
 
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
     try {
-      const docRef = await addDoc(collection(db, "redemptionOptions"), {
-        description: rec.description,
-        pointsRequired: rec.pointsRequired,
-        value: rec.value,
-        isActive: false, // New promos from AI are inactive by default
-      });
-
+      const { data, error } = await supabase
+        .from('redemption_options')
+        .insert({
+          description: rec.description,
+          points_required: rec.pointsRequired,
+          value: rec.value,
+          is_active: false,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
       const newPromotion: RedemptionOption = {
-        id: docRef.id,
+        id: data?.id,
         description: rec.description,
         pointsRequired: rec.pointsRequired,
         value: rec.value,
         isActive: false,
-      };
-
-      setRedemptionOptions(prev => [...prev, newPromotion]);
+      }
+      setRedemptionOptions(prev => [...prev, newPromotion])
       toast({
         title: 'Draf Promo Dibuat!',
         description: `"${rec.title}" telah ditambahkan sebagai promo non-aktif.`,
