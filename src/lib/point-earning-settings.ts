@@ -1,7 +1,6 @@
-'use client';
+'use client'
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabaseClient'
 
 export type PointEarningSettings = {
     rpPerPoint: number;
@@ -18,22 +17,13 @@ export const defaultPointEarningSettings: PointEarningSettings = {
  * @returns The store's specific point earning settings, or default settings if not found.
  */
 export async function getPointEarningSettings(storeId: string): Promise<PointEarningSettings> {
-    const storeDocRef = doc(db, 'stores', storeId);
-    try {
-        const docSnap = await getDoc(storeDocRef);
-
-        if (docSnap.exists()) {
-            const storeData = docSnap.data();
-            // Merge store settings with defaults to ensure all fields are present
-            return { ...defaultPointEarningSettings, ...storeData.pointEarningSettings };
-        } else {
-            console.warn(`Store with ID ${storeId} not found. Using default point earning settings.`);
-            return defaultPointEarningSettings;
-        }
-    } catch (error) {
-        console.error("Error fetching point earning settings:", error);
-        return defaultPointEarningSettings;
-    }
+  const { data, error } = await supabase
+    .from('stores')
+    .select('point_earning_settings')
+    .eq('id', storeId)
+    .single()
+  if (error || !data) return defaultPointEarningSettings
+  return { ...defaultPointEarningSettings, ...(data.point_earning_settings || {}) }
 }
 
 /**
@@ -42,16 +32,11 @@ export async function getPointEarningSettings(storeId: string): Promise<PointEar
  * @param newSettings An object containing the settings to update.
  */
 export async function updatePointEarningSettings(storeId: string, newSettings: Partial<PointEarningSettings>) {
-    const storeDocRef = doc(db, 'stores', storeId);
-    try {
-        // Use setDoc with merge: true to update the nested pointEarningSettings object
-        await setDoc(storeDocRef, {
-            pointEarningSettings: newSettings
-        }, { merge: true });
-        
-        console.log(`Point earning settings updated for store ${storeId}.`);
-    } catch (error) {
-        console.error(`Error updating point earning settings for store ${storeId}:`, error);
-        throw error; // Re-throw the error to be handled by the caller
-    }
+  const current = await getPointEarningSettings(storeId)
+  const updated = { ...current, ...newSettings }
+  const { error } = await supabase
+    .from('stores')
+    .update({ point_earning_settings: updated })
+    .eq('id', storeId)
+  if (error) throw error
 }

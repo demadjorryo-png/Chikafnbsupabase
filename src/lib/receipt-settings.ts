@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabaseClient';
 import type { ReceiptSettings } from './types';
 
 // Default settings if a store doesn't have any defined.
@@ -17,23 +16,20 @@ export const defaultReceiptSettings: ReceiptSettings = {
  * @returns The store's specific receipt settings, or default settings if not found.
  */
 export async function getReceiptSettings(storeId: string): Promise<ReceiptSettings> {
-    try {
-        const storeDocRef = doc(db, 'stores', storeId);
-        const docSnap = await getDoc(storeDocRef);
-
-        if (docSnap.exists()) {
-            const storeData = docSnap.data();
-            // Merge store settings with defaults to ensure all fields are present
-            return { ...defaultReceiptSettings, ...storeData.receiptSettings };
-        } else {
-            console.warn(`Store with ID ${storeId} not found. Using default receipt settings.`);
-            return defaultReceiptSettings;
-        }
-    } catch (error) {
-        console.error("Error fetching receipt settings:", error);
-        // Return defaults in case of any error
-        return defaultReceiptSettings;
+  try {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('receipt_settings')
+      .eq('id', storeId)
+      .single()
+    if (!error && data) {
+      return { ...defaultReceiptSettings, ...(data.receipt_settings || {}) }
     }
+    return defaultReceiptSettings
+  } catch (error) {
+    console.error('Error fetching receipt settings:', error)
+    return defaultReceiptSettings
+  }
 }
 
 /**
@@ -43,25 +39,11 @@ export async function getReceiptSettings(storeId: string): Promise<ReceiptSettin
  * @param newSettings An object containing the settings to update.
  */
 export async function updateReceiptSettings(storeId: string, newSettings: Partial<ReceiptSettings>) {
-    const storeDocRef = doc(db, 'stores', storeId);
-    try {
-        // First, get the current settings to ensure we don't overwrite anything.
-        const currentSettings = await getReceiptSettings(storeId);
-        
-        // Merge the current settings with the new ones.
-        const updatedSettings = {
-            ...currentSettings,
-            ...newSettings,
-        };
-
-        // Use setDoc with merge: true to update the nested receiptSettings object.
-        await setDoc(storeDocRef, {
-            receiptSettings: updatedSettings
-        }, { merge: true });
-        
-        console.log(`Receipt settings updated for store ${storeId}.`);
-    } catch (error) {
-        console.error(`Error updating receipt settings for store ${storeId}:`, error);
-        throw error; // Re-throw the error to be handled by the caller
-    }
+  const currentSettings = await getReceiptSettings(storeId)
+  const updatedSettings = { ...currentSettings, ...newSettings }
+  const { error } = await supabase
+    .from('stores')
+    .update({ receipt_settings: updatedSettings })
+    .eq('id', storeId)
+  if (error) throw error
 }

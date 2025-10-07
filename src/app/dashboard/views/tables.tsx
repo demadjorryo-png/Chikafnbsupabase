@@ -44,8 +44,7 @@ import { PlusCircle, Armchair, Trash2, Edit, MoreVertical, Check, BookMarked, Sp
 import type { Table, TableStatus, Transaction } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
@@ -91,22 +90,16 @@ export default function Tables({ onPrintRequest }: TablesProps) {
     }
     setIsProcessing(true);
 
-    const batch = writeBatch(db);
-    const tablesCollectionRef = collection(db, 'stores', activeStore.id, 'tables');
-
-    for (let i = 1; i <= tableCount; i++) {
-        const newTableName = `${tablePrefix} ${i}`;
-        const newTableRef = doc(tablesCollectionRef);
-        batch.set(newTableRef, {
-            name: newTableName,
-            capacity: bulkCapacity,
-            status: 'Tersedia',
-            currentOrder: null,
-        });
-    }
-
     try {
-        await batch.commit();
+        const rows = Array.from({ length: tableCount }, (_, i) => ({
+          store_id: activeStore.id,
+          name: `${tablePrefix} ${i + 1}`,
+          capacity: bulkCapacity,
+          status: 'Tersedia',
+          current_order: null,
+        }))
+        const { error } = await supabase.from('tables').insert(rows)
+        if (error) throw error
         toast({ title: `${tableCount} meja berhasil digenerate!` });
         refreshData();
         closeDialogs();
@@ -127,12 +120,14 @@ export default function Tables({ onPrintRequest }: TablesProps) {
     setIsProcessing(true);
 
     try {
-        await addDoc(collection(db, 'stores', activeStore.id, 'tables'), {
-            name: tableName,
-            capacity: tableCapacity,
-            status: 'Tersedia',
-            currentOrder: null
-        });
+        const { error } = await supabase.from('tables').insert({
+          store_id: activeStore.id,
+          name: tableName,
+          capacity: tableCapacity,
+          status: 'Tersedia',
+          current_order: null,
+        })
+        if (error) throw error
         toast({ title: 'Meja baru ditambahkan!' });
         refreshData();
         closeDialogs();
@@ -153,10 +148,13 @@ export default function Tables({ onPrintRequest }: TablesProps) {
     }
     setIsProcessing(true);
 
-    const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
-    
     try {
-        await updateDoc(tableRef, { name: tableName, capacity: tableCapacity });
+        const { error } = await supabase
+          .from('tables')
+          .update({ name: tableName, capacity: tableCapacity })
+          .eq('id', selectedTable.id)
+          .eq('store_id', activeStore.id)
+        if (error) throw error
         toast({ title: 'Meja diperbarui!' });
         refreshData();
         closeDialogs();
@@ -171,10 +169,13 @@ export default function Tables({ onPrintRequest }: TablesProps) {
   const handleDeleteTable = async () => {
     if (!activeStore || !selectedTable) return;
     setIsProcessing(true);
-    const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
-    
     try {
-      await deleteDoc(tableRef);
+      const { error } = await supabase
+        .from('tables')
+        .delete()
+        .eq('id', selectedTable.id)
+        .eq('store_id', activeStore.id)
+      if (error) throw error
       toast({ title: `Meja ${selectedTable.name} dihapus` });
       refreshData();
       closeDialogs();
@@ -189,13 +190,13 @@ export default function Tables({ onPrintRequest }: TablesProps) {
   const handleClearTable = async () => {
     if (!activeStore || !selectedTable || !currentUser) return;
     setIsProcessing(true);
-     const tableRef = doc(db, 'stores', activeStore.id, 'tables', selectedTable.id);
-     
      try {
-        await updateDoc(tableRef, {
-            status: 'Tersedia',
-            currentOrder: null
-        });
+        const { error } = await supabase
+          .from('tables')
+          .update({ status: 'Tersedia', current_order: null })
+          .eq('id', selectedTable.id)
+          .eq('store_id', activeStore.id)
+        if (error) throw error
 
         toast({ title: `Meja ${selectedTable.name} telah dibersihkan.` });
         refreshData();
@@ -228,9 +229,13 @@ export default function Tables({ onPrintRequest }: TablesProps) {
 
   const handleChangeStatus = async (table: Table, newStatus: TableStatus) => {
     if (!activeStore) return;
-    const tableRef = doc(db, 'stores', activeStore.id, 'tables', table.id);
     try {
-        await updateDoc(tableRef, { status: newStatus });
+        const { error } = await supabase
+          .from('tables')
+          .update({ status: newStatus })
+          .eq('id', table.id)
+          .eq('store_id', activeStore.id)
+        if (error) throw error
         toast({ title: `Status meja ${table.name} diubah menjadi ${newStatus}` });
         refreshData();
     } catch(error) {

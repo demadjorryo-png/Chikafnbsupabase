@@ -1,8 +1,7 @@
 
-'use client';
+'use client'
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabaseClient'
 
 export type BankAccountSettings = {
     bankName: string;
@@ -22,19 +21,11 @@ export const defaultBankAccountSettings: BankAccountSettings = {
  * @returns The bank account settings, or default settings if not found.
  */
 export async function getBankAccountSettings(): Promise<BankAccountSettings> {
-    const settingsDocRef = doc(db, 'appSettings', 'bankAccount');
-    try {
-        const docSnap = await getDoc(settingsDocRef);
-
-        if (docSnap.exists()) {
-            return { ...defaultBankAccountSettings, ...docSnap.data() };
-        } else {
-            console.warn(`Bank account settings not found, creating document with default values.`);
-            await setDoc(settingsDocRef, defaultBankAccountSettings);
-            return defaultBankAccountSettings;
-        }
-    } catch (error) {
-        console.error("Error fetching bank account settings:", error);
-        return defaultBankAccountSettings;
-    }
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('data')
+    .eq('id', 'bankAccount')
+    .single()
+  if (error || !data) return defaultBankAccountSettings
+  return { ...defaultBankAccountSettings, ...(data.data as any) }
 }

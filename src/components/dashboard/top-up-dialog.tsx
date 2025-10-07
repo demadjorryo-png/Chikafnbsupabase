@@ -14,9 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader, Banknote, Upload, History, Send, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import type { TopUpRequest } from '@/lib/types';
 // Hapus import { sendWhatsAppNotification } from '@/ai/flows/whatsapp-notification';
 // Hapus import { getWhatsappSettings } from '@/lib/whatsapp-settings';
@@ -53,21 +51,33 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
 
   React.useEffect(() => {
     if (!activeStore) return;
-    const q = query(
-      collection(db, 'stores', activeStore.id, 'topUpRequests'),
-      orderBy('requestedAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const historyData: TopUpRequest[] = [];
-      querySnapshot.forEach((doc) => {
-        historyData.push({ id: doc.id, ...doc.data() } as TopUpRequest);
-      });
-      setHistory(historyData);
-    });
-
-    return () => unsubscribe();
-  }, [activeStore]);
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('top_up_requests')
+        .select('*')
+        .eq('store_id', activeStore.id)
+        .order('requested_at', { ascending: false })
+      if (!error && data) {
+        setHistory(
+          data.map((d: any) => ({
+            id: d.id,
+            storeId: d.store_id,
+            storeName: d.store_name,
+            userId: d.user_id,
+            userName: d.user_name,
+            amount: Number(d.amount || 0),
+            uniqueCode: Number(d.unique_code || 0),
+            totalAmount: Number(d.total_amount || 0),
+            proofUrl: d.proof_url,
+            status: d.status,
+            requestedAt: new Date(d.requested_at).toISOString(),
+            processedAt: d.processed_at ? new Date(d.processed_at).toISOString() : undefined,
+          }))
+        )
+      }
+    }
+    fetchHistory()
+  }, [activeStore])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -88,27 +98,28 @@ export function TopUpDialog({ setDialogOpen }: TopUpDialogProps) {
     setIsLoading(true);
 
     try {
-      // 1. Upload proof to Firebase Storage
-      const storage = getStorage();
-      const proofRef = ref(storage, `top-up-proofs/${activeStore.id}/${Date.now()}-${proofFile.name}`);
-      const uploadResult = await uploadBytes(proofRef, proofFile);
-      const proofUrl = await getDownloadURL(uploadResult.ref);
+      // 1. Upload proof to Supabase Storage
+      const filePath = `${activeStore.id}/${Date.now()}-${proofFile.name}`
+      const { error: upErr } = await supabase.storage.from('topup-proofs').upload(filePath, proofFile, { upsert: true })
+      if (upErr) throw upErr
+      const { data: pub } = supabase.storage.from('topup-proofs').getPublicUrl(filePath)
+      const proofUrl = pub.publicUrl
 
-      // 2. Save request to Firestore
-      const totalAmount = amount + uniqueCode;
-      const newRequest: Omit<TopUpRequest, 'id'> = {
-        storeId: activeStore.id,
-        storeName: activeStore.name,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        amount: amount,
-        uniqueCode: uniqueCode,
-        totalAmount: totalAmount,
-        proofUrl: proofUrl,
+      // 2. Save request to Supabase
+      const totalAmount = amount + uniqueCode
+      const { error: insErr } = await supabase.from('top_up_requests').insert({
+        store_id: activeStore.id,
+        store_name: activeStore.name,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        amount,
+        unique_code: uniqueCode,
+        total_amount: totalAmount,
+        proof_url: proofUrl,
         status: 'pending',
-        requestedAt: new Date().toISOString(),
-      };
-      await addDoc(collection(db, 'stores', activeStore.id, 'topUpRequests'), newRequest);
+        requested_at: new Date().toISOString(),
+      })
+      if (insErr) throw insErr
       
       toast({
         title: 'Pengajuan Top Up Terkirim!',

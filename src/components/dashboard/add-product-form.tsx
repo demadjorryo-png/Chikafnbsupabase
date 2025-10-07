@@ -28,9 +28,7 @@ import * as React from 'react';
 import { Loader, ScanBarcode, Upload } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { db, storage } from '@/lib/firebase';
-import { addDoc, collection } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
 
 const FormSchema = z.object({
@@ -108,25 +106,29 @@ export function AddProductForm({ setDialogOpen, userRole, onProductAdded, active
         const fileExtension = imageFile.name.split('.').pop();
         const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
 
-        // Upload image to Firebase Storage with the safe filename
-        const imageRef = ref(storage, `products/${activeStore.id}/${safeFileName}`);
-        await uploadBytes(imageRef, imageFile);
-        const imageUrl = await getDownloadURL(imageRef);
+        // Upload image to Supabase Storage
+        const path = `${activeStore.id}/${safeFileName}`;
+        const { error: upErr } = await supabase.storage.from('products').upload(path, imageFile, { upsert: true });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('products').getPublicUrl(path);
+        const imageUrl = pub.publicUrl;
 
-        await addDoc(collection(db, 'stores', activeStore.id, 'products'), {
-            name: data.name,
-            category: data.category,
-            price: data.price,
-            costPrice: costPrice,
-            stock: data.stock,
-            supplierId: '',
-            imageUrl: imageUrl,
-            imageHint: '', // Hint is not needed for user-uploaded images
-            attributes: { 
-                brand: data.brand,
-                barcode: data.barcode || '',
-            }
+        const { error } = await supabase.from('products').insert({
+          store_id: activeStore.id,
+          name: data.name,
+          category: data.category,
+          price: data.price,
+          cost_price: costPrice,
+          stock: data.stock,
+          supplier_id: '',
+          image_url: imageUrl,
+          image_hint: '',
+          attributes: {
+            brand: data.brand,
+            barcode: data.barcode || '',
+          },
         });
+        if (error) throw error;
         
         toast({
             title: 'Produk Berhasil Ditambahkan!',

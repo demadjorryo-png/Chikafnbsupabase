@@ -42,8 +42,7 @@ import { OrderReadyDialog } from '@/components/dashboard/order-ready-dialog';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { db } from '@/lib/firebase';
-import { doc, writeBatch, getDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -217,20 +216,26 @@ export default function Transactions({ onPrintRequest }: TransactionsProps) {
     setCompletingTransactionId(transactionToComplete.id);
 
     try {
-        const batch = writeBatch(db);
-        
-        const transactionRef = doc(db, 'stores', activeStore.id, 'transactions', transactionToComplete.id);
-        batch.update(transactionRef, { status: 'Selesai' });
-
+        const updates: Promise<any>[] = [];
+        updates.push(
+          supabase
+            .from('transactions')
+            .update({ status: 'Selesai' })
+            .eq('id', transactionToComplete.id)
+            .eq('store_id', activeStore.id)
+        );
         if (transactionToComplete.tableId) {
-            const tableRef = doc(db, 'stores', activeStore.id, 'tables', transactionToComplete.tableId);
-            const tableDoc = await getDoc(tableRef);
-            if (tableDoc.exists()) {
-                batch.update(tableRef, { status: 'Menunggu Dibersihkan' });
-            }
+          updates.push(
+            supabase
+              .from('tables')
+              .update({ status: 'Menunggu Dibersihkan' })
+              .eq('id', transactionToComplete.tableId)
+              .eq('store_id', activeStore.id)
+          );
         }
-        
-        await batch.commit();
+        const results = await Promise.all(updates);
+        const anyError = results.find((r: any) => r?.error);
+        if (anyError) throw new Error(anyError.error.message);
 
         toast({ title: 'Pesanan Selesai!', description: `Status pesanan untuk ${transactionToComplete.customerName} telah diperbarui.`});
         onDataChange();

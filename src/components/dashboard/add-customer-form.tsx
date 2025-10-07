@@ -21,8 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { db } from '@/lib/firebase';
-import { addDoc, collection } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import * as React from 'react';
 import { Loader, ScanBarcode } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -103,15 +102,17 @@ export function AddCustomerForm({ setDialogOpen, onCustomerAdded }: AddCustomerF
     const avatarUrl = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
 
     try {
-        await addDoc(collection(db, 'stores', activeStore.id, 'customers'), {
-            name: data.name,
-            phone: data.phone,
-            birthDate: birthDate,
-            joinDate: new Date().toISOString(),
-            loyaltyPoints: 0,
-            memberTier: 'Bronze',
-            avatarUrl: avatarUrl,
+        const { error } = await supabase.from('customers').insert({
+          store_id: activeStore.id,
+          name: data.name,
+          phone: data.phone,
+          birth_date: birthDate,
+          join_date: new Date().toISOString(),
+          loyalty_points: 0,
+          member_tier: 'Bronze',
+          avatar_url: avatarUrl,
         });
+        if (error) throw error;
 
         toast({
             title: 'Pelanggan Berhasil Didaftarkan!',

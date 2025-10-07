@@ -51,8 +51,7 @@ import { AddCustomerForm } from '@/components/dashboard/add-customer-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 
 function CustomerDetailsDialog({ customer, open, onOpenChange }: { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -113,7 +112,12 @@ export default function Customers() {
     if (!customerToDelete || !activeStore?.id) return;
 
     try {
-        await deleteDoc(doc(db, 'stores', activeStore.id, 'customers', customerToDelete.id));
+        const { error } = await supabase
+          .from('customers')
+          .delete()
+          .eq('id', customerToDelete.id)
+          .eq('store_id', activeStore.id);
+        if (error) throw error;
         toast({
             title: 'Pelanggan Dihapus',
             description: `Pelanggan "${customerToDelete.name}" telah dihapus.`,

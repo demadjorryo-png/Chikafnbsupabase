@@ -40,7 +40,7 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
   const [generatedChallenges, setGeneratedChallenges] =
     React.useState<ChallengeGeneratorOutput | null>(null);
   const { toast } = useToast();
-  const { pradanaTokenBalance, refreshPradanaTokenBalance } = useAuth();
+  const { pradanaTokenBalance, refreshPradanaTokenBalance, activeStore } = useAuth();
 
 
   const handleGenerateChallenges = async () => {
@@ -62,7 +62,8 @@ export default function Challenges({ feeSettings }: ChallengesProps) {
     }
 
     try {
-      await deductAiUsageFee(pradanaTokenBalance, feeSettings, toast);
+      if (!activeStore) return;
+      await deductAiUsageFee(pradanaTokenBalance, feeSettings, activeStore.id, toast);
     } catch (error) {
       return; // Stop if not enough tokens
     }

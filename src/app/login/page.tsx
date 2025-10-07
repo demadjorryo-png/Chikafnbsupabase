@@ -34,9 +34,7 @@ import { AppConsultantChatDialog } from '@/components/dashboard/app-consultant-c
 // Hapus import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { auth } from '@/lib/firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
+import { supabase } from '@/lib/supabaseClient';
 
 interface LoginPromoSettings {
   title: string;
@@ -107,18 +105,9 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password);
       router.push('/dashboard');
-    } catch (error) {
-        let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        if (error instanceof FirebaseError) {
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                errorMessage = "Email atau password yang Anda masukkan salah.";
-            } else if (error.code === 'auth/too-many-requests') {
-                errorMessage = "Terlalu banyak percobaan login. Silakan coba lagi nanti.";
-            } else {
-                errorMessage = error.message;
-            }
-        }
-        toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Terjadi kesalahan. Silakan coba lagi.'
+      toast({ variant: 'destructive', title: 'Login Gagal', description: errorMessage });
     } finally {
       setIsLoginLoading(false);
     }
@@ -126,26 +115,17 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (values: z.infer<typeof forgotPasswordSchema>) => {
     try {
-        const email = values.email;
-        await sendPasswordResetEmail(auth, email);
-        toast({
-            title: 'Email Terkirim!',
-            description: 'Silakan periksa kotak masuk email Anda untuk instruksi reset password.',
-        });
-        setIsForgotPasswordOpen(false);
-        forgotPasswordForm.reset();
-    } catch (error) {
-        let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        if (error instanceof FirebaseError) {
-            if (error.code === 'auth/user-not-found') {
-                errorMessage = "Email yang Anda masukkan tidak terdaftar.";
-            }
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Mengirim Email',
-            description: errorMessage,
-        });
+      const { error } = await supabase.auth.resetPasswordForEmail(values.email)
+      if (error) throw error
+      toast({
+        title: 'Email Terkirim!',
+        description: 'Silakan periksa email Anda untuk instruksi reset password.',
+      })
+      setIsForgotPasswordOpen(false)
+      forgotPasswordForm.reset()
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Gagal mengirim email reset password.'
+      toast({ variant: 'destructive', title: 'Gagal Mengirim Email', description: errorMessage })
     }
   };
 

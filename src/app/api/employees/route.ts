@@ -1,101 +1,88 @@
 
-import 'dotenv/config'; // Muat variabel .env di paling atas
-import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb, admin } from '@/lib/firebase-admin';
+import 'dotenv/config'
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(req: NextRequest) {
-  // ==================== LANGKAH DIAGNOSTIK ====================
-  // Kode ini akan mencetak variabel lingkungan yang dibaca oleh server.
-  // Ini akan membantu kita memastikan file .env.local dimuat dengan benar.
-  console.log("=============================================");
-  console.log("DIAGNOSTIK KREDENSIAL FIREBASE ADMIN:");
-  console.log("- FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
-  console.log("- FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
-  console.log("- FIREBASE_PRIVATE_KEY (Exists):", !!process.env.FIREBASE_PRIVATE_KEY);
-  console.log("=============================================");
-  // ============================================================
-
   try {
-    // 1. Verify the authorization token from the client
-    const authorization = req.headers.get('Authorization');
+    // 1) Auth: verify bearer token and get caller
+    const authorization = req.headers.get('Authorization') || req.headers.get('authorization')
     if (!authorization?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 })
     }
-    const idToken = authorization.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const callerUid = decodedToken.uid;
+    const jwt = authorization.substring('Bearer '.length)
+    const { data: userRes, error: userErr } = await supabaseAdmin.auth.getUser(jwt)
+    if (userErr || !userRes?.user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+    const callerUid = userRes.user.id
 
-    // 2. Validate Input Data from the request body
-    const { email, password, name, role, storeId } = await req.json();
+    // 2) Input
+    const { email, password, name, role, storeId } = await req.json()
     if (!email || !password || !name || !role || !storeId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // 3. Verify Caller Permissions
-    const callerDoc = await adminDb.collection('users').doc(callerUid).get();
-    
-    if (!callerDoc.exists || callerDoc.data()?.role !== 'admin') {
-      return NextResponse.json({ error: 'Permission denied: Caller is not an admin' }, { status: 403 });
+    // 3) Permission: caller must be admin
+    const { data: callerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role')
+      .eq('id', callerUid)
+      .single()
+    if (!callerProfile || callerProfile.role !== 'admin') {
+      return NextResponse.json({ error: 'Permission denied: Caller is not an admin' }, { status: 403 })
     }
 
-    // 4. Create User in Firebase Authentication using Admin SDK
-    const userRecord = await adminAuth.createUser({
+    // 4) Create user in Supabase Auth
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      displayName: name,
-    });
-    const newUserId = userRecord.uid;
+      email_confirm: true,
+      user_metadata: { name, role },
+    })
+    if (createErr || !created?.user) {
+      const code = (createErr?.message || '').includes('already') ? 409 : 500
+      return NextResponse.json({ error: createErr?.message || 'Failed to create user' }, { status: code })
+    }
+    const newUserId = created.user.id
 
-    // 5. Set Custom Claims for Role-Based Access Control
-    await adminAuth.setCustomUserClaims(newUserId, { role });
-    
-    // 6. Create User Document and update store in a Firestore batch
-    const batch = adminDb.batch();
+    // 5) Upsert profile row
+    const { error: upsertErr } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: newUserId,
+        email,
+        name,
+        role,
+        status: 'active',
+        store_id: role === 'cashier' ? storeId : null,
+      }, { onConflict: 'id' })
+    if (upsertErr) {
+      return NextResponse.json({ error: upsertErr.message }, { status: 500 })
+    }
 
-    const userDocRef = adminDb.collection('users').doc(newUserId);
-    batch.set(userDocRef, {
-      name,
-      email,
-      role,
-      status: 'active',
-      storeId,
-    });
-
+    // 6) If admin, add to store admin_uids
     if (role === 'admin') {
-      const storeRef = adminDb.collection('stores').doc(storeId);
-      batch.update(storeRef, {
-        adminUids: admin.firestore.FieldValue.arrayUnion(newUserId),
-      });
+      const { data: store } = await supabaseAdmin
+        .from('stores')
+        .select('admin_uids')
+        .eq('id', storeId)
+        .single()
+      const admin_uids = Array.isArray(store?.admin_uids) ? store!.admin_uids : []
+      const newAdmins = Array.from(new Set([...admin_uids, newUserId]))
+      const { error: updErr } = await supabaseAdmin
+        .from('stores')
+        .update({ admin_uids: newAdmins })
+        .eq('id', storeId)
+      if (updErr) {
+        return NextResponse.json({ error: updErr.message }, { status: 500 })
+      }
     }
 
-    await batch.commit();
-
-    return NextResponse.json({ success: true, userId: newUserId }, { status: 201 });
-
-  } catch (error) {
-    console.error('Error creating employee via API route:', error);
-    let errorMessage = 'An internal server error occurred.';
-    let statusCode = 500;
-    
-    if (error instanceof Object && 'code' in error && 'message' in error) {
-        const firebaseError = error as { code: string, message: string };
-        if (firebaseError.code === 'auth/email-already-exists') {
-          errorMessage = 'The email address is already in use by another account.';
-          statusCode = 409; // Conflict
-        } else if (firebaseError.code === 'auth/id-token-expired' || firebaseError.code === 'auth/id-token-revoked') {
-            errorMessage = 'Your session has expired. Please log in again.';
-            statusCode = 401; // Unauthorized
-        } else if (firebaseError.code === 'auth/invalid-argument') {
-            errorMessage = `Invalid argument provided: ${firebaseError.message}`;
-            statusCode = 400;
-        } else if (firebaseError.code === 'auth/invalid-credential' || String(firebaseError.message).includes('credential')) {
-            errorMessage = "Server configuration error. Could not initialize authentication service.";
-            statusCode = 500;
-        }
-    } else if (error instanceof Error) {
-        errorMessage = error.message;
-    }
-
-    return NextResponse.json({ error: errorMessage }, { status: statusCode });
+    return NextResponse.json({ success: true, userId: newUserId }, { status: 201 })
+  } catch (error: any) {
+    console.error('Error creating employee via API route:', error)
+    const msg = error?.message || 'An internal server error occurred.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

@@ -28,9 +28,7 @@ import * as React from 'react';
 import { Loader, ScanBarcode, Upload } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { db, storage } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
 
 const FormSchema = z.object({
@@ -92,29 +90,30 @@ export function EditProductForm({ setDialogOpen, userRole, onProductUpdated, act
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
-    const productRef = doc(db, 'stores', activeStore.id, 'products', product.id);
+    const productId = product.id;
 
     try {
         let imageUrl = product.imageUrl;
 
-        // If a new image file is selected, upload it
         if (imageFile) {
-            const fileExtension = imageFile.name.split('.').pop();
-            const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
-            const imageRef = ref(storage, `products/${activeStore.id}/${safeFileName}`);
-            await uploadBytes(imageRef, imageFile);
-            imageUrl = await getDownloadURL(imageRef);
+          const fileExtension = imageFile.name.split('.').pop();
+          const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+          const path = `${activeStore.id}/${safeFileName}`;
+          const { error: upErr } = await supabase.storage.from('products').upload(path, imageFile, { upsert: true });
+          if (upErr) throw upErr;
+          const { data: pub } = supabase.storage.from('products').getPublicUrl(path);
+          imageUrl = pub.publicUrl;
         }
 
-        await updateDoc(productRef, {
-            name: data.name,
-            category: data.category,
-            price: data.price,
-            costPrice: (userRole === 'admin') ? data.costPrice : product.costPrice,
-            'attributes.brand': data.brand,
-            'attributes.barcode': data.barcode || '',
-            imageUrl: imageUrl, // Save the new or existing image URL
-        });
+        const { error } = await supabase.from('products').update({
+          name: data.name,
+          category: data.category,
+          price: data.price,
+          cost_price: (userRole === 'admin') ? data.costPrice : product.costPrice,
+          attributes: { ...product.attributes, brand: data.brand, barcode: data.barcode || '' },
+          image_url: imageUrl,
+        }).eq('id', productId).eq('store_id', activeStore.id);
+        if (error) throw error;
         
         toast({
             title: 'Produk Berhasil Diperbarui!',

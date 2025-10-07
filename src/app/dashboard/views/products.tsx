@@ -51,8 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { db } from '@/lib/firebase';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -117,10 +116,14 @@ export default function Products() {
     if (!currentStoreId) return;
     
     setUpdatingStock(productId);
-    const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
 
     try {
-      await updateDoc(productRef, { stock: newStock });
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', productId)
+        .eq('store_id', currentStoreId)
+      if (error) throw error
       toast({
           title: 'Status Stok Diperbarui',
           description: `Ketersediaan produk telah diperbarui.`,
@@ -153,7 +156,12 @@ export default function Products() {
     if (!selectedProduct || !currentStoreId) return;
     
     try {
-        await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', selectedProduct.id)
+          .eq('store_id', currentStoreId)
+        if (error) throw error
         toast({
             title: 'Produk Dihapus!',
             description: `Produk &quot;${selectedProduct.name}&quot; telah berhasil dihapus.`,

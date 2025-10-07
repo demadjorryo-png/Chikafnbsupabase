@@ -48,8 +48,7 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getPointEarningSettings, type PointEarningSettings } from '@/lib/point-earning-settings';
-import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, DocumentData, increment, serverTimestamp, getDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -276,118 +275,40 @@ export default function POS({ onPrintRequest }: POSProps) {
     }
 
     setIsProcessingCheckout(true);
-
     const storeId = activeStore.id;
-
     try {
-      let finalTransactionData: Transaction | null = null;
-      await runTransaction(db, async (transaction) => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) throw new Error('Sesi tidak valid');
 
-        const storeRef = doc(db, 'stores', storeId);
-        const storeDoc = await transaction.get(storeRef);
-        if (!storeDoc.exists()) {
-          throw new Error("Store document not found.");
-        }
-        const storeData = storeDoc.data();
+      const payload = {
+        storeId,
+        customerId: selectedCustomer?.id ?? null,
+        customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
+        staffId: currentUser.id,
+        subtotal,
+        discountAmount,
+        totalAmount,
+        paymentMethod,
+        items: cart,
+        tableId: selectedTableId,
+        status: 'Selesai Dibayar',
+        transactionFee,
+      };
 
-        const productReads = cart
-          .filter(item => !item.productId.startsWith('manual-'))
-          .map(item => ({
-            ref: doc(db, 'stores', storeId, 'products', item.productId),
-            item: item,
-          }));
-
-        const customerRef = selectedCustomer ? doc(db, 'stores', storeId, 'customers', selectedCustomer.id) : null;
-
-        const productDocs = await Promise.all(productReads.map(p => transaction.get(p.ref)));
-        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
-
-
-        // 1. Handle transaction count and first transaction date
-        const currentCounter = storeData.transactionCounter || 0;
-        const newReceiptNumber = currentCounter + 1;
-        const isFirstTransaction = currentCounter === 0;
-
-        const updatesForStore: { [key: string]: unknown } = {
-          transactionCounter: increment(1)
-        };
-        if (isFirstTransaction) {
-          updatesForStore.firstTransactionDate = serverTimestamp();
-        }
-
-        // 2. Token balance check and deduction for ALL users
-        const currentTokenBalance = storeData.pradanaTokenBalance || 0;
-        if (currentTokenBalance < transactionFee) {
-          throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-        }
-        updatesForStore.pradanaTokenBalance = increment(-transactionFee);
-        transaction.update(storeRef, updatesForStore);
-
-        // 3. Stock updates
-        for (let i = 0; i < productDocs.length; i++) {
-          const productDoc = productDocs[i];
-          const { item } = productReads[i];
-
-          if (!productDoc.exists()) throw new Error(`Produk ${item.productName} tidak ditemukan.`);
-
-          const currentStock = productDoc.data().stock || 0;
-          if (currentStock < item.quantity) throw new Error(`Stok tidak cukup untuk ${item.productName}.`);
-
-          transaction.update(productDoc.ref, { stock: increment(-item.quantity) });
-        }
-
-        // 4. Customer points update
-        if (selectedCustomer && customerDoc?.exists() && pointSettings) {
-          const earnedPoints = Math.floor(totalAmount / pointSettings.rpPerPoint);
-          const customerPoints = customerDoc.data()?.loyaltyPoints || 0;
-          const newPoints = customerPoints + earnedPoints - pointsToRedeem;
-          transaction.update(customerDoc.ref, { loyaltyPoints: newPoints });
-        }
-
-        // 5. Create transaction record
-        const newTransactionRef = doc(collection(db, 'stores', storeId, 'transactions'));
-        const transactionData: Transaction = {
-          id: newTransactionRef.id,
-          receiptNumber: newReceiptNumber,
-          storeId: activeStore.id,
-          customerId: selectedCustomer?.id || 'N/A',
-          customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
-          staffId: currentUser.id,
-          createdAt: new Date().toISOString(),
-          subtotal: subtotal,
-          discountAmount: discountAmount,
-          totalAmount: totalAmount,
-          paymentMethod: paymentMethod,
-          pointsEarned: pointsEarned,
-          pointsRedeemed: pointsToRedeem,
-          items: cart,
-          status: 'Diproses',
-          tableId: selectedTableId,
-        };
-        transaction.set(newTransactionRef, transactionData);
-
-        // 6. Update table status
-        const tableRef = doc(db, 'stores', storeId, 'tables', selectedTableId);
-        transaction.update(tableRef, {
-          status: 'Terisi',
-          currentOrder: {
-            items: cart,
-            totalAmount: totalAmount,
-            orderTime: new Date().toISOString(),
-          }
-        });
-
-        finalTransactionData = transactionData;
+      const res = await fetch('/api/pos/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(payload),
       });
-
-      toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
-
-      if (finalTransactionData) {
-        onPrintRequest(finalTransactionData);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({} as any));
+        throw new Error(j?.error || 'Gagal membuat transaksi');
       }
+      const { receiptNumber } = await res.json();
+      toast({ title: 'Pesanan Meja Berhasil Dibuat!', description: `No. Struk: ${receiptNumber}` });
 
       refreshPradanaTokenBalance();
-
       setCart([]);
       setDiscountValue(0);
       setPointsToRedeem(0);
@@ -398,9 +319,8 @@ export default function POS({ onPrintRequest }: POSProps) {
       params.set('view', 'pos');
       router.push(`/dashboard?${params.toString()}`);
 
-    } catch (error) {
-      console.error("Checkout failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.";
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Terjadi kesalahan yang tidak diketahui.';
       toast({ variant: 'destructive', title: 'Checkout Gagal', description: errorMessage });
     } finally {
       setIsProcessingCheckout(false);

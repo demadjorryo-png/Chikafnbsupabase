@@ -46,8 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc, deleteDoc, collection, addDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Dialog,
   DialogContent,
@@ -90,7 +89,11 @@ export default function Promotions() {
     if (!promotionToDelete) return;
 
     try {
-      await deleteDoc(doc(db, "redemptionOptions", promotionToDelete.id));
+      const { error } = await supabase
+        .from('redemption_options')
+        .delete()
+        .eq('id', promotionToDelete.id)
+      if (error) throw error
       refreshData();
       toast({
         title: 'Promosi Dihapus!',
@@ -112,7 +115,8 @@ export default function Promotions() {
 
 
   const handleSavePointEarning = () => {
-    updatePointEarningSettings({ rpPerPoint });
+    if (!activeStore) return;
+    updatePointEarningSettings(activeStore.id, { rpPerPoint });
     toast({
       title: 'Pengaturan Disimpan!',
       description: `Sekarang, pelanggan akan mendapatkan 1 poin untuk setiap pembelanjaan Rp ${rpPerPoint.toLocaleString('id-ID')}.`,
@@ -124,10 +128,12 @@ export default function Promotions() {
     if (!option) return;
 
     const newStatus = !option.isActive;
-    const optionRef = doc(db, 'redemptionOptions', id);
-
     try {
-      await updateDoc(optionRef, { isActive: newStatus });
+      const { error } = await supabase
+        .from('redemption_options')
+        .update({ is_active: newStatus })
+        .eq('id', id)
+      if (error) throw error
       refreshData();
       toast({
         title: 'Status Diperbarui',
@@ -203,13 +209,16 @@ export default function Promotions() {
   const handleApplyRecommendation = async (rec: PromotionRecommendationOutput['recommendations'][0]) => {
     if (!activeStore) return;
     try {
-      await addDoc(collection(db, "redemptionOptions"), {
-        description: rec.description,
-        pointsRequired: rec.pointsRequired,
-        value: rec.value,
-        isActive: false, // New promos from AI are inactive by default
-        storeId: activeStore.id,
-      });
+      const { error } = await supabase
+        .from('redemption_options')
+        .insert({
+          description: rec.description,
+          points_required: rec.pointsRequired,
+          value: rec.value,
+          is_active: false,
+          store_id: activeStore.id,
+        })
+      if (error) throw error
 
       refreshData();
       toast({

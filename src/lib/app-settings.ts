@@ -1,9 +1,8 @@
 
-'use client';
+'use client'
 
-import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
-import { db } from './firebase';
-import type { TransactionFeeSettings } from './types';
+import type { TransactionFeeSettings } from './types'
+import { supabase } from './supabaseClient'
 
 // Default settings in case the document doesn't exist in Firestore
 export const defaultFeeSettings: TransactionFeeSettings = {
@@ -19,40 +18,25 @@ export const defaultFeeSettings: TransactionFeeSettings = {
 };
 
 export async function getTransactionFeeSettings(): Promise<TransactionFeeSettings> {
-  const settingsDocRef = doc(db, 'appSettings', 'transactionFees');
-  try {
-    const docSnap = await getDoc(settingsDocRef);
-
-    if (docSnap.exists()) {
-      // Merge with defaults to ensure all properties are present
-      return { ...defaultFeeSettings, ...docSnap.data() };
-    } else {
-      console.warn(`Transaction fee settings not found, creating document with default values.`);
-      // If the document doesn't exist, create it with default values
-      await setDoc(settingsDocRef, defaultFeeSettings);
-      return defaultFeeSettings;
-    }
-  } catch (error) {
-    console.error("Error fetching transaction fee settings:", error);
-    return defaultFeeSettings;
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('data')
+    .eq('id', 'transactionFees')
+    .single()
+  if (error || !data) {
+    return defaultFeeSettings
   }
+  return { ...defaultFeeSettings, ...(data.data as any) }
 }
 
 export async function getPradanaTokenBalance(storeId: string): Promise<number> {
-    try {
-        const storeDocRef = doc(db, 'stores', storeId);
-        const docSnap = await getDoc(storeDocRef);
-
-        if (docSnap.exists()) {
-            return docSnap.data().pradanaTokenBalance || 0;
-        } else {
-            console.warn(`Store with ID ${storeId} not found.`);
-            return 0;
-        }
-    } catch (error) {
-        console.error("Error fetching Pradana Token balance:", error);
-        return 0;
-    }
+  const { data, error } = await supabase
+    .from('stores')
+    .select('pradana_token_balance')
+    .eq('id', storeId)
+    .single()
+  if (error || !data) return 0
+  return data.pradana_token_balance || 0
 }
 
 /**
@@ -67,22 +51,33 @@ export async function getPradanaTokenBalance(storeId: string): Promise<number> {
  */
 export async function deductAiUsageFee(
   currentBalance: number,
-  feeToDeduct: number,
+  feeOrSettings: number | TransactionFeeSettings,
   storeId: string,
   toast: (args: { variant: string; title: string; description: string }) => void,
   featureName?: string
 ) {
+  const feeToDeduct = typeof feeOrSettings === 'number'
+    ? feeOrSettings
+    : (featureName === 'Memulai sesi Chika AI' ? feeOrSettings.aiSessionFee : feeOrSettings.aiUsageFee)
+
   if (currentBalance < feeToDeduct) {
     toast({
       variant: 'destructive',
       title: 'Saldo Token Tidak Cukup',
       description: `Saldo Pradana Token toko (${currentBalance.toFixed(2)}) tidak cukup untuk membayar biaya fitur ini (${feeToDeduct}). Silakan top up.`,
-    });
-    throw new Error('Insufficient token balance');
+    })
+    throw new Error('Insufficient token balance')
   }
-  
-  const tokenDocRef = doc(db, 'stores', storeId);
-  await updateDoc(tokenDocRef, {
-    pradanaTokenBalance: increment(-feeToDeduct)
-  });
+
+  // Call secure API to deduct using service role
+  const { data: session } = await supabase.auth.getSession()
+  const accessToken = session?.session?.access_token
+  await fetch('/api/store/deduct-tokens', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ storeId, amount: feeToDeduct, featureName }),
+  })
 }

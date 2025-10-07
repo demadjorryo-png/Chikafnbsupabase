@@ -1,6 +1,5 @@
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabaseClient';
 
 export type PlatformStats = {
   totalRevenue: number;
@@ -26,19 +25,15 @@ const defaultStats: PlatformStats = {
  */
 export async function getPlatformStats(): Promise<PlatformStats> {
   try {
-    const statsDocRef = doc(db, 'platform', 'stats');
-    const docSnap = await getDoc(statsDocRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data() as PlatformStats;
-    } else {
-      console.warn("Platform stats document ('platform/stats') not found. Returning default stats. Ensure your Cloud Function is running and writing to this document.");
-      // If the document doesn't exist, it means the Cloud Function hasn't run yet or is misconfigured.
-      return defaultStats;
-    }
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('data')
+      .eq('id', 'platformStats')
+      .single()
+    if (error || !data) return defaultStats
+    return { ...defaultStats, ...(data.data as any) }
   } catch (error) {
-    console.error("Error fetching platform stats:", error);
-    // Return default stats in case of any error to prevent the dashboard from crashing.
-    return defaultStats;
+    console.error('Error fetching platform stats:', error)
+    return defaultStats
   }
 }

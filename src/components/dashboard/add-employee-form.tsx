@@ -24,7 +24,7 @@ import {
 import * as React from 'react';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { auth } from '@/lib/firebase';
+import { supabase } from '@/lib/supabaseClient';
 
 const FormSchema = z.object({
     email: z.string().email({
@@ -70,7 +70,8 @@ export function AddEmployeeForm({ setDialogOpen, onEmployeeAdded }: AddEmployeeF
       setIsLoading(true);
       
       try {
-        const idToken = await auth.currentUser?.getIdToken(true);
+        const { data: session } = await supabase.auth.getSession();
+        const idToken = session?.session?.access_token;
         if (!idToken) {
           throw new Error("Tidak dapat memperoleh token otentikasi.");
         }
