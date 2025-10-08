@@ -14,7 +14,6 @@ import Transactions from '@/app/dashboard/views/transactions';
 import Employees from '@/app/dashboard/views/employees';
 import Settings from '@/app/dashboard/views/settings';
 import Challenges from '@/app/dashboard/views/challenges';
-// Hapus import Promotions from '@/app/dashboard/views/promotions';
 import ReceiptSettings from '@/app/dashboard/views/receipt-settings';
 import AIBusinessPlan from '@/app/dashboard/views/ai-business-plan';
 import Tables from '@/app/dashboard/views/tables';
@@ -113,8 +112,6 @@ function DashboardContent() {
         return <Settings />;
       case 'challenges':
         return <Challenges />;
-      // Hapus case 'promotions':
-      //   return <Promotions />;
       case 'receipt-settings':
         return <ReceiptSettings />;
       case 'ai-business-plan':
@@ -141,7 +138,6 @@ function DashboardContent() {
       'transactions': 'Riwayat Transaksi',
       'settings': 'Pengaturan',
       'challenges': 'Tantangan Karyawan',
-      'promotions': 'Promosi',
       'receipt-settings': 'Pengaturan Struk',
       'ai-business-plan': 'AI Business Plan',
     }[view] || 'Kasir POS';

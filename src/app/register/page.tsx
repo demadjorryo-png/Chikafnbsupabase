@@ -21,18 +21,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/dashboard/logo';
 import { Loader, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
-import { doc, writeBatch } from 'firebase/firestore';
-import { getTransactionFeeSettings } from '@/lib/app-settings';
-import { FirebaseError } from 'firebase/app';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-// Hapus import { getWhatsappSettings } from '@/lib/whatsapp-settings';
-
-interface WhatsappSettings {
-  deviceId: string;
-  adminGroup: string;
-}
+import { createBrowserClient } from '@supabase/ssr';
 
 const registerSchema = z.object({
   storeName: z.string().min(3, { message: 'Nama toko minimal 3 karakter.' }),
@@ -48,6 +37,11 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  // Correctly initialize the Supabase client with environment variables
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -63,102 +57,20 @@ export default function RegisterPage() {
 
   const handleRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
-    let newUser = null;
 
     try {
-      // Fetch app settings to get bonus tokens
-      const feeSettings = await getTransactionFeeSettings();
-      const bonusTokens = feeSettings.newStoreBonusTokens || 0;
-
-      // Step 1: Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      newUser = userCredential.user;
-      const uid = newUser.uid;
-      
-      // Step 2: Create a batch write for Firestore operations
-      const batch = writeBatch(db);
-      const storeId = uid; // Using UID as store ID for simplicity
-
-      // Create store document
-      const storeRef = doc(db, 'stores', storeId);
-      batch.set(storeRef, {
-        name: values.storeName,
-        location: values.storeLocation,
-        pradanaTokenBalance: bonusTokens,
-        adminUids: [uid],
-        createdAt: new Date().toISOString(),
-        transactionCounter: 0, // Initialize transaction counter
-        firstTransactionDate: null, // Initialize first transaction date
+      const { data, error } = await supabase.functions.invoke('create-store', {
+        body: values,
       });
 
-      // Create user document
-      const userRef = doc(db, 'users', uid);
-      batch.set(userRef, {
-        name: values.adminName,
-        email: values.email,
-        whatsapp: values.whatsapp,
-        role: 'admin',
-        status: 'active',
-        storeId: storeRef.id,
-      });
-
-      // Step 3: Commit the batch
-      await batch.commit();
-
-      // Step 4: Send welcome message via WhatsApp using a Cloud Function
-      const welcomeMessage = 
-`🎉 *Selamat Datang di Chika POS F&B, ${values.adminName}!* 🎉
-
-Toko Anda telah berhasil dibuat dengan detail berikut:
-- *Nama Toko:* ${values.storeName}
-- *Nama Admin:* ${values.adminName}
-- *Email Login:* ${values.email}
-
-Sebagai bonus selamat datang, kami telah menambahkan *${bonusTokens} Pradana Token* ke akun Anda.
-
-*PENTING:* Mohon jaga kerahasiaan password Anda dan jangan bagikan kepada siapapun.
-
-Anda sekarang dapat login ke aplikasi untuk mulai mengelola bisnis Anda.
-
-Salam hangat,
-*Tim Chika POS F&B*`;
-
-      const formattedPhone = values.whatsapp.startsWith('0') ? `62${values.whatsapp.substring(1)}` : values.whatsapp;
-      
-      const functions = getFunctions();
-      const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
-
-      // Fire-and-forget sending to user
-      sendWhatsapp({
-          storeId: storeId,
-          target: formattedPhone,
-          message: welcomeMessage
-      }).catch(err => console.error("Failed to send welcome WhatsApp to user:", err));
-      
-      // Ambil pengaturan WhatsApp dari API Route
-      const whatsappSettingsResponse = await fetch(`/api/whatsapp-settings?storeId=${storeId}`);
-      if (whatsappSettingsResponse.ok) {
-        const settings: WhatsappSettings = await whatsappSettingsResponse.json();
-        if (settings.adminGroup) {
-            const adminMessage = `*PENDAFTARAN TOKO BARU*
-Nama Toko: *${values.storeName}*
-Admin: *${values.adminName}*
-Email: ${values.email}
-Lokasi: ${values.storeLocation}
-            
-Akun telah berhasil dibuat dan mendapatkan bonus *${bonusTokens} Token*.`;
-
-            sendWhatsapp({
-                storeId: storeId,
-                target: settings.adminGroup,
-                message: adminMessage,
-                isGroup: true,
-            }).catch(err => console.error("Failed to send notification to admin group:", err));
+      if (error) {
+        // The Edge Function will return a specific status code for duplicate emails
+        if (error.context?.status === 409) {
+            throw new Error('Email ini sudah terdaftar. Silakan gunakan email lain atau login.');
+        } else {
+            throw new Error(error.message || 'Terjadi kesalahan saat mendaftar.');
         }
-      } else {
-        console.error("Failed to fetch WhatsApp settings from API route.");
       }
-
 
       toast({
         title: 'Pendaftaran Berhasil!',
@@ -167,21 +79,8 @@ Akun telah berhasil dibuat dan mendapatkan bonus *${bonusTokens} Token*.`;
       router.push('/login');
 
     } catch (error) {
-      // Cleanup: If user was created but Firestore failed, delete the user
-      if (newUser) {
-        await deleteUser(newUser).catch(deleteError => {
-          console.error("Failed to clean up orphaned user:", deleteError);
-        });
-      }
-
       let errorMessage = 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.';
-      if (error instanceof FirebaseError) {
-          if (error.code === 'auth/email-already-in-use') {
-            errorMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.';
-          } else {
-            errorMessage = `Error: ${error.code}`;
-          }
-      } else if (error instanceof Error) {
+       if (error instanceof Error) {
         errorMessage = error.message;
       }
       

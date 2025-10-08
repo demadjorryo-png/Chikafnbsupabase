@@ -31,8 +31,6 @@ import { Logo } from '@/components/dashboard/logo';
 import { Loader, Sparkles, LogIn, Megaphone, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AppConsultantChatDialog } from '@/components/dashboard/app-consultant-chat-dialog';
-// Hapus import { getLoginPromoSettings, type LoginPromoSettings, defaultLoginPromoSettings } from '@/lib/login-promo-settings';
-import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -65,7 +63,6 @@ export default function LoginPage() {
     line3: "",
     footnote: "Penawaran terbatas!"
   });
-  // Hapus const [isPromoLoading, setIsPromoLoading] = React.useState(true);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -85,20 +82,6 @@ export default function LoginPage() {
         email: '',
     },
   });
-
-  // Hapus React.useEffect(() => {
-  //   async function fetchPromo() {
-  //       try {
-  //           const settings = await getLoginPromoSettings();
-  //           setPromoSettings(settings);
-  //       } catch (error) {
-  //           console.error("Failed to load promo settings, using defaults.");
-  //       } finally {
-  //           setIsPromoLoading(false);
-  //       }
-  //   }
-  //   fetchPromo();
-  // }, []);
   
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsLoginLoading(true);
@@ -205,7 +188,6 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 text-left text-sm">
-                    {/* Hapus kondisional isPromoLoading, tampilkan langsung promoSettings */}
                     <>
                         <p className="font-headline tracking-wider text-primary flex items-center gap-2 mb-2"><Megaphone/> {promoSettings.title}</p>
                         {promoSettings.line1 && <p>{promoSettings.line1}</p>}

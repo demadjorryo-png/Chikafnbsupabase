@@ -121,7 +121,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         capacity: t.capacity ?? 0,
         currentOrder: t.current_order ?? null,
       })) as Table[])
-      setChallengePeriods((challengePeriodsRes.data || []) as ChallengePeriod[])
+      setChallengePeriods((challengePeriodsRes.data || []).map((c: any) => ({
+        id: c.id,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        period: c.period,
+        challenges: c.challenges ?? [],
+        isActive: c.is_active,
+        createdAt: c.created_at,
+      })) as ChallengePeriod[])
       setFeeSettings(feeSettingsData as TransactionFeeSettings)
 
       if (activeStore) {
@@ -143,44 +151,49 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     refreshData()
 
-    // Simple polling for transactions and pending orders as interim replacement for Firestore onSnapshot
     let interval: any
     if (currentUser.role !== 'superadmin' && activeStore?.id) {
       const storeId = activeStore.id
       const fetchRealtime = async () => {
-        const [txRes, poRes] = await Promise.all([
-          supabase.from('transactions').select('*').eq('store_id', storeId).order('created_at', { ascending: false }),
-          supabase.from('pending_orders').select('*').eq('store_id', storeId),
-        ])
-        setTransactions((txRes.data || []).map((t: any) => ({
-          id: t.id,
-          receiptNumber: t.receipt_number,
-          storeId: t.store_id,
-          customerId: t.customer_id,
-          customerName: t.customer_name,
-          staffId: t.staff_id,
-          createdAt: new Date(t.created_at).toISOString(),
-          subtotal: Number(t.subtotal ?? 0),
-          discountAmount: Number(t.discount_amount ?? 0),
-          totalAmount: Number(t.total_amount ?? 0),
-          paymentMethod: t.payment_method,
-          pointsEarned: t.points_earned ?? 0,
-          pointsRedeemed: t.points_redeemed ?? 0,
-          items: t.items ?? [],
-          tableId: t.table_id ?? undefined,
-          status: t.status,
-        })) as Transaction[])
-        setPendingOrders((poRes.data || []).map((p: any) => ({
-          id: p.id,
-          storeId: p.store_id,
-          customerId: p.customer_id,
-          customerName: p.customer_name,
-          customerAvatarUrl: p.customer_avatar_url,
-          productId: p.product_id,
-          productName: p.product_name,
-          quantity: p.quantity,
-          createdAt: new Date(p.created_at).toISOString(),
-        })) as PendingOrder[])
+        try {
+            const [txRes, poRes] = await Promise.all([
+              supabase.from('transactions').select('*').eq('store_id', storeId).order('created_at', { ascending: false }),
+              supabase.from('pending_orders').select('*').eq('store_id', storeId),
+            ])
+            setTransactions((txRes.data || []).map((t: any) => ({
+              id: t.id,
+              receiptNumber: t.receipt_number,
+              storeId: t.store_id,
+              customerId: t.customer_id,
+              customerName: t.customer_name,
+              staffId: t.staff_id,
+              createdAt: new Date(t.created_at).toISOString(),
+              subtotal: Number(t.subtotal ?? 0),
+              discountAmount: Number(t.discount_amount ?? 0),
+              totalAmount: Number(t.total_amount ?? 0),
+              paymentMethod: t.payment_method,
+              pointsEarned: t.points_earned ?? 0,
+              pointsRedeemed: t.points_redeemed ?? 0,
+              items: t.items ?? [],
+              tableId: t.table_id ?? undefined,
+              status: t.status,
+            })) as Transaction[])
+            setPendingOrders((poRes.data || []).map((p: any) => ({
+              id: p.id,
+              storeId: p.store_id,
+              customerId: p.customer_id,
+              customerName: p.customer_name,
+              customerAvatarUrl: p.customer_avatar_url,
+              productId: p.product_id,
+              productName: p.product_name,
+              quantity: p.quantity,
+              createdAt: new Date(p.created_at).toISOString(),
+            })) as PendingOrder[])
+        } catch (error) {
+            console.error('Error fetching real-time data:', error);
+            // Optional: Show a non-intrusive toast notification
+            // toast({ variant: 'destructive', title: 'Update Gagal', description: 'Gagal menyinkronkan data terbaru.' });
+        }
       }
       fetchRealtime()
       interval = setInterval(fetchRealtime, 5000)

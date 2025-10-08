@@ -22,20 +22,17 @@ import {
   History,
   Users,
   Trophy,
-  Gift,
   CircleDollarSign,
   Receipt,
   UserCircle,
   BarChart4,
   Armchair,
-  ShieldCheck,
   Store,
   Wallet,
   TrendingUp,
   Map,
 } from 'lucide-react';
 import * as React from 'react';
-import type { User } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { TopUpDialog } from '@/components/dashboard/top-up-dialog';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
@@ -98,7 +95,6 @@ export function MainSidebar({ pradanaTokenBalance }: MainSidebarProps) {
         roles: ['admin', 'cashier'],
         items: [
             { view: 'customer-analytics', label: 'Analisis Pelanggan', icon: <BarChart4 />, roles: ['admin'] },
-            { view: 'promotions', label: 'Promosi', icon: <Gift />, roles: ['admin', 'cashier'] },
             { view: 'challenges', label: 'Tantangan', icon: <Trophy />, roles: ['admin'] },
             { view: 'ai-business-plan', label: 'AI Business Plan', icon: <Map />, roles: ['admin'] },
         ]
