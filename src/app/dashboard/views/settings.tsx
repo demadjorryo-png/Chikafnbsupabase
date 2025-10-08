@@ -24,13 +24,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth, db } from '@/lib/firebase';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from 'firebase/auth';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info, Newspaper } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -38,9 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-settings';
 import type { ReceiptSettings, NotificationSettings } from '@/lib/types';
-// Hapus import { convertTextToSpeech } from '@/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { FirebaseError } from 'firebase/app';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 
@@ -147,9 +139,8 @@ export default function Settings() {
     values: z.infer<typeof PasswordFormSchema>
   ) => {
     setIsPasswordChangeLoading(true);
-    const user = auth.currentUser;
 
-    if (!user || !user.email) {
+    if (!currentUser || !currentUser.email) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -159,25 +150,39 @@ export default function Settings() {
       return;
     }
 
-    const credential = EmailAuthProvider.credential(
-      user.email,
-      values.currentPassword
-    );
-
     try {
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, values.newPassword);
+      // Reauthenticate: Sign in again to verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: values.currentPassword,
+      });
+
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          throw new Error('Password Anda saat ini salah.');
+        } else {
+          throw signInError;
+        }
+      }
+
+      // If reauthentication is successful, update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: values.newPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
       toast({
         title: 'Berhasil!',
         description: 'Password Anda telah berhasil diubah.',
       });
       passwordForm.reset();
-    } catch (error) {
+    } catch (error: any) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error instanceof FirebaseError) {
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          description = 'Password Anda saat ini salah.';
-        }
+      if (error && error.message) {
+        description = error.message;
       }
       toast({
         variant: 'destructive',
@@ -193,12 +198,18 @@ export default function Settings() {
     if (!activeStore || !generalSettings || !notificationSettings) return;
     setIsGeneralSettingLoading(true);
     try {
-        const storeRef = doc(db, 'stores', activeStore.id);
-        await setDoc(storeRef, {
-            businessDescription: businessDescription,
-            notificationSettings: notificationSettings
-        }, { merge: true });
+      const { error: storeUpdateError } = await supabase
+        .from('stores')
+        .update({
+            business_description: businessDescription, // Supabase expects snake_case
+            notification_settings: notificationSettings,
+        })
+        .eq('id', activeStore.id);
   
+      if (storeUpdateError) {
+        throw storeUpdateError;
+      }
+
       await updateReceiptSettings(activeStore.id, {
         voiceGender: generalSettings.voiceGender,
         notificationStyle: generalSettings.notificationStyle,

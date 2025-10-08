@@ -1,6 +1,6 @@
 'use server';
 
-import { adminDb } from './firebase-admin';
+import { supabaseAdmin } from './supabaseAdmin';
 
 export type WhatsappSettings = {
     deviceId: string;
@@ -14,42 +14,42 @@ export const defaultWhatsappSettings: WhatsappSettings = {
 };
 
 /**
- * Fetches WhatsApp settings from Firestore using the Admin SDK.
- * This function is intended for server-side use only (e.g., in Cloud Functions).
+ * Fetches WhatsApp settings from Supabase using the Admin SDK.
+ * This function is intended for server-side use only.
  * @param storeId The ID of the store (can be "platform" for global settings).
  * @returns The WhatsApp settings, or default settings if not found.
  */
 export async function getWhatsappSettings(storeId: string): Promise<WhatsappSettings> {
-    const settingsDocRef = adminDb.collection('appSettings').doc('whatsappConfig');
     try {
-        const docSnap = await settingsDocRef.get();
+        const { data, error } = await supabaseAdmin
+            .from('app_settings')
+            .select('data')
+            .eq('id', 'whatsappConfig')
+            .single();
 
-        if (docSnap.exists) {
+        if (error && error.code !== 'PGRST116') { // PGRST116 is 'No rows found'
+            console.error("Error fetching WhatsApp settings:", error.message);
+            return defaultWhatsappSettings;
+        }
+
+        if (data) {
             // Merge with defaults to ensure all properties are present
-            return { ...defaultWhatsappSettings, ...docSnap.data() as WhatsappSettings };
+            return { ...defaultWhatsappSettings, ...data.data as WhatsappSettings };
         } else {
             console.warn(`WhatsApp settings not found, creating document with default values.`);
             // If the document doesn't exist, create it with default values
-            await settingsDocRef.set(defaultWhatsappSettings);
+            const { error: insertError } = await supabaseAdmin
+                .from('app_settings')
+                .upsert({ id: 'whatsappConfig', data: defaultWhatsappSettings });
+            
+            if (insertError) {
+                console.error("Error creating default WhatsApp settings:", insertError.message);
+            }
             return defaultWhatsappSettings;
         }
     } catch (error) {
-        console.error("Error fetching WhatsApp settings:", error);
+        console.error("Error fetching or setting WhatsApp settings:", error);
         // Return defaults in case of any error
         return defaultWhatsappSettings;
     }
 }
-
-/**
- * // Temporarily disabled: This function is intended for client-side updates
- * // and uses client-side Firebase SDK. It should not be part of Cloud Functions.
- * // If needed, refactor to use Firebase Admin SDK or a separate API endpoint.
- * export async function updateWhatsappSettings(newSettings: Partial<WhatsappSettings>) {
- *     // We are using adminDb for server-side operations, which does not have `db`.
- *     // This function would typically interact with the client-side Firebase `db`.
- *     // If this function is truly needed within a Cloud Function context, it needs
- *     // to be rewritten to use the Firebase Admin SDK.
- *     console.error("updateWhatsappSettings is not implemented for Cloud Functions.");
- *     throw new Error("updateWhatsappSettings is not available in this environment.");
- * }
-*/

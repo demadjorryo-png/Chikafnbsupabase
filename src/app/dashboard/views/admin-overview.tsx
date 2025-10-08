@@ -32,10 +32,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import type { AppliedStrategy, TransactionItem } from '@/lib/types';
-// Hapus import { getAdminRecommendations } from '@/ai/flows/admin-recommendation';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
 import Papa from 'papaparse';
@@ -79,9 +77,16 @@ export default function AdminOverview() {
     if (!activeStore) return;
     const fetchStrategies = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'stores', activeStore.id, 'appliedStrategies'));
-        const strategies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppliedStrategy));
-        setAppliedStrategies(strategies);
+        const { data, error } = await supabase
+          .from('applied_strategies')
+          .select('*')
+          .eq('store_id', activeStore.id);
+
+        if (error) {
+          throw error;
+        }
+
+        setAppliedStrategies(data as AppliedStrategy[]);
       } catch (error) {
         console.error("Error fetching applied strategies:", error);
         toast({
@@ -184,15 +189,25 @@ export default function AdminOverview() {
   const handleApplyStrategy = async (type: 'weekly' | 'monthly', recommendation: string) => {
     if (!activeStore) return;
     const newStrategyData = {
+      store_id: activeStore.id,
       type,
       recommendation,
-      appliedDate: formatISO(new Date()),
+      applied_date: formatISO(new Date()), // Supabase expects snake_case and ISO string for dates
       status: 'active' as const,
     };
 
     try {
-      const docRef = await addDoc(collection(db, 'stores', activeStore.id, 'appliedStrategies'), newStrategyData);
-      setAppliedStrategies(prev => [...prev, { id: docRef.id, ...newStrategyData }]);
+      const { data, error } = await supabase
+        .from('applied_strategies')
+        .insert([newStrategyData])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setAppliedStrategies(prev => [...prev, data as AppliedStrategy]);
       toast({
         title: 'Strategi Diterapkan!',
         description: `Strategi ${type} telah ditambahkan ke daftar lacak.`,
@@ -202,7 +217,7 @@ export default function AdminOverview() {
       toast({
         variant: 'destructive',
         title: 'Gagal Menerapkan Strategi',
-        description: 'Terjadi kesalahan saat menyimpan data ke Firestore.'
+        description: 'Terjadi kesalahan saat menyimpan data ke Supabase.'
       });
     }
   };
@@ -210,7 +225,15 @@ export default function AdminOverview() {
   const handleCompleteStrategy = async (id: string) => {
     if (!activeStore) return;
     try {
-      await deleteDoc(doc(db, 'stores', activeStore.id, 'appliedStrategies', id));
+      const { error } = await supabase
+        .from('applied_strategies')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       setAppliedStrategies(prev => prev.filter(s => s.id !== id));
       toast({
         title: 'Strategi Selesai!',
@@ -221,7 +244,7 @@ export default function AdminOverview() {
       toast({
         variant: 'destructive',
         title: 'Gagal Menyelesaikan Strategi',
-        description: 'Terjadi kesalahan saat menghapus data dari Firestore.'
+        description: 'Terjadi kesalahan saat menghapus data dari Supabase.'
       });
     }
   };
@@ -435,41 +458,6 @@ export default function AdminOverview() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingUp className="text-primary" />Produk Terlaris</CardTitle>
-            <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {topProductsThisMonth.map(([name, quantity], index) => (
-                <li key={name} className="flex justify-between text-sm font-medium">
-                  <span>{index + 1}. {name}</span>
-                  <span className="font-mono">{quantity}x</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline tracking-wider"><TrendingDown className="text-destructive" />Produk Kurang Laris</CardTitle>
-            <CardDescription>Bulan ini, berdasarkan unit terjual</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {worstProductsThisMonth.map(([name, quantity], index) => (
-                <li key={name} className="flex justify-between text-sm font-medium">
-                  <span>{index + 1}. {name}</span>
-                  <span className="font-mono">{quantity}x</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
       {appliedStrategies.length > 0 && (
         <Card>
           <CardHeader>
@@ -481,7 +469,7 @@ export default function AdminOverview() {
               <Card key={strategy.id} className="border-l-4 border-primary">
                 <CardHeader>
                   <CardTitle className="text-base capitalize">Strategi {strategy.type}</CardTitle>
-                  <CardDescription>Diterapkan pada: {format(new Date(strategy.appliedDate), 'd MMMM yyyy')}</CardDescription>
+                  <CardDescription>Diterapkan pada: {format(new Date(strategy.applied_date), 'd MMMM yyyy')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{strategy.recommendation}</p>
@@ -581,6 +569,3 @@ export default function AdminOverview() {
     </div>
   );
 }
-
-
-

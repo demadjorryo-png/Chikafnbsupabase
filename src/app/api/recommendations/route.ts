@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { admin } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface AdminRecommendationInput {
   businessDescription: string;
@@ -25,21 +24,44 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid input parameters' }, { status: 400 });
     }
 
-  const functions = getFunctions(admin);
-    const callAdminRecommendation = httpsCallable<AdminRecommendationInput, AdminRecommendationOutput>(functions, 'adminRecommendationFlow');
+    // Call Supabase Edge Function
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      return NextResponse.json({ error: 'Supabase URL is not configured.' }, { status: 500 });
+    }
 
-    const result = await callAdminRecommendation({
+    const { data: tokenData, error: tokenError } = await supabaseAdmin.auth.getSession();
+    let accessToken = tokenData?.session?.access_token;
+
+    if (tokenError || !accessToken) {
+        console.warn("Could not get access token for Edge Function call, proceeding without it.", tokenError);
+        // Optionally, handle this error more strictly if the Edge Function requires authentication.
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/admin-recommendation-flow`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
         businessDescription,
         totalRevenueLastWeek,
         totalRevenueLastMonth,
         topSellingProducts,
         worstSellingProducts,
+      }),
     });
 
-    return NextResponse.json(result.data);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to call Edge Function');
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error in recommendations API:', error);
-    // You might want to log the error or handle it in a more sophisticated way
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -23,8 +23,7 @@ import {
 } from '@/components/ui/select';
 import type { User } from '@/lib/types';
 import * as React from 'react';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Loader } from 'lucide-react';
 
 const FormSchema = z.object({
@@ -56,14 +55,20 @@ export function EditEmployeeForm({ setDialogOpen, employee, onEmployeeUpdated }:
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
-    const userDocRef = doc(db, 'users', employee.id);
 
     try {
-        await updateDoc(userDocRef, {
-            name: data.name,
-            role: data.role,
-        });
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                display_name: data.name, // Mengganti 'name' dengan 'display_name' sesuai skema Supabase
+                role: data.role,
+            })
+            .eq('id', employee.id);
         
+        if (error) {
+            throw error;
+        }
+
         toast({
         title: 'Karyawan Diperbarui!',
         description: `Data untuk ${data.name} telah berhasil diperbarui.`,

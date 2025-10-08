@@ -59,8 +59,7 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { pointEarningSettings } from '@/lib/point-earning-settings';
-import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, getDoc, DocumentReference, increment, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import type { TransactionFeeSettings } from '@/lib/app-settings';
@@ -291,109 +290,50 @@ export default function POS({ products, customers, tables, onDataChange, isLoadi
     
     setIsProcessingCheckout(true);
     
-    const storeId = activeStore.id;
-    const productCollectionName = `products_${storeId}`;
-    const customerCollectionName = `customers_${storeId}`;
-    const transactionCollectionName = `transactions_${storeId}`;
-    const tableCollectionName = `tables_${storeId}`;
-    
     try {
-      let finalTransactionData: Transaction | null = null;
-      await runTransaction(db, async (transaction) => {
-        
-        const storeRef = doc(db, 'stores', storeId);
-
-        const productReads = cart
-          .filter(item => !item.productId.startsWith('manual-'))
-          .map(item => ({
-            ref: doc(db, productCollectionName, item.productId),
-            item: item,
-          }));
-        
-        const customerRef = selectedCustomer ? doc(db, customerCollectionName, selectedCustomer.id) : null;
-  
-        const productDocs = await Promise.all(
-          productReads.map(p => transaction.get(p.ref))
-        );
-        const customerDoc = customerRef ? await transaction.get(customerRef) : null;
-        
-        const storeTokenDoc = await transaction.get(storeRef);
-
-        const currentTokenBalance = storeTokenDoc?.data()?.pradanaTokenBalance || 0;
-        if (currentTokenBalance < transactionFee) {
-            throw new Error(`Saldo Token Toko Tidak Cukup. Sisa: ${currentTokenBalance.toFixed(2)}, Dibutuhkan: ${transactionFee.toFixed(2)}`);
-        }
-        
-        const stockUpdates: { ref: DocumentReference, newStock: number }[] = [];
-        
-        for (let i = 0; i < productDocs.length; i++) {
-          const productDoc = productDocs[i];
-          const { item } = productReads[i];
-          
-          if (!productDoc.exists()) {
-            throw new Error(`Produk ${item.productName} tidak ditemukan di database.`);
-          }
-          const currentStock = productDoc.data().stock || 0;
-          const newStock = currentStock - item.quantity;
-          if (newStock < 0) {
-            throw new Error(`Stok tidak cukup untuk ${item.productName}. Sisa ${currentStock}.`);
-          }
-          stockUpdates.push({ ref: productDoc.ref, newStock });
-        }
-
-        let newCustomerPoints: number | null = null;
-        if (selectedCustomer && customerDoc) {
-          if (!customerDoc.exists()) {
-            throw new Error(`Pelanggan ${selectedCustomer.name} tidak ditemukan.`);
-          }
-          const currentPoints = customerDoc.data()?.loyaltyPoints || 0;
-          newCustomerPoints = currentPoints + pointsEarned - pointsToRedeem;
-        }
-
-        transaction.update(storeRef, { pradanaTokenBalance: increment(-transactionFee) });
-        
-        stockUpdates.forEach(update => {
-          transaction.update(update.ref, { stock: update.newStock });
-        });
-
-        if (customerRef && newCustomerPoints !== null) {
-          transaction.update(customerRef, { loyaltyPoints: newCustomerPoints });
-        }
-        
-        const newTransactionRef = doc(collection(db, transactionCollectionName));
-        const transactionData: Transaction = {
-            id: newTransactionRef.id,
-            storeId: activeStore.id,
-            customerId: selectedCustomer?.id || 'N/A',
-            customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
-            staffId: currentUser.id,
-            createdAt: new Date().toISOString(),
-            subtotal: subtotal,
-            discountAmount: discountAmount,
-            totalAmount: totalAmount,
-            paymentMethod: paymentMethod,
-            pointsEarned: pointsEarned,
-            pointsRedeemed: pointsToRedeem,
-            items: cart,
-            status: 'Diproses', // All table orders are processed
-            tableId: selectedTableId,
-        };
-        transaction.set(newTransactionRef, transactionData);
-        
-        const tableRef = doc(db, tableCollectionName, selectedTableId);
-        transaction.update(tableRef, {
-            status: 'Terisi',
-            currentOrder: {
-                items: cart,
-                totalAmount: totalAmount,
-                orderTime: new Date().toISOString(),
-            }
-        });
-        
-        finalTransactionData = transactionData;
+      const { data, error } = await supabase.rpc('perform_checkout', {
+        p_store_id: activeStore.id,
+        p_customer_id: selectedCustomer?.id || null,
+        p_customer_name: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
+        p_staff_id: currentUser.id,
+        p_subtotal: subtotal,
+        p_discount_amount: discountAmount,
+        p_total_amount: totalAmount,
+        p_payment_method: paymentMethod,
+        p_points_earned: pointsEarned,
+        p_points_redeemed: pointsToRedeem,
+        p_items: cart,
+        p_table_id: selectedTableId,
+        p_status: 'Diproses', // All table orders are processed
       });
 
-      toast({ title: "Pesanan Meja Berhasil Dibuat!", description: "Transaksi telah disimpan dan status meja diperbarui." });
+      if (error) {
+        throw error;
+      }
+
+      const newTransactionId = data.id; // Assume the RPC returns { id: uuid, receipt_number: bigint }
+      const newReceiptNumber = data.receipt_number;
+
+      const finalTransactionData: Transaction = {
+          id: newTransactionId,
+          receiptNumber: newReceiptNumber,
+          storeId: activeStore.id,
+          customerId: selectedCustomer?.id || 'N/A',
+          customerName: selectedCustomer?.name || (selectedTableId ? `Meja ${selectedTableName}` : 'Guest'),
+          staffId: currentUser.id,
+          createdAt: new Date().toISOString(),
+          subtotal: subtotal,
+          discountAmount: discountAmount,
+          totalAmount: totalAmount,
+          paymentMethod: paymentMethod,
+          pointsEarned: pointsEarned,
+          pointsRedeemed: pointsToRedeem,
+          items: cart,
+          status: 'Diproses', // All table orders are processed
+          tableId: selectedTableId,
+      };
+
+      toast({ title: "Pesanan Meja Berhasil Dibuat!", description: `Transaksi ${newReceiptNumber} telah disimpan dan status meja diperbarui.` });
       
       if (finalTransactionData) {
         onPrintRequest(finalTransactionData);

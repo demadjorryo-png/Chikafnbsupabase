@@ -52,8 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { db } from '@/lib/firebase';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -116,10 +115,17 @@ export default function Products({ products, onDataChange, isLoading }: Products
 
     setUpdatingStock(productId);
 
-    const productRef = doc(db, 'stores', currentStoreId, 'products', productId);
-
     try {
-      await updateDoc(productRef, { stock: newStock });
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', productId)
+        .eq('store_id', currentStoreId); // Pastikan update hanya untuk produk di toko aktif
+
+      if (error) {
+        throw error;
+      }
+
       onDataChange(); // Refresh data from parent
     } catch (error) {
       console.error("Error updating stock:", error);
@@ -152,7 +158,16 @@ export default function Products({ products, onDataChange, isLoading }: Products
     if (!selectedProduct || !currentStoreId) return;
 
     try {
-      await deleteDoc(doc(db, 'stores', currentStoreId, 'products', selectedProduct.id));
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', selectedProduct.id)
+        .eq('store_id', currentStoreId); // Pastikan delete hanya untuk produk di toko aktif
+
+      if (error) {
+        throw error;
+      }
+
       toast({
         title: 'Produk Dihapus!',
         description: `Produk "${selectedProduct.name}" telah berhasil dihapus.`,

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { admin } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface ReceiptPromoInput {
   activePromotions: string[];
@@ -15,7 +13,7 @@ interface ReceiptPromoOutput {
 // Very small example of a server-side proxy endpoint that forwards requests to
 // a specific AI flow. This endpoint includes basic in-memory rate limiting and
 // simple logging. Adapt/replace with production-appropriate rate limiters and
-// authentication (e.g., Firebase auth token checks) as needed.
+// authentication (e.g., Supabase auth token checks) as needed.
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10;
@@ -46,16 +44,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing input in request body' }, { status: 400 });
     }
 
-    // Panggil Cloud Function Genkit (receiptPromoFlow)
-  const functions = getFunctions(admin);
-    const callReceiptPromo = httpsCallable<ReceiptPromoInput, ReceiptPromoOutput>(functions, 'receiptPromoFlow');
+    // Call Supabase Edge Function
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      return NextResponse.json({ error: 'Supabase URL is not configured.' }, { status: 500 });
+    }
 
-    const result = await callReceiptPromo(input);
+    const { data: tokenData, error: tokenError } = await supabaseAdmin.auth.getSession();
+    let accessToken = tokenData?.session?.access_token;
+
+    if (tokenError || !accessToken) {
+        console.warn("Could not get access token for Edge Function call, proceeding without it.", tokenError);
+        // Optionally, handle this error more strictly if the Edge Function requires authentication.
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/receipt-promo-flow`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to call Edge Function');
+    }
+
+    const result = await response.json();
 
     // Optionally log or persist an audit record here (don't log secrets)
-    // e.g. console.info('AI proxy used by', ip, 'flow=receiptPromo');
+    // e.info('AI proxy used by', ip, 'flow=receiptPromo');
 
-    return NextResponse.json(result.data);
+    return NextResponse.json(result);
   } catch (err: unknown) {
     let message = 'Internal Server Error';
     if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {

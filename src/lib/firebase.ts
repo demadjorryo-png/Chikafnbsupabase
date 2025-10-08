@@ -1,25 +1,19 @@
 'use client';
 
-import {initializeApp, getApps, getApp} from 'firebase/app';
-import {getAuth} from 'firebase/auth';
-import {getFirestore} from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { createClient } from '@supabase/supabase-js';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAT7g9niddpksmzpOhcz6g8dtWnq5Vd6ms",
-  authDomain: "kasir-pos-chika-toko-354-1abce.firebaseapp.com",
-  projectId: "kasir-pos-chika-toko-354-1abce",
-  storageBucket: "kasir-pos-chika-toko-354-1abce.firebasestorage.app",
-  messagingSenderId: "582069956448",
-  appId: "1:582069956448:web:d7cbbc87ae84a17c837805"
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export { app, auth, db, storage };
+// Export for compatibility with existing code that expects 'auth', 'db', 'storage'
+const auth = supabase.auth;
+const db = supabase; // Direct reference to the client for database operations
+const storage = supabase.storage;
+
+export { supabase, auth, db, storage };

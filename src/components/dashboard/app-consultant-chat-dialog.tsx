@@ -12,15 +12,24 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { BrainCircuit, Loader, Send, User, Sparkles } from 'lucide-react';
-import { AppConsultantInput, AppConsultantOutput, consultWithChika } from '@/ai/flows/app-consultant';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import ReactMarkdown from 'react-markdown';
 import { useToast } from '@/hooks/use-toast';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { functions } from 'genkit';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 
+interface AppConsultantInput {
+  conversationHistory: string;
+  userInput: string;
+  businessType?: 'fnb' | 'retail';
+}
+
+interface AppConsultantOutput {
+  response: string;
+  shouldEscalateToAdmin: boolean;
+  escalationMessage?: string;
+}
 
 interface WhatsappSettings {
   deviceId: string;
@@ -135,11 +144,29 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
                 userInput: question,
             };
 
-            const funcs = getFunctions();
-            const callConsultWithChika = httpsCallable<AppConsultantInput, AppConsultantOutput>(funcs, 'consultWithChika');
-            
-            const result = await callConsultWithChika(apiInput);
-            const flowResult = result.data;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            if (!supabaseUrl) {
+              throw new Error('Supabase URL is not configured.');
+            }
+        
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            const accessToken = sessionData?.session?.access_token;            
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/consult-with-chika`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify(apiInput),
+            });
+        
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Failed to call Edge Function');
+            }
+        
+            const flowResult: AppConsultantOutput = await response.json();
 
             setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: flowResult.response }]);
 
@@ -149,15 +176,32 @@ export function AppConsultantChatDialog({ open, onOpenChange }: AppConsultantCha
                     description: "Rangkuman percakapan ini sedang dikirim ke grup admin platform.",
                 });
 
-                const sendWhatsapp = httpsCallable(funcs, 'sendWhatsapp');
-                await sendWhatsapp({
+                // Call sendWhatsapp Edge Function
+                const whatsappResponse = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,
+                  },
+                  body: JSON.stringify({
                     storeId: "platform", // Special identifier for platform-level actions
                     message: flowResult.escalationMessage,
                     isGroup: true,
+                  }),
                 });
+
+                if (!whatsappResponse.ok) {
+                    const whatsappErrorData = await whatsappResponse.json();
+                    console.error("Error sending WhatsApp message:", whatsappErrorData);
+                    toast({
+                        variant: "destructive",
+                        title: "Gagal Mengirim Pesan WhatsApp",
+                        description: "Terjadi kesalahan saat mengirim pesan rangkuman ke admin.",
+                    });
+                }
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Consultant AI processing error:", error);
             setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Maaf, terjadi kesalahan saat memproses permintaan Anda. Coba lagi.' }]);
         } finally {

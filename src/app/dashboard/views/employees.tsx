@@ -38,9 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { AddEmployeeForm } from '@/components/dashboard/add-employee-form';
 import { EditEmployeeForm } from '@/components/dashboard/edit-employee-form';
-import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -70,25 +68,25 @@ export default function Employees() {
     if (!activeStore) return;
     setIsLoading(true);
     try {
-      const usersRef = collection(db, 'users');
-      
-      const cashiersQuery = query(usersRef, where("storeId", "==", activeStore.id));
-      
-      const adminUids = activeStore.adminUids || [];
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, role, status, store_id') // Menyesuaikan kolom dengan Supabase profiles
+        .or(`store_id.eq.${activeStore.id},id.in.(${activeStore.admin_uids?.join(',') || ''})`); // Menggabungkan query untuk cashier dan admin
 
-      const [cashiersSnapshot, adminsSnapshot] = await Promise.all([
-        getDocs(cashiersQuery),
-        adminUids.length > 0 ? getDocs(query(usersRef, where('__name__', 'in', adminUids))) : Promise.resolve({ docs: [] })
-      ]);
+      if (error) {
+        throw error;
+      }
 
-      const firestoreCashiers = cashiersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      const firestoreAdmins = adminsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-
-      const allUsersMap = new Map<string, User>();
-      firestoreCashiers.forEach(u => allUsersMap.set(u.id, u));
-      firestoreAdmins.forEach(u => allUsersMap.set(u.id, u));
+      const fetchedUsers: User[] = (profileData || []).map(profile => ({
+        id: profile.id,
+        name: profile.display_name || 'N/A', // Sesuaikan dengan kolom nama di Supabase
+        email: profile.email,
+        role: profile.role || 'cashier', // Default role jika tidak ada
+        status: profile.status || 'active', // Default status jika tidak ada
+        storeId: profile.store_id || null, // Sesuaikan dengan kolom store_id di Supabase
+      }));
       
-      setUsers(Array.from(allUsersMap.values()));
+      setUsers(fetchedUsers);
 
     } catch (error) {
         console.error("Error fetching users:", error);
@@ -128,10 +126,16 @@ export default function Employees() {
     if (!selectedUser) return;
     
     const newStatus = selectedUser.status === 'active' ? 'inactive' : 'active';
-    const userDocRef = doc(db, 'users', selectedUser.id);
 
     try {
-        await updateDoc(userDocRef, { status: newStatus });
+        const { error } = await supabase
+            .from('profiles')
+            .update({ status: newStatus })
+            .eq('id', selectedUser.id);
+        
+        if (error) {
+            throw error;
+        }
         
         setUsers(prevUsers => prevUsers.map(u => u.id === selectedUser.id ? {...u, status: newStatus} : u));
 
@@ -160,7 +164,12 @@ export default function Employees() {
     }
     
     try {
-      await sendPasswordResetEmail(auth, selectedUser.email);
+      const { error } = await supabase.auth.resetPasswordForEmail(selectedUser.email);
+      
+      if (error) {
+        throw error;
+      }
+
       toast({
         title: 'Email Reset Password Terkirim',
         description: `Email telah dikirim ke ${selectedUser.email}.`,

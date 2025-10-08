@@ -37,15 +37,14 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'storage.googleapis.com',
+        hostname: process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '').split('/')[0],
         port: '',
-        pathname: '/**',
+        pathname: '/storage/v1/object/public/**',
       }
     ],
   },
   experimental: {
     serverComponentsExternalPackages: [
-        'firebase-admin',
         'genkit', 
         '@genkit-ai/core', 
         'zod',

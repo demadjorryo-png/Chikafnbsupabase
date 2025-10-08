@@ -7,13 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-// Hapus import { generateChallenges } from '@/ai/flows/challenge-generator';
-// Hapus import type { ChallengeGeneratorOutput, Challenge } from '@/ai/flows/challenge-generator';
 import { Loader, Sparkles, Trophy, Save, Calendar as CalendarIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
-import { addDoc, collection, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { DateRange } from 'react-day-picker';
 import { addDays, format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -189,15 +186,24 @@ export default function Challenges() {
 
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'stores', activeStore.id, 'challengePeriods'), {
-        startDate: format(date?.from || new Date(), 'yyyy-MM-dd'),
-        endDate: format(date?.to || new Date(), 'yyyy-MM-dd'),
-        period: generatedChallenges.period,
-        challenges: generatedChallenges.challenges,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      });
+      const { data, error } = await supabase
+        .from('challenge_periods')
+        .insert({
+            store_id: activeStore.id,
+            start_date: format(date?.from || new Date(), 'yyyy-MM-dd'),
+            end_date: format(date?.to || new Date(), 'yyyy-MM-dd'),
+            period: generatedChallenges.period,
+            challenges: generatedChallenges.challenges,
+            is_active: true, // Supabase expects snake_case
+            created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
       
+      if (error) {
+        throw error;
+      }
+
       toast({ title: 'Tantangan Berhasil Disimpan!', description: 'Periode tantangan baru kini aktif untuk karyawan.' });
       setGeneratedChallenges(null);
       refreshData();
@@ -213,8 +219,15 @@ export default function Challenges() {
     if (!activeStore) return;
     setIsProcessingAction(true);
     try {
-      const periodRef = doc(db, 'stores', activeStore.id, 'challengePeriods', id);
-      await updateDoc(periodRef, { isActive: newStatus });
+      const { error } = await supabase
+        .from('challenge_periods')
+        .update({ is_active: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       toast({ title: 'Status Diperbarui', description: 'Status periode tantangan telah diubah.' });
       refreshData();
     } catch (error) {
@@ -232,7 +245,15 @@ export default function Challenges() {
     if (!periodToDelete || !activeStore) return;
     setIsProcessingAction(true);
     try {
-      await deleteDoc(doc(db, 'stores', activeStore.id, 'challengePeriods', periodToDelete.id));
+      const { error } = await supabase
+        .from('challenge_periods')
+        .delete()
+        .eq('id', periodToDelete.id);
+
+      if (error) {
+        throw error;
+      }
+
       toast({ title: 'Periode Dihapus', description: `Periode tantangan ${periodToDelete.period} telah dihapus.` });
       refreshData();
       setPeriodToDelete(null);

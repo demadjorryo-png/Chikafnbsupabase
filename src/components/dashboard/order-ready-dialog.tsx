@@ -17,7 +17,7 @@ import type { Customer, Store, Transaction, ReceiptSettings } from '@/lib/types'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { getReceiptSettings } from '@/lib/receipt-settings';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 
 type OrderReadyDialogProps = {
   transaction: Transaction;
@@ -70,32 +70,69 @@ export function OrderReadyDialog({
         return;
     }
 
-
     setIsLoading(true);
 
     try {
-        const functions = getFunctions();
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) {
+            throw new Error('Supabase URL is not configured.');
+        }
+    
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+
+        if (sessionError || !accessToken) {
+            console.warn("Could not get access token for Edge Function call, proceeding without it.", sessionError);
+            // Optionally, handle this error more strictly if the Edge Function requires authentication.
+        }
+
         const nameToAnnounce = customer?.name || transaction.customerName;
         const now = new Date();
         const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         
-        const callOrderReadyFollowUp = httpsCallable<OrderReadyFollowUpInput, OrderReadyFollowUpOutput>(functions, 'orderReadyFollowUpFlow');
-        
-        const generatedTextResult = await callOrderReadyFollowUp({
+        const orderReadyInput: OrderReadyFollowUpInput = {
             customerName: nameToAnnounce,
             storeName: store.name,
             itemsOrdered: transaction.items.map(item => item.productName),
             currentTime: currentTime,
             notificationStyle: receiptSettings.notificationStyle,
+        };
+
+        const orderReadyResponse = await fetch(`${supabaseUrl}/functions/v1/order-ready-follow-up-flow`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify(orderReadyInput),
         });
 
-        const text = generatedTextResult.data.followUpMessage;
+        if (!orderReadyResponse.ok) {
+            const errorData = await orderReadyResponse.json();
+            throw new Error(errorData.message || 'Failed to generate order ready message');
+        }
+
+        const generatedTextResult: OrderReadyFollowUpOutput = await orderReadyResponse.json();
+        const text = generatedTextResult.followUpMessage;
         setAnnouncementText(text);
 
         if (actionType === 'call') {
-            const callTextToSpeech = httpsCallable<TextToSpeechInput, TextToSpeechOutput>(functions, 'textToSpeechFlow');
-            const audioResult = await callTextToSpeech({ text, gender: receiptSettings.voiceGender });
-            setAudioDataUri(audioResult.data.audioDataUri);
+            const textToSpeechInput: TextToSpeechInput = { text, gender: receiptSettings.voiceGender };
+            const audioResponse = await fetch(`${supabaseUrl}/functions/v1/text-to-speech-flow`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(textToSpeechInput),
+            });
+
+            if (!audioResponse.ok) {
+                const errorData = await audioResponse.json();
+                throw new Error(errorData.message || 'Failed to convert text to speech');
+            }
+            const audioResult: TextToSpeechOutput = await audioResponse.json();
+            setAudioDataUri(audioResult.audioDataUri);
             onSuccess?.();
         } else if (actionType === 'whatsapp') {
             if (!customer?.phone) throw new Error("Nomor telepon pelanggan tidak ditemukan untuk mengirim WhatsApp.");
@@ -104,12 +141,23 @@ export function OrderReadyDialog({
                 ? `62${customer.phone.substring(1)}`
                 : customer.phone;
 
-            const sendWhatsapp = httpsCallable(functions, 'sendWhatsapp');
-            await sendWhatsapp({
-                storeId: store.id,
-                target: formattedPhone,
-                message: text,
+            const sendWhatsappResponse = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  storeId: store.id,
+                  target: formattedPhone,
+                  message: text,
+                }),
             });
+
+            if (!sendWhatsappResponse.ok) {
+                const errorData = await sendWhatsappResponse.json();
+                throw new Error(errorData.message || 'Failed to send WhatsApp message');
+            }
             
             toast({ title: "Notifikasi WhatsApp Terkirim!" });
             onSuccess?.();

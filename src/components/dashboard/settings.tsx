@@ -24,13 +24,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { auth, db } from '@/lib/firebase';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from 'firebase/auth';
+import { supabase } from '@/lib/supabase'; // Mengganti Firebase dengan Supabase
 import { Loader, KeyRound, UserCircle, Building, Eye, EyeOff, Save, Play, MessageSquareQuote, Zap, Info, Newspaper } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/contexts/dashboard-context';
@@ -40,10 +34,8 @@ import { getReceiptSettings, updateReceiptSettings } from '@/lib/receipt-setting
 import type { ReceiptSettings, NotificationSettings } from '@/lib/types';
 import type { TextToSpeechInput, TextToSpeechOutput } from '@/functions/src/ai/flows/text-to-speech';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { FirebaseError } from 'firebase/app';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const PasswordFormSchema = z
   .object({
@@ -138,9 +130,8 @@ export default function Settings() {
     values: z.infer<typeof PasswordFormSchema>
   ) => {
     setIsPasswordChangeLoading(true);
-    const user = auth.currentUser;
 
-    if (!user || !user.email) {
+    if (!currentUser || !currentUser.email) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -150,25 +141,39 @@ export default function Settings() {
       return;
     }
 
-    const credential = EmailAuthProvider.credential(
-      user.email,
-      values.currentPassword
-    );
-
     try {
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, values.newPassword);
+      // Reauthenticate: Sign in again to verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: values.currentPassword,
+      });
+
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          throw new Error('Password Anda saat ini salah.');
+        } else {
+          throw signInError;
+        }
+      }
+
+      // If reauthentication is successful, update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: values.newPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
       toast({
         title: 'Berhasil!',
         description: 'Password Anda telah berhasil diubah.',
       });
       passwordForm.reset();
-    } catch (error) {
+    } catch (error: any) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
-      if (error instanceof FirebaseError) {
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          description = 'Password Anda saat ini salah.';
-        }
+      if (error && error.message) {
+        description = error.message;
       }
       toast({
         variant: 'destructive',
@@ -184,12 +189,18 @@ export default function Settings() {
     if (!activeStore || !generalSettings || !notificationSettings) return;
     setIsGeneralSettingLoading(true);
     try {
-        const storeRef = doc(db, 'stores', activeStore.id);
-        await setDoc(storeRef, {
-            businessDescription: businessDescription,
-            notificationSettings: notificationSettings
-        }, { merge: true });
+      const { error: storeUpdateError } = await supabase
+        .from('stores')
+        .update({
+            business_description: businessDescription, // Supabase expects snake_case
+            notification_settings: notificationSettings,
+        })
+        .eq('id', activeStore.id);
   
+      if (storeUpdateError) {
+        throw storeUpdateError;
+      }
+
       await updateReceiptSettings(activeStore.id, {
         voiceGender: generalSettings.voiceGender,
         notificationStyle: generalSettings.notificationStyle,
@@ -209,14 +220,36 @@ export default function Settings() {
     if (!generalSettings?.voiceGender) return;
     setIsSamplePlaying(true);
     try {
-        const functions = getFunctions();
-        const callTextToSpeech = httpsCallable<TextToSpeechInput, TextToSpeechOutput>(functions, 'textToSpeechFlow');
-        const result = await callTextToSpeech({
+        const inputData: TextToSpeechInput = {
             text: "Ini adalah contoh suara saya. Terima kasih.",
             gender: generalSettings.voiceGender,
-        });
+        };
 
-        const audio = new Audio(result.data.audioDataUri);
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) {
+          throw new Error('Supabase URL is not configured.');
+        }
+    
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/text-to-speech-flow`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(inputData),
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to call Edge Function');
+        }
+    
+        const result: TextToSpeechOutput = await response.json();
+
+        const audio = new Audio(result.audioDataUri);
         audio.play();
     } catch (error) {
         console.error("Error playing voice sample:", error);
